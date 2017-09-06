@@ -1,24 +1,20 @@
 package com.xs0.dbktx
 
-import java.util.function.Function
-
 class RelToOneImpl<FROM : DbEntity<FROM, FROMID>, FROMID : Any, TO : DbEntity<TO, TOID>, TOID : Any> : RelToOne<FROM, TO> {
-    var info: ManyToOneInfo<FROM, FROMID, TO, TOID>? = null
-        private set
-    var idMapper: Function<FROM, TOID>? = null
-        private set
+    internal lateinit var info: ManyToOneInfo<FROM, FROMID, TO, TOID>
+    internal lateinit var idMapper: (FROM)->TOID?
 
-    fun init(info: ManyToOneInfo<FROM, FROMID, TO, TOID>, idMapper: Function<FROM, TOID>) {
+    fun init(info: ManyToOneInfo<FROM, FROMID, TO, TOID>, idMapper: (FROM)->TOID?) {
         this.info = info
         this.idMapper = idMapper
     }
 
-    fun mapId(from: FROM): TOID {
-        return idMapper!!.apply(from)
+    fun mapId(from: FROM): TOID? {
+        return idMapper(from)
     }
 
     val targetTable: DbTable<TO, TOID>
-        get() = info!!.oneTable
+        get() = info.oneTable
 
     override fun has(relatedProperty: Expr<TO, Boolean>): ExprBoolean<FROM> {
         return ExprFilterHasParent(info, relatedProperty)

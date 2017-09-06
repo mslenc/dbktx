@@ -2,17 +2,11 @@ package com.xs0.dbktx
 
 import com.xs0.dbktx.sqltypes.SqlType
 import com.xs0.dbktx.sqltypes.SqlTypes
-import org.jetbrains.annotations.Nullable
-import java.lang.reflect.ParameterizedType
 import java.math.BigDecimal
 import java.time.*
 import java.util.*
-import java.util.function.*
 import kotlin.reflect.KClass
-import kotlin.reflect.KClassifier
-import kotlin.reflect.KType
 import kotlin.reflect.full.isSubclassOf
-import com.xs0.dbktx.FieldProp.Companion.VARCHAR
 import com.xs0.dbktx.composite.CompositeId2
 import com.xs0.dbktx.sqltypes.SqlTypeKind
 
@@ -469,35 +463,36 @@ internal constructor(
         return dummyRow(table.columns)
     }
 
-    fun <COL : Column<E, TID>, TARGET : DbEntity<TARGET, TID>, TID: Any>
-    relToOne(sourceColumn: COL): RelToOne<E, TARGET> {
-        val foreignKey = foreignKeys[sourceColumn.fieldName] ?: throw IllegalArgumentException("Missing foreign key info for column " + sourceColumn.dbName)
+    fun <TARGET : DbEntity<TARGET, TID>, TID: Any>
+    relToOne(sourceColumn: Column<E, TID>): RelToOne<E, TARGET> {
+        val foreignKey = foreignKeys[sourceColumn.fieldName] ?: throw IllegalArgumentException("Missing foreign key info for column " + sourceColumn.fieldName)
 
         @Suppress("UNCHECKED_CAST")
         return this.relToOne(sourceColumn, foreignKey.foreignClass as KClass<TARGET>)
     }
 
-    fun <TARGET : DbEntity<TARGET, TID>, TID : CompositeId2<TARGET, A, B, TID>, A : Any, B : Any> relToOne(columnA: Column<E, A>, columnB: Column<E, B>, targetClass: Class<TARGET>): RelToOne<E, TARGET> {
+    fun <TARGET : DbEntity<TARGET, TID>, TID : CompositeId2<TARGET, A, B, TID>, A : Any, B : Any> relToOne(columnA: NonNullSimpleColumn<E, A>, columnB: NonNullSimpleColumn<E, B>, targetClass: KClass<TARGET>): RelToOne<E, TARGET> {
         return relToOne(columnA, columnB, targetClass, null)
     }
 
-    fun <TARGET : DbEntity<TARGET, TID>, TID : CompositeId2<TARGET, A, B, TID>, A : Any, B : Any> relToOne(columnA: Column<E, A>, columnB: Column<E, B>, targetClass: Class<TARGET>, idConstructor: BiFunction<A, B, TID>?): RelToOne<E, TARGET> {
+    fun <TARGET : DbEntity<TARGET, TID>, TID : CompositeId2<TARGET, A, B, TID>, A : Any, B : Any> relToOne(columnA: NonNullSimpleColumn<E, A>, columnB: NonNullSimpleColumn<E, B>, targetClass: KClass<TARGET>, idConstructor: ((A, B)->TID)?): RelToOne<E, TARGET> {
         val result = RelToOneImpl<E, ID, TARGET, TID>()
         table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
             val targetTable = table.schema.getTableFor(targetClass)
+            @Suppress("UNCHECKED_CAST")
             val targetIdColumns = targetTable.idField as MultiColumn<TARGET, TID>
             val targetId = targetIdColumns.from(dummyRow(targetTable.columns))
 
-            val fields = arrayOfNulls<ColumnMapping<*, *, *>>(2)
+            val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
+                ColumnMapping(columnA, targetId.columnA),
+                ColumnMapping(columnB, targetId.columnB)
+            )
 
-            fields[0] = ColumnMapping(columnA, targetId.columnA)
-            fields[1] = ColumnMapping(columnB, targetId.columnB)
+            val info = ManyToOneInfo(table, targetTable, fields)
 
-            val info = ManyToOneInfo<E, ID, TARGET, TID>(table, targetTable, fields)
-
-            val idCons: Function<E, TID>
+            val idCons: (E)->TID
             if (idConstructor != null) {
-                idCons = { source -> idConstructor.apply(columnA.from(source), columnB.from(source)) }
+                idCons = { source -> idConstructor(columnA(source), columnB(source)) }
             } else {
                 idCons = info.makeForwardMapper()
             }
@@ -513,62 +508,46 @@ internal constructor(
         table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
             val targetTable = table.schema.getTableFor(targetClass)
 
-            if (!targetTable.idClass.isAssignableFrom(sourceField.sqlType.javaType))
+            if (!sourceField.sqlType.kotlinType.isSubclassOf(targetTable.idClass))
                 throw IllegalStateException("Type mismatch on relToOne mapping for table " + table.dbName)
 
-            val fields = arrayOfNulls<ColumnMapping<*, *, *>>(1)
+            val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
+                ColumnMapping(sourceField, targetTable.idField as NonNullSimpleColumn<TARGET, TID>)
+            )
 
-            val field0 = ColumnMapping(sourceField, targetTable.idField as Column<*, *>)
+            val info = ManyToOneInfo(table, targetTable, fields)
 
-            fields[0] = field0
-
-            val info = ManyToOneInfo<E, ID, TARGET, TID>(table, targetTable, fields)
-
-            result.init(info) { sourceField.from(it) }
+            result.init(info, sourceField::invoke)
         }
         return result
     }
 
-    fun <TARGET : DbEntity<TARGET, TID>, TID> relToMany(oppositeRel: Supplier<RelToOne<TARGET, E>>): RelToMany<E, TARGET> {
+    fun <TARGET : DbEntity<TARGET, TID>, TID: Any>
+    relToMany(oppositeRel: ()->RelToOne<TARGET, E>): RelToMany<E, TARGET> {
         val rel = RelToManyImpl<E, ID, TARGET, TID>()
         table.schema.addLazyInit(PRIORITY_REL_TO_MANY) {
-            val relToOne = oppositeRel.get() as RelToOneImpl<TARGET, TID, E, ID>
+            @Suppress("UNCHECKED_CAST")
+            val relToOne = oppositeRel() as RelToOneImpl<TARGET, TID, E, ID>
             val info = relToOne.info
             rel.init(info, relToOne.idMapper, info.makeReverseQueryBuilder())
         }
         return rel
     }
 
-    fun <CTX> withContext(klass: Class<CTX>): WithContext<E, ID, CTX> {
-        return table.getOrCreateContext(klass)
-    }
-
-    fun onInsert(insertModifier: Consumer<DbInsert<E, ID>>) {
-        Objects.requireNonNull(insertModifier)
-        table.getOrCreateContext<Any>(null).onInsert { insert, noCtx -> insertModifier.accept(insert) }
-    }
-
-    fun onUpdate(updateModifier: Consumer<DbUpdate<E>>) {
-        Objects.requireNonNull(updateModifier)
-        table.getOrCreateContext<Any>(null).onUpdate { update, ctx -> updateModifier.accept(update) }
-    }
-
     companion object {
-
-        protected val PRIORITY_COLUMNS = 0
-        protected val PRIORITY_REL_TO_ONE = 1
-        protected val PRIORITY_REL_TO_MANY = 2
+        const val PRIORITY_REL_TO_ONE = 1
+        const val PRIORITY_REL_TO_MANY = 2
 
         internal fun <E : DbEntity<E, *>> dummyRow(columns: ArrayList<Column<E, *>>): List<Any> {
             val res = ArrayList<Any>()
 
             for (column in columns)
-                addDummy<*>(column.sqlType, res)
+                addDummy(column.sqlType, res)
 
             return res
         }
 
-        internal fun <T> addDummy(sqlType: SqlType<T>, out: MutableList<Any>) {
+        private fun <T: Any> addDummy(sqlType: SqlType<T>, out: MutableList<Any>) {
             out.add(sqlType.toJson(sqlType.dummyValue()))
         }
 

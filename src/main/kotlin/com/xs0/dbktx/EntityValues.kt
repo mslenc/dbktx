@@ -10,4 +10,12 @@ class EntityValues<E : DbEntity<E, *>> {
     fun contains(column: Column<E, *>): Boolean {
         return values.contains(column)
     }
+
+    fun isEmpty(): Boolean {
+        return values.isEmpty()
+    }
+
+    operator fun iterator(): MutableIterator<MutableMap.MutableEntry<Column<E, *>, Expr<in E, *>>> {
+        return values.entries.iterator()
+    }
 }

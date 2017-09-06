@@ -2,9 +2,12 @@ package com.xs0.dbktx
 
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
-import kotlinx.coroutines.experimental.Deferred
-import kotlinx.coroutines.experimental.Unconfined
-import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.experimental.*
+import mu.KotlinLogging
+import kotlin.coroutines.experimental.Continuation
+import kotlin.coroutines.experimental.suspendCoroutine
+
+private val logger = KotlinLogging.logger {}
 
 fun <T> makeHandler(onError: (Throwable) -> Unit, onSuccess: (T) -> Unit): Handler<AsyncResult<T>> {
     return Handler { result ->
@@ -132,6 +135,47 @@ fun putLongBE(value: Long, bytes: ByteArray, pos: Int) {
     putIntBE(value         .toInt(), bytes, pos + 4)
 }
 
-inline fun <T> defer(noinline block: suspend () -> T): Deferred<T> {
+fun <T> defer(block: suspend () -> T): Deferred<T> {
     return async(Unconfined) { block() }
+}
+
+inline suspend fun <T> vx(crossinline callback: (Handler<AsyncResult<T>>) -> Unit) =
+        suspendCoroutine<T> { cont ->
+            callback(Handler { result: AsyncResult<T> ->
+                if (result.succeeded()) {
+                    cont.resume(result.result())
+                } else {
+                    cont.resumeWithException(result.cause())
+                }
+            })
+        }
+
+fun <T> notifyCont(handlerList: ListEl<Continuation<T?>>?, result: T?) {
+    var handlers = handlerList
+
+    while (handlers != null) {
+        val curr = handlers.value
+        handlers = handlers.next
+
+        try {
+            curr.resume(result)
+        } catch (t: Throwable) {
+            logger.error("Error while executing continuation", t)
+        }
+    }
+}
+
+fun <T> notifyError(handlerList: ListEl<Continuation<T>>?, error: Throwable) {
+    var handlers = handlerList
+
+    while (handlers != null) {
+        val curr = handlers.value
+        handlers = handlers.next
+
+        try {
+            curr.resumeWithException(error)
+        } catch (t: Throwable) {
+            logger.error("Error while executing continuation", t)
+        }
+    }
 }
