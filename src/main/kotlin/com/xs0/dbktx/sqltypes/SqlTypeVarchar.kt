@@ -4,13 +4,15 @@ import com.xs0.dbktx.*
 import kotlin.reflect.KClass
 
 // VARCHAR, TEXT, etc => String
-class SqlTypeVarchar(concreteType: SqlTypeKind, size: Int?, fieldProps: FieldProps) : SqlType<String>(fieldProps) {
+class SqlTypeVarchar(
+        concreteType: SqlTypeKind,
+        size: Int?,
+        isNotNull: Boolean)
+    : SqlType<String>(isNotNull, false) {
+
     private val maxSize: Int
-    private val collation: DbCollation
 
     init {
-        this.collation = fieldProps.collation ?: throw IllegalStateException("Missing collation for string field")
-
         when (concreteType) {
             SqlTypeKind.TINYTEXT -> this.maxSize = 255
 
@@ -69,9 +71,9 @@ class SqlTypeVarchar(concreteType: SqlTypeKind, size: Int?, fieldProps: FieldPro
 
     companion object {
         // is expected to only be used for calling the toSql(), so it is not expected to matter much which type it is, or which collation
-        private val INSTANCE_FOR_LITERALS = SqlTypeVarchar(SqlTypeKind.LONGTEXT, null, FieldProps(false, null, true, false, false, null, null, MySQLCollators.byName("utf8_general_ci")))
+        private val INSTANCE_FOR_LITERALS = SqlTypeVarchar(SqlTypeKind.LONGTEXT, null, true)
 
-        fun makeLiteral(value: String): Literal<String> {
+        fun <E> makeLiteral(value: String): Literal<E, String> {
             return Literal(value, INSTANCE_FOR_LITERALS)
         }
     }

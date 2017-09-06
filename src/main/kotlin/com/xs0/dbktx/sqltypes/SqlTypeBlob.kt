@@ -1,16 +1,14 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.FieldProps
 import com.xs0.dbktx.SqlBuilder
 
-import java.util.Arrays
 import java.util.Base64
 
 import java.nio.charset.StandardCharsets.ISO_8859_1
 import kotlin.reflect.KClass
 
 // VARBINARY, BLOB, etc => byte[]
-class SqlTypeBlob(concreteType: SqlTypeKind, size: Int, fieldProps: FieldProps) : SqlType<ByteArray>(fieldProps) {
+class SqlTypeBlob(concreteType: SqlTypeKind, size: Int, isNotNull: Boolean) : SqlType<ByteArray>(isNotNull = isNotNull) {
     private val maxSize: Int
 
     init {

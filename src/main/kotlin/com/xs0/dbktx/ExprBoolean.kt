@@ -1,16 +1,16 @@
 package com.xs0.dbktx
 
 
-interface ExprBoolean<TABLE> : Expr<TABLE, Boolean> {
-    operator fun not(): ExprBoolean<TABLE> {
+interface ExprBoolean<E> : Expr<E, Boolean> {
+    operator fun not(): ExprBoolean<E> {
         return ExprNegate(this)
     }
 
-    fun and(other: Expr<in TABLE, Boolean>): ExprBoolean<TABLE> {
-        return ExprAnd.create(this, other)
+    fun and(other: Expr<in E, Boolean>): ExprBoolean<E> {
+        return ExprBools.create(this, ExprBools.Op.AND, other)
     }
 
-    fun or(other: Expr<TABLE, Boolean>): ExprBoolean<TABLE> {
-        return ExprOr.create(this, other)
+    fun or(other: Expr<E, Boolean>): ExprBoolean<E> {
+        return ExprBools.create(this, ExprBools.Op.OR, other)
     }
 }

@@ -7,7 +7,7 @@ import java.util.UUID
 import java.nio.charset.StandardCharsets.ISO_8859_1
 import kotlin.reflect.KClass
 
-abstract class SqlTypeUUID protected constructor(fieldProps: FieldProps) : SqlType<UUID>(fieldProps) {
+abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<UUID>(isNotNull = isNotNull) {
     override fun dummyValue(): UUID {
         return UUID.randomUUID()
     }
@@ -15,7 +15,7 @@ abstract class SqlTypeUUID protected constructor(fieldProps: FieldProps) : SqlTy
     override val kotlinType: KClass<UUID> = UUID::class
 
 
-    private class VarcharRawChars(fieldProps: FieldProps) : SqlTypeUUID(fieldProps) {
+    private class VarcharRawChars(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
         override fun fromJson(value: Any): UUID {
             return (value as String).toByteArray(ISO_8859_1).toUUID()
         }
@@ -29,7 +29,7 @@ abstract class SqlTypeUUID protected constructor(fieldProps: FieldProps) : SqlTy
         }
     }
 
-    private class VarcharBase64(fieldProps: FieldProps, private val skipPadding: Boolean) : SqlTypeUUID(fieldProps) {
+    private class VarcharBase64(isNotNull: Boolean, private val skipPadding: Boolean) : SqlTypeUUID(isNotNull) {
 
         override fun fromJson(value: Any): UUID {
             return Base64.getDecoder().decode(value as String).toUUID()
@@ -49,7 +49,7 @@ abstract class SqlTypeUUID protected constructor(fieldProps: FieldProps) : SqlTy
         }
     }
 
-    private class VarcharHex(fieldProps: FieldProps) : SqlTypeUUID(fieldProps) {
+    private class VarcharHex(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
         override fun fromJson(value: Any): UUID {
             return bytesFromHex(value as String).toUUID()
         }
@@ -63,7 +63,7 @@ abstract class SqlTypeUUID protected constructor(fieldProps: FieldProps) : SqlTy
         }
     }
 
-    private class VarcharFullString(fieldProps: FieldProps) : SqlTypeUUID(fieldProps) {
+    private class VarcharFullString(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
 
         override fun fromJson(value: Any): UUID {
             return UUID.fromString(value as String)
@@ -78,7 +78,7 @@ abstract class SqlTypeUUID protected constructor(fieldProps: FieldProps) : SqlTy
         }
     }
 
-    private class BinaryRawChars(fieldProps: FieldProps) : SqlTypeUUID(fieldProps) {
+    private class BinaryRawChars(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
 
         override fun fromJson(value: Any): UUID {
             return Base64.getDecoder().decode(value as String).toUUID()
@@ -93,7 +93,7 @@ abstract class SqlTypeUUID protected constructor(fieldProps: FieldProps) : SqlTy
         }
     }
 
-    private class BinaryBase64(fieldProps: FieldProps, private val skipPadding: Boolean) : SqlTypeUUID(fieldProps) {
+    private class BinaryBase64(isNotNull: Boolean, private val skipPadding: Boolean) : SqlTypeUUID(isNotNull) {
 
         override fun fromJson(value: Any): UUID {
             // we have base64 in DB, and then again in the json thing (due to being binary)
@@ -123,7 +123,7 @@ abstract class SqlTypeUUID protected constructor(fieldProps: FieldProps) : SqlTy
         }
     }
 
-    private class BinaryHex(fieldProps: FieldProps) : SqlTypeUUID(fieldProps) {
+    private class BinaryHex(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
 
         override fun fromJson(value: Any): UUID {
             val hexBytes = Base64.getDecoder().decode(value as String)
@@ -141,7 +141,7 @@ abstract class SqlTypeUUID protected constructor(fieldProps: FieldProps) : SqlTy
         }
     }
 
-    private class BinaryFullString(fieldProps: FieldProps) : SqlTypeUUID(fieldProps) {
+    private class BinaryFullString(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
 
         override fun fromJson(value: Any): UUID {
             val bytes = Base64.getDecoder().decode(value as String)
@@ -161,28 +161,28 @@ abstract class SqlTypeUUID protected constructor(fieldProps: FieldProps) : SqlTy
 
     companion object {
 
-        fun create(concreteType: SqlTypeKind, typeSize: Int, fieldProps: FieldProps): SqlTypeUUID {
+        fun create(concreteType: SqlTypeKind, typeSize: Int, isNotNull: Boolean): SqlTypeUUID {
             when (concreteType) {
                 SqlTypeKind.CHAR, SqlTypeKind.VARCHAR ->
                     when (typeSize) {
-                        16 -> return VarcharRawChars(fieldProps)
-                        22 -> return VarcharBase64(fieldProps, true)
-                        24 -> return VarcharBase64(fieldProps, false)
-                        32 -> return VarcharHex(fieldProps)
+                        16 -> return VarcharRawChars(isNotNull)
+                        22 -> return VarcharBase64(isNotNull, skipPadding = true)
+                        24 -> return VarcharBase64(isNotNull, skipPadding = false)
+                        32 -> return VarcharHex(isNotNull)
 
                         else -> if (typeSize >= 36)
-                            return VarcharFullString(fieldProps)
+                            return VarcharFullString(isNotNull)
                     }
 
                 SqlTypeKind.BINARY, SqlTypeKind.VARBINARY ->
                     when (typeSize) {
-                        16 -> return BinaryRawChars(fieldProps)
-                        22 -> return BinaryBase64(fieldProps, true)
-                        24 -> return BinaryBase64(fieldProps, false)
-                        32 -> return BinaryHex(fieldProps)
+                        16 -> return BinaryRawChars(isNotNull)
+                        22 -> return BinaryBase64(isNotNull, skipPadding = true)
+                        24 -> return BinaryBase64(isNotNull, skipPadding = false)
+                        32 -> return BinaryHex(isNotNull)
 
                         else -> if (typeSize >= 36)
-                            return BinaryFullString(fieldProps)
+                            return BinaryFullString(isNotNull)
                     }
 
             }

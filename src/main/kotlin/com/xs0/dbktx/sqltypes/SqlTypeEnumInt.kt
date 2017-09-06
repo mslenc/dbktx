@@ -1,10 +1,10 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.FieldProps
 import com.xs0.dbktx.SqlBuilder
 import kotlin.reflect.KClass
 
-internal class SqlTypeEnumInt<ENUM : Enum<ENUM>>(override val kotlinType: KClass<ENUM>, private val toDbRep: (ENUM)->Int, private val fromDbRep: (Int)->ENUM, fieldProps: FieldProps, private val dummyValue: ENUM) : SqlType<ENUM>(fieldProps) {
+@PublishedApi
+internal class SqlTypeEnumInt<ENUM : Enum<ENUM>>(override val kotlinType: KClass<ENUM>, private val toDbRep: (ENUM)->Int, private val fromDbRep: (Int)->ENUM, isNotNull: Boolean, private val dummyValue: ENUM) : SqlType<ENUM>(isNotNull = isNotNull) {
     override fun fromJson(value: Any): ENUM {
         if (value is Number) {
             return fromDbRep(value.toInt())

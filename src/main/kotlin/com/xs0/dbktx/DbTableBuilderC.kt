@@ -1,5 +1,6 @@
 package com.xs0.dbktx
 
+import com.xs0.dbktx.composite.CompositeId
 import si.datastat.db.api.DbEntity
 import si.datastat.db.api.MultiColumn
 import si.datastat.db.api.util.CompositeId

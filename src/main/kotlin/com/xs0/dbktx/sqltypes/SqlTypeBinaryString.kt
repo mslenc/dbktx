@@ -1,6 +1,5 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.FieldProps
 import com.xs0.dbktx.SqlBuilder
 
 import java.util.Base64
@@ -8,7 +7,7 @@ import java.util.Base64
 import java.nio.charset.StandardCharsets.ISO_8859_1
 import kotlin.reflect.KClass
 
-class SqlTypeBinaryString(concreteType: SqlTypeKind, size: Int?, fieldProps: FieldProps) : SqlType<String>(fieldProps) {
+class SqlTypeBinaryString(concreteType: SqlTypeKind, size: Int?, isNotNull: Boolean) : SqlType<String>(isNotNull, false) {
     private val maxSize: Int
 
     init {

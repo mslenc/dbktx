@@ -2,6 +2,9 @@ package com.xs0.dbktx
 
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
+import kotlinx.coroutines.experimental.Deferred
+import kotlinx.coroutines.experimental.Unconfined
+import kotlinx.coroutines.experimental.async
 
 fun <T> makeHandler(onError: (Throwable) -> Unit, onSuccess: (T) -> Unit): Handler<AsyncResult<T>> {
     return Handler { result ->
@@ -127,4 +130,8 @@ fun putIntBE(value: Int, bytes: ByteArray, pos: Int) {
 fun putLongBE(value: Long, bytes: ByteArray, pos: Int) {
     putIntBE(value.ushr(32).toInt(), bytes, pos    )
     putIntBE(value         .toInt(), bytes, pos + 4)
+}
+
+inline fun <T> defer(noinline block: suspend () -> T): Deferred<T> {
+    return async(Unconfined) { block() }
 }

@@ -1,11 +1,10 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.FieldProps
 import com.xs0.dbktx.SqlBuilder
 import java.time.LocalTime
 import kotlin.reflect.KClass
 
-class SqlTypeLocalTime(concreteType: SqlTypeKind, fieldProps: FieldProps) : SqlType<LocalTime>(fieldProps) {
+class SqlTypeLocalTime(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<LocalTime>(isNotNull = isNotNull) {
     init {
         if (concreteType != SqlTypeKind.TIME)
             throw IllegalArgumentException("Unsupported type " + concreteType)

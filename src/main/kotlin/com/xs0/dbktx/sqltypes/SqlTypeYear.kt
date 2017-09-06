@@ -1,20 +1,14 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.FieldProps
 import com.xs0.dbktx.SqlBuilder
 
 import java.time.Year
 import kotlin.reflect.KClass
 
-class SqlTypeYear(concreteType: SqlTypeKind, fieldProps: FieldProps) : SqlType<Year>(fieldProps) {
+class SqlTypeYear(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<Year>(isNotNull = isNotNull) {
     init {
-
-        when (concreteType) {
-            SqlTypeKind.YEAR -> {
-            }
-
-            else -> throw IllegalArgumentException("Unsupported type " + concreteType)
-        }
+        if (concreteType != SqlTypeKind.YEAR)
+            throw IllegalArgumentException("Unsupported type " + concreteType)
     }
 
     override fun fromJson(value: Any): Year {

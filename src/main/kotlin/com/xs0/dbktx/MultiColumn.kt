@@ -1,5 +1,7 @@
 package com.xs0.dbktx
 
+import com.xs0.dbktx.composite.CompositeId
+
 private fun buildFieldTuple(id: CompositeId<*, *>): String {
     val sb = StringBuilder()
     for (i in 0 until id.numColumns) {

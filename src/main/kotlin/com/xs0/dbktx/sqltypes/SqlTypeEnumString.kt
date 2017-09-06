@@ -1,12 +1,14 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.FieldProps
 import com.xs0.dbktx.SqlBuilder
 import kotlin.reflect.KClass
 
 // enum => String
-class SqlTypeEnumString(private val values: Map<String, Int>, fieldProps: FieldProps) : SqlType<String>(fieldProps) {
-    private val collation = fieldProps.collation ?: throw IllegalArgumentException("Missing collation")
+class SqlTypeEnumString(val values: Set<String>, isNotNull: Boolean) : SqlType<String>(isNotNull = isNotNull) {
+    init {
+        if (values.isEmpty())
+            throw IllegalArgumentException("Missing enum values")
+    }
 
     override fun fromJson(value: Any): String {
         if (value is CharSequence)
@@ -20,7 +22,7 @@ class SqlTypeEnumString(private val values: Map<String, Int>, fieldProps: FieldP
     }
 
     override fun dummyValue(): String {
-        return values.keys.iterator().next()
+        return values.iterator().next()
     }
 
     override fun toSql(value: String, sb: SqlBuilder, topLevel: Boolean) {

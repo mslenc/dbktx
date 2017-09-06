@@ -11,13 +11,10 @@ class ExprOneOf<TABLE, T>(private val needle: Expr<in TABLE, T>, private val hay
 
         needle.toSql(sb, false)
         sb.sql(" IN (")
-        var i = 0
-        val n = haystack.size
-        while (i < n) {
+        for ((i, sub) in haystack.withIndex()) {
             if (i > 0)
                 sb.sql(", ")
-            haystack[i].toSql(sb, true)
-            i++
+            sub.toSql(sb, true)
         }
         sb.sql(")")
 
@@ -25,13 +22,14 @@ class ExprOneOf<TABLE, T>(private val needle: Expr<in TABLE, T>, private val hay
     }
 
     companion object {
-
         fun <TABLE, T> oneOf(needle: Expr<in TABLE, T>, haystack: List<Expr<in TABLE, T>>): ExprBoolean<TABLE> {
-            return if (haystack.size == 1) {
-                ExprEquals.equals(needle, haystack[0])
-            } else {
-                ExprOneOf(needle, haystack)
-            }
+            if (haystack.isEmpty())
+                throw IllegalArgumentException("Empty list supplied to oneOf")
+
+            if (haystack.size == 1)
+                return ExprBinary(needle, ExprBinary.Op.EQ, haystack[0])
+
+            return ExprOneOf(needle, haystack)
         }
     }
 }

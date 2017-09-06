@@ -74,7 +74,7 @@ class SqlBuilder {
     }
 
     fun name(column: Column<*,*>): SqlBuilder {
-        sql.append(column.dbName)
+        sql.append(column.fieldName)
         return this
     }
 

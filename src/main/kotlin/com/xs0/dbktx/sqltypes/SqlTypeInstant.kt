@@ -1,12 +1,11 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.FieldProps
 import com.xs0.dbktx.SqlBuilder
 
 import java.time.Instant
 import kotlin.reflect.KClass
 
-class SqlTypeInstant(concreteType: SqlTypeKind, fieldProps: FieldProps) : SqlType<Instant>(fieldProps) {
+class SqlTypeInstant(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<Instant>(isNotNull = isNotNull) {
     init {
         if (concreteType != SqlTypeKind.TIMESTAMP)
             throw IllegalArgumentException("Unsupported type " + concreteType)

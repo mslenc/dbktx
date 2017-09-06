@@ -1,11 +1,10 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.FieldProps
 import com.xs0.dbktx.SqlBuilder
 import java.time.Duration
 import kotlin.reflect.KClass
 
-class SqlTypeDuration(concreteType: SqlTypeKind, fieldProps: FieldProps) : SqlType<Duration>(fieldProps) {
+class SqlTypeDuration(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<Duration>(isNotNull = isNotNull) {
     init {
         if (concreteType != SqlTypeKind.TIME)
             throw IllegalArgumentException("Unsupported type " + concreteType)

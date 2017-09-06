@@ -34,13 +34,6 @@ abstract class FieldProp protected constructor() {
             return Collate(MySQLCollators.byName(dbCollationName))
         }
 
-        fun ENUM(vararg values: String): EnumDef {
-            if (values.isEmpty())
-                throw IllegalArgumentException("Missing enum values")
-
-            return EnumDef(*values)
-        }
-
         fun TRUE_IS(value: Int): IntAsBoolValueDef {
             return IntAsBoolValueDef(true, value)
         }
@@ -181,23 +174,6 @@ abstract class FieldProp protected constructor() {
 
 class ForeignKey<E : DbEntity<E, ID>, ID> internal constructor(val foreignClass: KClass<E>) : FieldProp() {
     override val kind = FieldPropKind.FOREIGN_KEY
-}
-
-class EnumDef(vararg values: String) {
-    private val values: LinkedHashMap<String, Int> = LinkedHashMap()
-
-    init {
-        for (value in values)
-            if (this.values.put(value, this.values.size) != null)
-                throw IllegalArgumentException("Repeated enum value")
-
-        if (this.values.isEmpty())
-            throw IllegalArgumentException("Missing enum values")
-    }
-
-    fun getValues(): Map<String, Int> {
-        return values
-    }
 }
 
 class SqlTypeDef internal constructor(
