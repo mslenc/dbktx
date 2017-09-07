@@ -6,15 +6,9 @@ import kotlinx.coroutines.experimental.Deferred
 
 /**
  * A connection to the database, providing methods for querying, updating and
- * transaction management. A connection has a Handler&lt;AsyncResult&lt;T>> attached,
- * which is mainly there to be notified of any "out of band" errors that occur, but
- * can also receive the end result via [.complete].
- *
- * @param <CTX>
+ * transaction management.
  */
-interface DbConn<CTX> {
-    val context: CTX
-
+interface DbConn {
     suspend fun query(sqlBuilder: SqlBuilder): ResultSet
 
     fun queryAsync(sqlBuilder: SqlBuilder): Deferred<ResultSet> {
@@ -22,82 +16,106 @@ interface DbConn<CTX> {
     }
 
 
+    suspend fun <E: DbEntity<E, ID>, ID: Any>
+    query(query: EntityQuery<E>): List<E>
+
+    fun <E: DbEntity<E, ID>, ID: Any>
+    queryAsync(query: EntityQuery<E>): Deferred<List<E>> {
+        return defer { query(query) }
+    }
+
+
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-            query(table: DbTable<E, ID>, filter: Expr<in E, Boolean>): List<E>
+    query(table: DbTable<E, ID>, filter: ExprBoolean<E>): List<E>
+
+    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    query(table: Z, filterBuilder: Z.() -> ExprBoolean<E>): List<E> {
+        return query(table, table.filterBuilder())
+    }
 
     fun <E : DbEntity<E, ID>, ID: Any>
-            queryAsync(table: DbTable<E, ID>, filter: Expr<in E, Boolean>): Deferred<List<E>> {
+    queryAsync(table: DbTable<E, ID>, filter: ExprBoolean<E>): Deferred<List<E>> {
         return defer { query(table, filter) }
     }
 
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-            queryAll(table: DbTable<E, ID>) : List<E>
+    queryAll(table: DbTable<E, ID>) : List<E>
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-            queryAllAsync(table: DbTable<E, ID>) : Deferred<List<E>> {
+    queryAllAsync(table: DbTable<E, ID>) : Deferred<List<E>> {
         return defer { queryAll(table) }
     }
 
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-            count(table: DbTable<E, ID>, filter: Expr<in E, Boolean>): Long
+    count(table: DbTable<E, ID>, filter: ExprBoolean<E>?): Long
 
     fun <E : DbEntity<E, ID>, ID: Any>
-            countAsync(table: DbTable<E, ID>, filter: Expr<in E, Boolean>): Deferred<Long>
+    countAsync(table: DbTable<E, ID>, filter: ExprBoolean<E>?): Deferred<Long> {
+        return defer { count(table, filter) }
+    }
 
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-            countAll(table: DbTable<E, ID>): Long
+    countAll(table: DbTable<E, ID>): Long
 
     fun <E : DbEntity<E, ID>, ID: Any>
-            countAllAsync(table: DbTable<E, ID>): Deferred<Long> {
+    countAllAsync(table: DbTable<E, ID>): Deferred<Long> {
         return defer { countAll(table) }
     }
 
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-            load(table: DbTable<E, ID>, id: ID): E
+    load(table: DbTable<E, ID>, id: ID): E
 
     fun <E : DbEntity<E, ID>, ID: Any>
-            loadAsync(table: DbTable<E, ID>, id: ID): Deferred<E> {
+    loadAsync(table: DbTable<E, ID>, id: ID): Deferred<E> {
         return defer { load(table, id) }
     }
 
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-            find(table: DbTable<E, ID>, id: ID?): E?
+    find(table: DbTable<E, ID>, id: ID?): E?
 
     fun <E : DbEntity<E, ID>, ID: Any>
-            findAsync(table: DbTable<E, ID>, id: ID?): Deferred<E?> {
+    findAsync(table: DbTable<E, ID>, id: ID?): Deferred<E?> {
         return defer { find(table, id) }
     }
 
 
     suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-            load(from: FROM, relation: RelToOne<FROM, TO>): TO
+    load(from: FROM, relation: RelToOne<FROM, TO>): TO
 
     fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-            loadAsync(from: FROM, relation: RelToOne<FROM, TO>): Deferred<TO> {
+    loadAsync(from: FROM, relation: RelToOne<FROM, TO>): Deferred<TO> {
         return defer { load(from, relation) }
+    }
+
+    suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
+            find(from: FROM, relation: RelToOne<FROM, TO>): TO?
+
+    fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
+            findAsync(from: FROM, relation: RelToOne<FROM, TO>): Deferred<TO?> {
+        return defer { find(from, relation) }
     }
 
 
 
     suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID : Any, TO : DbEntity<TO, TOID>, TOID : Any>
-            load(from: FROM, relation: RelToMany<FROM, TO>): List<TO>
+    load(from: FROM, relation: RelToMany<FROM, TO>): List<TO>
 
     fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-            loadAsync(from: FROM, relation: RelToMany<FROM, TO>): Deferred<List<TO>> {
+    loadAsync(from: FROM, relation: RelToMany<FROM, TO>): Deferred<List<TO>> {
         return defer { load(from, relation) }
     }
 
 
     suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-            load(from: FROM, relation: RelToMany<FROM, TO>, filter: Expr<in TO, Boolean>?): List<TO>
+    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBoolean<TO>?): List<TO>
 
     suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-            loadAsync(from: FROM, relation: RelToMany<FROM, TO>, filter: Expr<in TO, Boolean>): Deferred<List<TO>> {
+    loadAsync(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBoolean<TO>): Deferred<List<TO>> {
         return defer { load(from, relation, filter) }
     }
 
@@ -105,13 +123,14 @@ interface DbConn<CTX> {
     suspend fun setTransactionIsolation(isolation: TransactionIsolation)
     suspend fun commit()
     suspend fun rollback()
+    suspend fun execute(sql: String)
 
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeInsert(table: DbTable<E, ID>, values: EntityValues<E>): ID?
+    executeInsert(table: DbTable<E, ID>, values: EntityValues<E>): ID
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeUpdate(table: DbTable<E, ID>, filter: Expr<in E, Boolean>, values: EntityValues<E>, specificIds: Set<ID>?): Long
+    executeUpdate(table: DbTable<E, ID>, filter: ExprBoolean<E>?, values: EntityValues<E>, specificIds: Set<ID>?): Long
 
     suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
     loadForAll(ref: RelToOne<FROM, TO>, sources: Collection<FROM>?): Map<FROM, TO>
@@ -130,24 +149,32 @@ interface DbConn<CTX> {
     }
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    delete(entity: E): Long
+    findMany(table: DbTable<E, ID>, ids: Iterable<ID>): Map<ID, E?>
 
     fun <E : DbEntity<E, ID>, ID: Any>
-    deleteAsync(entity: E): Deferred<Long> {
+    findManyAsync(table: DbTable<E, ID>, ids: Iterable<ID>): Deferred<Map<ID, E?>> {
+        return defer { findMany(table, ids) }
+    }
+
+    suspend fun <E : DbEntity<E, ID>, ID: Any>
+    delete(entity: E): Boolean
+
+    fun <E : DbEntity<E, ID>, ID: Any>
+    deleteAsync(entity: E): Deferred<Boolean> {
         return defer { delete(entity) }
     }
 
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    delete(table: DbTable<E, ID>, filter: Expr<in E, Boolean>): Long
+    delete(table: DbTable<E, ID>, filter: ExprBoolean<E>): Long
 
     fun <E : DbEntity<E, ID>, ID: Any>
-    deleteAsync(table: DbTable<E, ID>, filter: Expr<in E, Boolean>): Deferred<Long> {
+    deleteAsync(table: DbTable<E, ID>, filter: ExprBoolean<E>): Deferred<Long> {
         return defer { delete(table, filter) }
     }
 
 
-    fun <E : DbEntity<E, ID>, ID: Any>
+    suspend fun <E : DbEntity<E, ID>, ID: Any>
     delete(table: DbTable<E, ID>, ids: Set<ID>): Long
 
     fun <E : DbEntity<E, ID>, ID: Any>
@@ -156,13 +183,11 @@ interface DbConn<CTX> {
     }
 
 
-    fun <E : DbEntity<E, ID>, ID: Any>
-    delete(table: DbTable<E, ID>, id: ID): Long
+    suspend fun <E : DbEntity<E, ID>, ID: Any>
+    delete(table: DbTable<E, ID>, id: ID?): Boolean
 
     fun <E : DbEntity<E, ID>, ID: Any>
-    deleteAsync(table: DbTable<E, ID>, id: ID): Deferred<Long> {
+    deleteAsync(table: DbTable<E, ID>, id: ID): Deferred<Boolean> {
         return defer { delete(table, id) }
     }
-
-    suspend fun execute(sql: String)
 }

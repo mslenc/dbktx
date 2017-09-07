@@ -15,5 +15,6 @@ interface DbMutation<E : DbEntity<E, *>> {
         return set(column, ExprNull.create())
     }
 
-    operator fun <TARGET : DbEntity<TARGET, TID>, TID> set(relation: RelToOne<E, TARGET>, target: TARGET): DbMutation<E>
+    operator fun <TARGET : DbEntity<TARGET, TID>, TID: Any>
+            set(relation: RelToOne<E, TARGET>, target: TARGET): DbMutation<E>
 }

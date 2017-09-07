@@ -55,7 +55,7 @@ class ManyToOneInfo<FROM : DbEntity<FROM, FID>, FID : Any, TO : DbEntity<TO, TID
             val column = columnMappings[0].columnFrom
 
             @Suppress("UNCHECKED_CAST")
-            column as MultiValuedProp<FROM, TID>
+            column as RowProp<FROM, TID>
 
             return { idSet ->
                 if (idSet.isEmpty())

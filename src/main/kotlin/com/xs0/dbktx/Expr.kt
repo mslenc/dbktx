@@ -2,10 +2,14 @@ package com.xs0.dbktx
 
 import com.xs0.dbktx.sqltypes.SqlTypeVarchar
 
-
-interface Expr<E, T> {
+interface SqlEmitter<E> {
     fun toSql(sb: SqlBuilder, topLevel: Boolean)
+}
 
+class SqlRange<E, T>(val minumum: Expr<in E, T>,
+                     val maximum: Expr<in E, T>)
+
+interface Expr<E, T> : SqlEmitter<E> {
     infix fun eq(other: Expr<in E, T>): ExprBoolean<E> {
         return ExprBinary(this, ExprBinary.Op.EQ, other)
     }
@@ -14,25 +18,34 @@ interface Expr<E, T> {
         return ExprBinary(this, ExprBinary.Op.NEQ, other)
     }
 
+    infix fun oneOf(values: List<Expr<in E, T>>): ExprBoolean<E> {
+        if (values.isEmpty())
+            throw IllegalArgumentException("No possibilities specified")
+
+        return ExprOneOf.oneOf(this, values)
+    }
+
+    operator fun rangeTo(other: Expr<in E, T> ): SqlRange<E, T> {
+        return SqlRange(this, other)
+    }
+
     val isComposite: Boolean
         get() = false
 }
 
 interface NullableExpr<E, T> : Expr<E, T> {
     val isNull: ExprBoolean<E>
-        get() = ExprIsNull(this)
+        get() = ExprIsNull(this, isNull = true)
 
     val isNotNull: ExprBoolean<E>
-        get() = ExprIsNotNull(this)
+        get() = ExprIsNull(this, isNull = false)
 }
 
-interface MultiValuedExpr<E, T> : Expr<E, T> {
-    infix fun oneOf(values: List<Expr<in E, T>>): ExprBoolean<E> {
-        return ExprOneOf.oneOf(this, values)
-    }
-}
+interface NonNullExpr<E, T> : Expr<E, T>
 
-interface OrderedExpr<E, T> : MultiValuedExpr<E, T> {
+
+
+interface OrderedExpr<E, T> : Expr<E, T> {
     infix fun lt(value: Expr<in E, T>): ExprBoolean<E> {
         return ExprBinary(this, ExprBinary.Op.LT, value)
     }
@@ -48,19 +61,47 @@ interface OrderedExpr<E, T> : MultiValuedExpr<E, T> {
     infix fun gte(value: Expr<in E, T>): ExprBoolean<E> {
         return ExprBinary(this,  ExprBinary.Op.GTE, value)
     }
+
+    infix fun between(range: SqlRange<in E, T>): ExprBoolean<E> {
+        return ExprBetween(this, range.minumum, range.maximum, between = true)
+    }
+
+    fun between(minimum: Expr<in E, T>, maximum: Expr<in E, T>): ExprBoolean<E> {
+        return ExprBetween(this, minimum, maximum, between = true)
+    }
+
+    infix fun notBetween(range: SqlRange<in E, T>): ExprBoolean<E> {
+        return ExprBetween(this, range.minumum, range.maximum, between = false)
+    }
+
+    fun notBetween(minimum: Expr<in E, T>, maximum: Expr<in E, T>): ExprBoolean<E> {
+        return ExprBetween(this, minimum, maximum, between = false)
+    }
 }
 
+interface NullableOrderedExpr<E, T>: OrderedExpr<E, T>, NullableExpr<E, T>
+interface NonNullOrderedExpr<E, T>: OrderedExpr<E, T>, NonNullExpr<E, T>
+
+
 interface ExprString<E> : OrderedExpr<E, String> {
-    fun contains(value: String): ExprBoolean<E> {
+    infix fun contains(value: String): ExprBoolean<E> {
         return like("%" + escapePattern(value, '|') + "%", '|')
     }
 
-    fun startsWith(value: String): ExprBoolean<E> {
+    infix fun startsWith(value: String): ExprBoolean<E> {
         return like(escapePattern(value, '|') + "%", '|')
     }
 
-    fun endsWith(value: String): ExprBoolean<E> {
+    infix fun endsWith(value: String): ExprBoolean<E> {
         return like("%" + escapePattern(value, '|'), '|')
+    }
+
+    infix fun like(pattern: String): ExprBoolean<E> {
+        return like(pattern, '|')
+    }
+
+    infix fun like(pattern: Expr<in E, String>): ExprBoolean<E> {
+        return like(pattern, '|')
     }
 
     fun like(pattern: String, escapeChar: Char): ExprBoolean<E> {
@@ -93,5 +134,23 @@ interface ExprString<E> : OrderedExpr<E, String> {
         }
 
         return if (sb != null) sb.toString() else pattern
+    }
+}
+
+interface NullableExprString<E>: ExprString<E>, NullableExpr<E, String>
+interface NonNullExprString<E>: ExprString<E>, NonNullExpr<E, String>
+
+
+interface ExprBoolean<E> : SqlEmitter<E> {
+    operator fun not(): ExprBoolean<E> {
+        return ExprNegate(this)
+    }
+
+    infix fun and(other: ExprBoolean<E>): ExprBoolean<E> {
+        return ExprBools.create(this, ExprBools.Op.AND, other)
+    }
+
+    infix fun or(other: ExprBoolean<E>): ExprBoolean<E> {
+        return ExprBools.create(this, ExprBools.Op.OR, other)
     }
 }

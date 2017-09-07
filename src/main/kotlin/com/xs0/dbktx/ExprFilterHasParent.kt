@@ -10,7 +10,7 @@ class ExprFilterHasParent<FROM : DbEntity<FROM, FID>, FID : Any, TO : DbEntity<T
         val mappings = info.columnMappings
         val n = mappings.size
 
-        for (i in 0..n - 1) {
+        for (i in 0 until n) {
             if (i == 0 && n > 1)
                 sb.sql("(")
             if (i > 0)
@@ -23,7 +23,7 @@ class ExprFilterHasParent<FROM : DbEntity<FROM, FID>, FID : Any, TO : DbEntity<T
         sb.sql(" IN (")
 
         sb.sql("SELECT ")
-        for (i in 0..n - 1) {
+        for (i in 0 until n) {
             if (i > 0)
                 sb.sql(", ")
             sb.name(mappings[i].columnTo)

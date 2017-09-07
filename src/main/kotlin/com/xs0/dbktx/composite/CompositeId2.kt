@@ -1,14 +1,14 @@
 package com.xs0.dbktx.composite
 
 import com.xs0.dbktx.DbEntity
-import com.xs0.dbktx.NonNullSimpleColumn
+import com.xs0.dbktx.NonNullColumn
 import com.xs0.dbktx.SqlBuilder
 
 abstract class CompositeId2<E : DbEntity<E, ID>, A: Any, B: Any, ID : CompositeId2<E, A, B, ID>>
     private constructor()
     : CompositeId<E, ID>() {
-    abstract val columnA: NonNullSimpleColumn<E, A>
-    abstract val columnB: NonNullSimpleColumn<E, B>
+    abstract val columnA: NonNullColumn<E, A>
+    abstract val columnB: NonNullColumn<E, B>
 
     lateinit var partA: A
     lateinit var partB: B
@@ -24,7 +24,7 @@ abstract class CompositeId2<E : DbEntity<E, ID>, A: Any, B: Any, ID : CompositeI
     }
 
     @Suppress("UNCHECKED_CAST")
-    operator fun <X: Any> get(field: NonNullSimpleColumn<E, X>): X {
+    operator fun <X: Any> get(field: NonNullColumn<E, X>): X {
         if (field === columnA) return partA as X
         if (field === columnB) return partB as X
         throw IllegalArgumentException()
@@ -41,7 +41,7 @@ abstract class CompositeId2<E : DbEntity<E, ID>, A: Any, B: Any, ID : CompositeI
     override val numColumns: Int
         get() = 2
 
-    override fun getColumn(index: Int): NonNullSimpleColumn<E, *> {
+    override fun getColumn(index: Int): NonNullColumn<E, *> {
         when (index) {
             0 -> return columnA
             1 -> return columnB

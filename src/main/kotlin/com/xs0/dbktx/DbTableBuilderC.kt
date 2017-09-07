@@ -1,30 +1,28 @@
 package com.xs0.dbktx
 
 import com.xs0.dbktx.composite.CompositeId
-import si.datastat.db.api.DbEntity
-import si.datastat.db.api.MultiColumn
-import si.datastat.db.api.util.CompositeId
-import java.util.function.Function
+import kotlin.reflect.KClass
 
 class DbTableBuilderC<E : DbEntity<E, ID>, ID : CompositeId<E, ID>> internal constructor(table: DbTable<E, ID>) : DbTableBuilder<E, ID>(table) {
 
-    fun compositeId(constructor: Function<List<Any>, ID>): MultiColumn<E, ID> {
-        val id = constructor.apply(dummyRow())
+    fun compositeId(constructor: (List<Any?>)->ID): MultiColumn<E, ID> {
+        val id = constructor(dummyRow())
 
         checkColumns(id)
 
-        val result = MultiColumn(table, constructor, id)
+        val result: MultiColumn<E, ID> = MultiColumn(constructor, id)
+        val idClass: KClass<out ID> = id::class
 
-        setIdField(result)
+        setIdField(result, idClass)
 
         return result
     }
 
     private fun checkColumns(id: CompositeId<*, *>) {
         var i = 0
-        val n = id.getNumColumns()
+        val n = id.numColumns
         while (i < n) {
-            if (id.getColumn(i).getTable() !== table) {
+            if (id.getColumn(i).table !== table) {
                 throw AssertionError("Table mismatch")
             }
 

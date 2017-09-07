@@ -7,23 +7,6 @@ import mu.KotlinLogging
 import kotlin.coroutines.experimental.Continuation
 import kotlin.coroutines.experimental.suspendCoroutine
 
-private val logger = KotlinLogging.logger {}
-
-fun <T> makeHandler(onError: (Throwable) -> Unit, onSuccess: (T) -> Unit): Handler<AsyncResult<T>> {
-    return Handler { result ->
-        if (result.succeeded()) {
-            try {
-                onSuccess(result.result())
-            } catch (t: Throwable) {
-                onError(t)
-            }
-
-        } else {
-            onError(result.cause())
-        }
-    }
-}
-
 private object HexUtil {
     val reverseHex: IntArray = kotlin.IntArray(256).apply {
         fill(-1)
@@ -150,32 +133,5 @@ inline suspend fun <T> vx(crossinline callback: (Handler<AsyncResult<T>>) -> Uni
             })
         }
 
-fun <T> notifyCont(handlerList: ListEl<Continuation<T?>>?, result: T?) {
-    var handlers = handlerList
 
-    while (handlers != null) {
-        val curr = handlers.value
-        handlers = handlers.next
 
-        try {
-            curr.resume(result)
-        } catch (t: Throwable) {
-            logger.error("Error while executing continuation", t)
-        }
-    }
-}
-
-fun <T> notifyError(handlerList: ListEl<Continuation<T>>?, error: Throwable) {
-    var handlers = handlerList
-
-    while (handlers != null) {
-        val curr = handlers.value
-        handlers = handlers.next
-
-        try {
-            curr.resumeWithException(error)
-        } catch (t: Throwable) {
-            logger.error("Error while executing continuation", t)
-        }
-    }
-}

@@ -1,18 +1,14 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.FieldProps
 import com.xs0.dbktx.SqlBuilder
 import kotlin.reflect.KClass
 
-class SqlTypeIntBoolean(concreteType: SqlTypeKind, fieldProps: FieldProps) : SqlType<Boolean>(fieldProps) {
+class SqlTypeIntBoolean(concreteType: SqlTypeKind, isNotNull: Boolean, trueValue: Int?, falseValue: Int?) : SqlType<Boolean>(isNotNull = isNotNull) {
     private val trueValue: Int // true will convert to this
     private val falseValue: Int // false will convert to this
     private val checkNonFalse: Boolean // if true, we check that dbValue != falseValue, otherwise we check that dbValue == trueValue
 
     init {
-        val trueValue = fieldProps.trueValue
-        val falseValue = fieldProps.falseValue
-
         if (trueValue != null) {
             if (falseValue != null) {
                 if (trueValue == falseValue)
@@ -51,12 +47,10 @@ class SqlTypeIntBoolean(concreteType: SqlTypeKind, fieldProps: FieldProps) : Sql
 
     override fun fromJson(value: Any): Boolean {
         val intVal: Int?
-        if (value is Int) {
-            intVal = value
-        } else if (value is Number) {
-            intVal = value.toInt()
-        } else {
-            throw IllegalArgumentException("Not an integer(bool) - " + value)
+        when (value) {
+            is Int -> intVal = value
+            is Number -> intVal = value.toInt()
+            else -> throw IllegalArgumentException("Not an integer(bool) - " + value)
         }
 
         return if (checkNonFalse) {

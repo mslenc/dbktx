@@ -2,7 +2,7 @@ package com.xs0.dbktx
 
 class ExprFilterContainsChild<FROM : DbEntity<FROM, FID>, FID: Any, TO : DbEntity<TO, TID>, TID: Any>(
         private val info: ManyToOneInfo<TO, TID, FROM, FID>,
-        private val filter: Expr<TO, Boolean>) : ExprBoolean<FROM> {
+        private val filter: ExprBoolean<TO>) : ExprBoolean<FROM> {
 
     override fun toSql(sb: SqlBuilder, topLevel: Boolean) {
         sb.openParen(topLevel)

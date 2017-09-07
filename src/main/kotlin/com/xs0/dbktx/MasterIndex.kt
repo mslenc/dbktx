@@ -4,8 +4,8 @@ import mu.KLogging
 
 internal class MasterIndex {
 
-    private val tableIndex = LinkedHashMap<DbTable<*,*>, DelayedLoadIndex<*,*,*>>()
-    private val relToManyIndex = LinkedHashMap<RelToManyImpl<*,*,*,*>, DelayedLoadIndex<*,*,*>>()
+    private val tableIndex = LinkedHashMap<DbTable<*,*>, EntityIndex<*,*>>()
+    private val relToManyIndex = LinkedHashMap<RelToManyImpl<*,*,*,*>, ToManyIndex<*,*,*,*>>()
 
     fun flushAll() {
         // (When we flush, we fail any outstanding request. However, handlers for those failures
@@ -51,26 +51,26 @@ internal class MasterIndex {
 
     @Suppress("UNCHECKED_CAST")
     operator fun <E : DbEntity<E, ID>, ID: Any>
-    get(table: DbTable<E, ID>): DelayedLoadIndex<E, ID, DbTable<E, ID>> {
+    get(table: DbTable<E, ID>): EntityIndex<E, ID> {
         return tableIndex.computeIfAbsent(table,
-                { _ -> DelayedLoadIndex<E, ID, DbTable<E, ID>>(table) })
-                as DelayedLoadIndex<E, ID, DbTable<E, ID>>
+                { _ -> EntityIndex(table) })
+                as EntityIndex<E, ID>
     }
 
     @Suppress("UNCHECKED_CAST")
-    operator fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    get(rel: RelToMany<FROM, TO>): DelayedLoadIndex<List<TO>, FROMID, RelToManyImpl<FROM, FROMID, TO, TOID>> {
+    operator fun <FROM: DbEntity<FROM, FROMID>, FROMID: Any, TO: DbEntity<TO, TOID>, TOID: Any>
+    get(rel: RelToMany<FROM, TO>): ToManyIndex<FROM, FROMID, TO, TOID> {
         rel as RelToManyImpl<FROM, FROMID, TO, TOID>
 
         return relToManyIndex.computeIfAbsent(rel,
-                { _ -> DelayedLoadIndex<List<TO>, FROMID, RelToManyImpl<FROM, FROMID, TO, TOID>>(rel) })
-                as DelayedLoadIndex<List<TO>, FROMID, RelToManyImpl<FROM, FROMID, TO, TOID>>
+                { _ -> ToManyIndex(rel) })
+                as ToManyIndex<FROM, FROMID, TO, TOID>
     }
 
-    val allCachedTables: Collection<DelayedLoadIndex<*,*,*>>
+    val allCachedTables: Collection<EntityIndex<*,*>>
         get() = tableIndex.values
 
-    val allCachedToManyRels: Collection<DelayedLoadIndex<*,*,*>>
+    val allCachedToManyRels: Collection<ToManyIndex<*,*,*,*>>
         get() = relToManyIndex.values
 
     companion object : KLogging()

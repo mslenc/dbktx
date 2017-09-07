@@ -26,7 +26,7 @@ class RelToManyImpl<FROM : DbEntity<FROM, FID>, FID: Any, TO : DbEntity<TO, TID>
         return queryExprBuilder(fromIds)
     }
 
-    override fun contains(setFilter: Expr<TO, Boolean>): ExprBoolean<FROM> {
+    override fun contains(setFilter: ExprBoolean<TO>): ExprBoolean<FROM> {
         return ExprFilterContainsChild(info, setFilter)
     }
 }

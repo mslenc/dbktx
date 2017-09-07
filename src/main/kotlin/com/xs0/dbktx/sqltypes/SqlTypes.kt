@@ -1,6 +1,5 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.FieldProps
 import com.xs0.dbktx.sqltypes.SqlTypeKind.*
 import java.math.BigDecimal
 import java.time.*
@@ -135,13 +134,15 @@ internal object SqlTypes {
         }
     }
 
-    fun makeBoolean(sqlType: SqlTypeKind, fieldProps: FieldProps): SqlType<Boolean> {
-        when (sqlType) {
-            TINYINT, SMALLINT, MEDIUMINT, INT -> return SqlTypeIntBoolean(sqlType, fieldProps)
-
-            else -> throw UnsupportedOperationException("No mapping from $sqlType to Boolean")
-        }
-    }
+//    fun makeBoolean(sqlType: SqlTypeKind, fieldProps: FieldProps): SqlType<Boolean> {
+//        when (sqlType) {
+//            TINYINT, SMALLINT, MEDIUMINT, INT ->
+//               return SqlTypeIntBoolean(sqlType, fieldProps)
+//
+//            else ->
+//                throw UnsupportedOperationException("No mapping from $sqlType to Boolean")
+//        }
+//    }
 
     fun makeEnumString(sqlType: SqlTypeKind, enums: Set<String>, isNotNull: Boolean): SqlType<String> {
         if (sqlType != ENUM)
