@@ -24,6 +24,10 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
         this.conn = MultiQueryConn(conn)
     }
 
+    override fun close() {
+        conn.close()
+    }
+
     private fun scheduleDelayedExec() {
         if (scheduled)
             return

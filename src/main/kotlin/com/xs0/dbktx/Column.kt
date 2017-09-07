@@ -8,7 +8,7 @@ interface Column<E: DbEntity<E, *>, T : Any> : RowProp<E, T> {
     val sqlType: SqlType<T>
     val indexInRow: Int
 
-    override fun from(row: List<Any?>): T? {
+    override operator fun invoke(row: List<Any?>): T? {
         val value = row[indexInRow] ?: return null
 
         return sqlType.fromJson(value)
@@ -33,7 +33,7 @@ interface Column<E: DbEntity<E, *>, T : Any> : RowProp<E, T> {
 }
 
 interface NonNullColumn<E: DbEntity<E, *>, T: Any>: Column<E, T>, NonNullRowProp<E, T> {
-    override fun from(row: List<Any?>): T {
+    override fun invoke(row: List<Any?>): T {
         val value = row[indexInRow] ?: throw IllegalStateException("Null value for NOT NULL column $fieldName")
 
         return sqlType.fromJson(value)

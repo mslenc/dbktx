@@ -32,19 +32,19 @@ class MultiColumn<E : DbEntity<E, ID>, ID : CompositeId<E, ID>>(
         return prototype.getColumn(index)
     }
 
-    override fun eq(value: ID): ExprBoolean<E> {
+    override infix fun eq(value: ID): ExprBoolean<E> {
         return ExprBinary(this, ExprBinary.Op.EQ, value)
     }
 
-    override fun neq(value: ID): ExprBoolean<E> {
+    override infix fun neq(value: ID): ExprBoolean<E> {
         return ExprBinary(this, ExprBinary.Op.NEQ, value)
     }
 
-    override fun oneOf(values: Set<ID>): ExprBoolean<E> {
+    override infix fun oneOf(values: Set<ID>): ExprBoolean<E> {
         return ExprOneOf.oneOf(this, ArrayList(values))
     }
 
-    override fun from(row: List<Any?>): ID {
+    override operator fun invoke(row: List<Any?>): ID {
         return constructor(row)
     }
 
@@ -52,7 +52,7 @@ class MultiColumn<E : DbEntity<E, ID>, ID : CompositeId<E, ID>>(
         get() = false
 
     override fun extract(values: EntityValues<E>): ID? {
-        val numCols = prototype.tableMetainfo.numColumns;
+        val numCols = prototype.tableMetainfo.numColumns
 
         val row = ArrayList<Any?>(numCols)
         for (i in 0 until numCols)
@@ -64,6 +64,6 @@ class MultiColumn<E : DbEntity<E, ID>, ID : CompositeId<E, ID>>(
             row[part.indexInRow] = value
         }
 
-        return from(row)
+        return invoke(row)
     }
 }

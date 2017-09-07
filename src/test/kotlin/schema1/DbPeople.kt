@@ -9,16 +9,20 @@ class DbPeople(override val id: Int,
 
     override val metainfo = TABLE
 
-    val name: String get() = NAME.from(row)
+    val firstName: String get() = FIRST_NAME(row)
+    val lastName: String get() = LAST_NAME(row)
+    val email: String get() = EMAIL(row)
 
     companion object TABLE : DbTable<DbPeople, Int>(TestSchema, "people", DbPeople::class, Int::class) {
         val ID = b.nonNullInt("id", INT(), { x -> x.id }, primaryKey = true, autoIncrement = true)
-        val NAME = b.nonNullString("name", VARCHAR(255), { x -> x.name })
+        val FIRST_NAME = b.nonNullString("firstName", VARCHAR(255), DbPeople::firstName)
+        val LAST_NAME = b.nonNullString("lastName", VARCHAR(255), DbPeople::lastName)
+        val EMAIL = b.nonNullString("email", VARCHAR(255), DbPeople::email)
 
         val TAGS_SET = b.relToMany { DbTags.OWNER_REF }
 
         init {
-            b.build({ id, row -> DbPeople(id, row) })
+            b.build(::DbPeople)
         }
     }
 }
