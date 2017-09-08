@@ -38,7 +38,7 @@ class ManyToOneInfo<FROM : DbEntity<FROM, FID>, FID : Any, TO : DbEntity<TO, TID
             val n = columnMappings.size
             while (i < n) {
                 sb.append(if (i == 0) "(" else ", ")
-                sb.append(columnMappings[i].columnFrom.fieldName)
+                sb.append(columnMappings[i].columnFrom.quotedFieldName)
                 i++
             }
             sb.append(")")

@@ -1,6 +1,6 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 
 import java.util.Base64
 
@@ -59,16 +59,11 @@ class SqlTypeBinaryString(concreteType: SqlTypeKind, size: Int?, isNotNull: Bool
         return Base64.getEncoder().encodeToString(bytes)
     }
 
-    override fun dummyValue(): String {
-        var string = "strbin"
-        if (string.length > maxSize)
-            string = string.substring(0, maxSize)
-        return string
+    override fun toSql(value: String, sql: Sql) {
+        sql(value.toByteArray(ISO_8859_1))
     }
 
-    override fun toSql(value: String, sb: SqlBuilder, topLevel: Boolean) {
-        sb.sql(toHexString(value.toByteArray(ISO_8859_1), "X'", "'"))
-    }
+    override val dummyValue: String = "binaryString".take(maxSize)
 
     override val kotlinType: KClass<String> = String::class
 }
@@ -80,18 +75,19 @@ internal fun toHexString(bytes: ByteArray): String {
 }
 
 internal fun toHexString(bytes: ByteArray, prefix: String, suffix: String): String {
-    if (bytes.isEmpty())
-        return if (prefix.isEmpty()) suffix else prefix + suffix
-
     val sb = StringBuilder(bytes.size * 2 + prefix.length + suffix.length)
-    sb.append(prefix)
+    toHexString(bytes, prefix, suffix, sb)
+    return sb.toString()
+}
+
+internal fun toHexString(bytes: ByteArray, prefix: String, suffix: String, out: StringBuilder) {
+    out.append(prefix)
 
     for (b in bytes) {
-        sb.append(HEX_CHARS[b.toInt() shr 4 and 15])
-        sb.append(HEX_CHARS[b.toInt()       and 15])
+        val i = b.toInt() and 255
+        out.append(HEX_CHARS[i shr 4])
+        out.append(HEX_CHARS[i      ])
     }
 
-    sb.append(suffix)
-
-    return sb.toString()
+    out.append(suffix)
 }

@@ -1,6 +1,6 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 import kotlin.reflect.KClass
 
 class SqlTypeFloat(concreteType: SqlTypeKind,
@@ -25,13 +25,11 @@ class SqlTypeFloat(concreteType: SqlTypeKind,
         return value
     }
 
-    override fun dummyValue(): Float {
-        return Math.PI.toFloat()
+    override fun toSql(value: Float, sql: Sql) {
+        sql(value)
     }
 
-    override fun toSql(value: Float, sb: SqlBuilder, topLevel: Boolean) {
-        sb.sql("?").param(value)
-    }
+    override val dummyValue: Float = Math.PI.toFloat()
 
     override val kotlinType: KClass<Float> = Float::class
 }

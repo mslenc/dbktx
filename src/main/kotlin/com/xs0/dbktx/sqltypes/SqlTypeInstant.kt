@@ -1,6 +1,6 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 
 import java.time.Instant
 import kotlin.reflect.KClass
@@ -22,12 +22,11 @@ class SqlTypeInstant(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<In
         return value.toString()
     }
 
-    override fun dummyValue(): Instant {
-        return Instant.now()
-    }
+    override val dummyValue: Instant
+        get() = Instant.now()
 
-    override fun toSql(value: Instant, sb: SqlBuilder, topLevel: Boolean) {
-        sb.sql("?").param(value)
+    override fun toSql(value: Instant, sql: Sql) {
+        sql(value)
     }
 
     override val kotlinType: KClass<Instant> = Instant::class

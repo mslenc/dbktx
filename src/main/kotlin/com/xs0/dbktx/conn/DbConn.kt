@@ -7,8 +7,9 @@ import com.xs0.dbktx.schema.DbTable
 import com.xs0.dbktx.schema.RelToMany
 import com.xs0.dbktx.schema.RelToOne
 import com.xs0.dbktx.crud.EntityValues
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 import com.xs0.dbktx.util.defer
+import io.vertx.core.json.JsonObject
 import io.vertx.ext.sql.ResultSet
 import io.vertx.ext.sql.TransactionIsolation
 import kotlinx.coroutines.experimental.Deferred
@@ -18,9 +19,9 @@ import kotlinx.coroutines.experimental.Deferred
  * transaction management.
  */
 interface DbConn: AutoCloseable {
-    suspend fun query(sqlBuilder: SqlBuilder): ResultSet
+    suspend fun query(sqlBuilder: Sql): ResultSet
 
-    fun queryAsync(sqlBuilder: SqlBuilder): Deferred<ResultSet> {
+    fun queryAsync(sqlBuilder: Sql): Deferred<ResultSet> {
         return defer { query(sqlBuilder) }
     }
 
@@ -102,10 +103,10 @@ interface DbConn: AutoCloseable {
     }
 
     suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-            find(from: FROM, relation: RelToOne<FROM, TO>): TO?
+    find(from: FROM, relation: RelToOne<FROM, TO>): TO?
 
     fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-            findAsync(from: FROM, relation: RelToOne<FROM, TO>): Deferred<TO?> {
+    findAsync(from: FROM, relation: RelToOne<FROM, TO>): Deferred<TO?> {
         return defer { find(from, relation) }
     }
 
@@ -201,4 +202,7 @@ interface DbConn: AutoCloseable {
     }
 
     override fun close()
+
+    fun <E : DbEntity<E, ID>, ID: Any>
+    importJson(table: DbTable<E, ID>, json: JsonObject)
 }

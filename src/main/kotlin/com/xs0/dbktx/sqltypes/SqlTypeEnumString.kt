@@ -1,13 +1,17 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 import kotlin.reflect.KClass
 
 // enum => String
 class SqlTypeEnumString(val values: Set<String>, isNotNull: Boolean) : SqlType<String>(isNotNull = isNotNull) {
+    override val dummyValue: String
+
     init {
         if (values.isEmpty())
             throw IllegalArgumentException("Missing enum values")
+
+        dummyValue = values.iterator().next()
     }
 
     override fun fromJson(value: Any): String {
@@ -21,12 +25,8 @@ class SqlTypeEnumString(val values: Set<String>, isNotNull: Boolean) : SqlType<S
         return value
     }
 
-    override fun dummyValue(): String {
-        return values.iterator().next()
-    }
-
-    override fun toSql(value: String, sb: SqlBuilder, topLevel: Boolean) {
-        sb.sql("?").param(value)
+    override fun toSql(value: String, sql: Sql) {
+        sql(value)
     }
 
     override val kotlinType: KClass<String> = String::class

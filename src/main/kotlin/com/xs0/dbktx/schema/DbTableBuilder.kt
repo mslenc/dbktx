@@ -1,16 +1,16 @@
 package com.xs0.dbktx.schema
 
-import com.xs0.dbktx.columns.*
 import com.xs0.dbktx.sqltypes.SqlType
 import com.xs0.dbktx.sqltypes.SqlTypes
 import java.math.BigDecimal
 import java.time.*
-import java.util.*
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 import com.xs0.dbktx.composite.CompositeId2
+import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.fieldprops.SqlTypeDef
 import com.xs0.dbktx.sqltypes.SqlTypeKind
+import java.util.*
 
 typealias Ref<T> = KClass<out DbEntity<*, T>>
 
@@ -21,8 +21,8 @@ internal constructor(
     private val foreignKeys = HashMap<String, KClass<out DbEntity<*, *>>>()
     private var idFieldInitialized: Boolean = false
 
-    fun build(constructor: (ID, List<Any?>) -> E): DbTable<E, ID> {
-        table.constructor = constructor
+    fun build(factory: (DbConn, ID, List<Any?>) -> E): DbTable<E, ID> {
+        table.factory = factory
 
         val columnNames = StringBuilder()
         var i = 0
@@ -460,7 +460,7 @@ internal constructor(
     }
 
 
-    // TODO: boolean
+    // TODO: boolean?
 
 
     internal fun dummyRow(): List<Any> {
@@ -520,7 +520,7 @@ internal constructor(
                 throw IllegalStateException("Type mismatch on relToOne mapping for table " + table.dbName)
 
             @Suppress("UNCHECKED_CAST")
-            val targetId = targetTable.idField as Column<TARGET, TID>
+            val targetId = targetTable.idField as NonNullColumn<TARGET, TID>
 
             val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
                     ColumnMapping(sourceField, targetId)
@@ -559,22 +559,7 @@ internal constructor(
         }
 
         private fun <T: Any> addDummy(sqlType: SqlType<T>, out: MutableList<Any>) {
-            out.add(sqlType.toJson(sqlType.dummyValue()))
-        }
-
-        fun <E : DbEntity<E, ID>, ID : Any>
-        determineIdClass(entityClass: KClass<E>): KClass<ID> {
-            for (type in entityClass.supertypes) {
-                if (type.classifier == DbTable::class) {
-                    val actual = type.arguments[1].type
-                    if (actual is KClass<*>) {
-                        @Suppress("UNCHECKED_CAST")
-                        return actual as KClass<ID>
-                    }
-                }
-            }
-
-            throw IllegalStateException("Can't determine ID type of " + entityClass)
+            out.add(sqlType.toJson(sqlType.dummyValue))
         }
     }
 }

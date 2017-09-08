@@ -1,6 +1,6 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 
 import java.util.Base64
 
@@ -43,27 +43,21 @@ class SqlTypeBlob(concreteType: SqlTypeKind, size: Int, isNotNull: Boolean) : Sq
 
     override fun fromJson(value: Any): ByteArray {
         if (value is CharSequence) {
-            val encoded = value.toString()
-            return Base64.getDecoder().decode(encoded)
+            return Base64.getDecoder().decode(value.toString())
+        } else {
+            throw IllegalArgumentException("Not a string(base64) value - " + value)
         }
-
-        throw IllegalArgumentException("Not a string(base64) value - " + value)
     }
 
     override fun toJson(value: ByteArray): String {
         return Base64.getEncoder().encodeToString(value)
     }
 
-    override fun dummyValue(): ByteArray {
-        var str = "binary"
-        if (str.length > maxSize)
-            str = str.substring(0, maxSize)
-        return str.toByteArray(ISO_8859_1)
+    override fun toSql(value: ByteArray, sql: Sql) {
+        sql(value)
     }
 
-    override fun toSql(value: ByteArray, sb: SqlBuilder, topLevel: Boolean) {
-        sb.sql("?").param(value)
-    }
+    override val dummyValue: ByteArray = "binary".take(maxSize).toByteArray(ISO_8859_1)
 
     override val kotlinType: KClass<ByteArray> = ByteArray::class
 }

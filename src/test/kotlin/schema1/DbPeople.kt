@@ -1,17 +1,25 @@
 package schema1
 
+import com.xs0.dbktx.conn.DbConn
+import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.DbTable
 import com.xs0.dbktx.fieldprops.*
 
-class DbPeople(override val id: Int,
-               private val row: List<Any?>) : DbEntity<DbPeople, Int>() {
+class DbPeople(db: DbConn, id: Int, private val row: List<Any?>)
+    : DbEntity<DbPeople, Int>(db, id) {
 
     override val metainfo = TABLE
 
     val firstName: String get() = FIRST_NAME(row)
     val lastName: String get() = LAST_NAME(row)
     val email: String get() = EMAIL(row)
+
+    suspend fun tags(): List<DbTags> = TAGS_SET(this)
+
+    suspend fun tags(filterBuilder: DbTags.TABLE.() -> ExprBoolean<DbTags>): List<DbTags> {
+        return db.load(this, TAGS_SET, DbTags.TABLE.filterBuilder())
+    }
 
     companion object TABLE : DbTable<DbPeople, Int>(TestSchema, "people", DbPeople::class, Int::class) {
         val ID = b.nonNullInt("id", INT(), { x -> x.id }, primaryKey = true, autoIncrement = true)

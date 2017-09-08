@@ -224,7 +224,7 @@ class MultiQueryConn(private val conn: SQLConnection) : SQLConnection {
     }
 
     override fun close() {
-        close { /* ignore.. */ result -> }
+        close { /* ignore.. */ _ -> }
     }
 
     override fun commit(resultHandler: Handler<AsyncResult<Void>>): SQLConnection {

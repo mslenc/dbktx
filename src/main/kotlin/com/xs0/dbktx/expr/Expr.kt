@@ -1,16 +1,16 @@
 package com.xs0.dbktx.expr
 
-import com.xs0.dbktx.util.SqlBuilder
 import com.xs0.dbktx.sqltypes.SqlTypeVarchar
+import com.xs0.dbktx.util.Sql
 
-interface SqlEmitter<E> {
-    fun toSql(sb: SqlBuilder, topLevel: Boolean)
+interface SqlEmitter {
+    fun toSql(sql: Sql, topLevel: Boolean = false)
 }
 
 class SqlRange<E, T>(val minumum: Expr<in E, T>,
                      val maximum: Expr<in E, T>)
 
-interface Expr<E, T> : SqlEmitter<E> {
+interface Expr<E, T> : SqlEmitter {
     infix fun eq(other: Expr<in E, T>): ExprBoolean<E> {
         return ExprBinary(this, ExprBinary.Op.EQ, other)
     }
@@ -146,7 +146,7 @@ interface NullableExprString<E>: ExprString<E>, NullableExpr<E, String>
 interface NonNullExprString<E>: ExprString<E>, NonNullExpr<E, String>
 
 
-interface ExprBoolean<E> : SqlEmitter<E> {
+interface ExprBoolean<E> : SqlEmitter {
     operator fun not(): ExprBoolean<E> {
         return ExprNegate(this)
     }

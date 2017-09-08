@@ -1,16 +1,14 @@
 package com.xs0.dbktx.expr
 
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 
 class ExprNegate<TABLE>(private val inner: ExprBoolean<TABLE>) : ExprBoolean<TABLE> {
 
-    override fun toSql(sb: SqlBuilder, topLevel: Boolean) {
-        sb.openParen(topLevel)
-
-        sb.sql("NOT ")
-        inner.toSql(sb, false)
-
-        sb.closeParen(topLevel)
+    override fun toSql(sql: Sql, topLevel: Boolean) {
+        sql.expr(topLevel) {
+            +"NOT "
+            +inner
+        }
     }
 
     override fun not(): ExprBoolean<TABLE> {

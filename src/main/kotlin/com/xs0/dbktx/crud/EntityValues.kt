@@ -3,7 +3,7 @@ package com.xs0.dbktx.crud
 import com.xs0.dbktx.schema.Column
 import com.xs0.dbktx.schema.DbEntity
 
-class EntityValues<E : DbEntity<E, *>> {
+class EntityValues<E : DbEntity<E, *>> : Iterable<Column<E, *>> {
     private val values: MutableMap<Column<E, *>, Any?> = LinkedHashMap()
 
     infix fun <T : Any> Column<E, T>.to(value: T?) {
@@ -14,7 +14,7 @@ class EntityValues<E : DbEntity<E, *>> {
         return values.isEmpty()
     }
 
-    operator fun iterator(): MutableIterator<Column<E, *>> {
+    override operator fun iterator(): MutableIterator<Column<E, *>> {
         return values.keys.iterator()
     }
 

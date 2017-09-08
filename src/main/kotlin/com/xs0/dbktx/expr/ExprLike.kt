@@ -1,31 +1,25 @@
 package com.xs0.dbktx.expr
 
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 
 class ExprLike<E> (
-        value: Expr<in E, String>,
-        pattern: Expr<in E, String>,
-        escapeChar: Char = '|') : ExprBoolean<E> {
-
-    private val value: Expr<in E, String> = value
-    private val pattern: Expr<in E, String> = pattern
-    private val escapeChar: Char = escapeChar
+        private val value: Expr<in E, String>,
+        private val pattern: Expr<in E, String>,
+        private val escapeChar: Char = '|') : ExprBoolean<E> {
 
     init {
         if (escapeChar == '\'')
             throw IllegalArgumentException("Invalid escape char - it can't be '")
     }
 
-    override fun toSql(sb: SqlBuilder, topLevel: Boolean) {
-        sb.openParen(topLevel)
-
-        value.toSql(sb, false)
-        sb.sql(" LIKE ")
-        pattern.toSql(sb, false)
-        sb.sql(" ESCAPE '")
-        sb.sql(escapeChar.toString())
-        sb.sql("'")
-
-        sb.closeParen(topLevel)
+    override fun toSql(sql: Sql, topLevel: Boolean) {
+        sql.expr(topLevel) {
+            + value
+            + " LIKE "
+            + pattern
+            + " ESCAPE '"
+            + escapeChar.toString()
+            + "'"
+        }
     }
 }

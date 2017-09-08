@@ -1,6 +1,5 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.*
 import com.xs0.dbktx.util.*
 import java.util.Base64
 import java.util.UUID
@@ -9,12 +8,9 @@ import java.nio.charset.StandardCharsets.ISO_8859_1
 import kotlin.reflect.KClass
 
 abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<UUID>(isNotNull = isNotNull) {
-    override fun dummyValue(): UUID {
-        return UUID.randomUUID()
-    }
+    override val dummyValue: UUID = UUID.randomUUID()
 
     override val kotlinType: KClass<UUID> = UUID::class
-
 
     private class VarcharRawChars(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
         override fun fromJson(value: Any): UUID {
@@ -25,8 +21,8 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
             return String(value.toBytes(), ISO_8859_1)
         }
 
-        override fun toSql(value: UUID, sb: SqlBuilder, topLevel: Boolean) {
-            sb.sql("?").param(toJson(value))
+        override fun toSql(value: UUID, sql: Sql) {
+            sql(toJson(value))
         }
     }
 
@@ -45,8 +41,8 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
             }
         }
 
-        override fun toSql(value: UUID, sb: SqlBuilder, topLevel: Boolean) {
-            sb.sql("?").param(toJson(value))
+        override fun toSql(value: UUID, sql: Sql) {
+            sql(toJson(value))
         }
     }
 
@@ -59,8 +55,8 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
             return toHexString(value.toBytes())
         }
 
-        override fun toSql(value: UUID, sb: SqlBuilder, topLevel: Boolean) {
-            sb.sql("?").param(toJson(value))
+        override fun toSql(value: UUID, sql: Sql) {
+            sql(toJson(value))
         }
     }
 
@@ -74,8 +70,8 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
             return value.toString()
         }
 
-        override fun toSql(value: UUID, sb: SqlBuilder, topLevel: Boolean) {
-            sb.sql("?").param(value.toString())
+        override fun toSql(value: UUID, sql: Sql) {
+            sql(value.toString())
         }
     }
 
@@ -89,8 +85,8 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
             return Base64.getEncoder().encodeToString(value.toBytes())
         }
 
-        override fun toSql(value: UUID, sb: SqlBuilder, topLevel: Boolean) {
-            sb.sql(toHexString(value.toBytes(), "X'", "'"))
+        override fun toSql(value: UUID, sql: Sql) {
+            sql(value.toBytes())
         }
     }
 
@@ -113,14 +109,14 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
             return Base64.getEncoder().encodeToString(base64)
         }
 
-        override fun toSql(value: UUID, sb: SqlBuilder, topLevel: Boolean) {
+        override fun toSql(value: UUID, sql: Sql) {
             val bytes = value.toBytes()
             val base64 = if (skipPadding)
                 Base64.getEncoder().withoutPadding().encode(bytes)
             else
                 Base64.getEncoder().encode(bytes)
 
-            sb.sql(toHexString(base64, "X'", "'"))
+            sql(base64)
         }
     }
 
@@ -137,8 +133,8 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
             return Base64.getEncoder().encodeToString(hex)
         }
 
-        override fun toSql(value: UUID, sb: SqlBuilder, topLevel: Boolean) {
-            sb.sql("?").param(toJson(value))
+        override fun toSql(value: UUID, sql: Sql) {
+            sql(toHexBytes(value.toBytes()))
         }
     }
 
@@ -154,9 +150,9 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
             return Base64.getEncoder().encodeToString(bytes)
         }
 
-        override fun toSql(value: UUID, sb: SqlBuilder, topLevel: Boolean) {
+        override fun toSql(value: UUID, sql: Sql) {
             val bytes = value.toString().toByteArray(ISO_8859_1)
-            sb.sql(toHexString(bytes, "X'", "'"))
+            sql(bytes)
         }
     }
 

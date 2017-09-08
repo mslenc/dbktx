@@ -1,6 +1,6 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 import java.math.BigDecimal
 import kotlin.reflect.KClass
 
@@ -32,13 +32,11 @@ class SqlTypeBigDecimal(concreteType: SqlTypeKind,
         return value.toString()
     }
 
-    override fun dummyValue(): BigDecimal {
-        return BigDecimal.ONE
+    override fun toSql(value: BigDecimal, sql: Sql) {
+        sql(value)
     }
 
-    override fun toSql(value: BigDecimal, sb: SqlBuilder, topLevel: Boolean) {
-        sb.sql("?").param(value.toString())
-    }
+    override val dummyValue: BigDecimal = BigDecimal.ONE
 
     override val kotlinType: KClass<BigDecimal> = BigDecimal::class
 }

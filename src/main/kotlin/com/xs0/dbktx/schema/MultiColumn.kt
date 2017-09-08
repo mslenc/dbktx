@@ -3,13 +3,13 @@ package com.xs0.dbktx.schema
 import com.xs0.dbktx.composite.CompositeId
 import com.xs0.dbktx.expr.*
 import com.xs0.dbktx.crud.EntityValues
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 
 private fun buildFieldTuple(id: CompositeId<*, *>): String {
     val sb = StringBuilder()
     for (i in 0 until id.numColumns) {
         sb.append(if (i == 0) "(" else ", ")
-        sb.append(id.getColumn(i).fieldName)
+        sb.append(id.getColumn(i).quotedFieldName)
     }
     return sb.append(")").toString()
 }
@@ -23,8 +23,8 @@ class MultiColumn<E : DbEntity<E, ID>, ID : CompositeId<E, ID>>(
 
     private val fieldTuple by lazy { buildFieldTuple(prototype) }
 
-    override fun toSql(sb: SqlBuilder, topLevel: Boolean) {
-        sb.sql(fieldTuple)
+    override fun toSql(sql: Sql, topLevel: Boolean) {
+        sql.raw(fieldTuple)
     }
 
     override fun makeLiteral(value: ID): Expr<E, ID> {
@@ -44,7 +44,7 @@ class MultiColumn<E : DbEntity<E, ID>, ID : CompositeId<E, ID>>(
     }
 
     override infix fun oneOf(values: Set<ID>): ExprBoolean<E> {
-        return ExprOneOf.oneOf(this, ArrayList(values))
+        return ExprOneOf.oneOf(this, values.toList())
     }
 
     override operator fun invoke(row: List<Any?>): ID {

@@ -2,44 +2,29 @@ package com.xs0.dbktx.expr
 
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.ManyToOneInfo
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 
 class ExprFilterHasParent<FROM : DbEntity<FROM, FID>, FID : Any, TO : DbEntity<TO, TID>, TID : Any>(
         private val info: ManyToOneInfo<FROM, FID, TO, TID>,
-        private val filter: Expr<TO, Boolean>) : ExprBoolean<FROM> {
+        private val filter: ExprBoolean<TO>) : ExprBoolean<FROM> {
 
-    override fun toSql(sb: SqlBuilder, topLevel: Boolean) {
-        sb.openParen(topLevel)
-
+    override fun toSql(sql: Sql, topLevel: Boolean) {
         val mappings = info.columnMappings
         val n = mappings.size
 
-        for (i in 0 until n) {
-            if (i == 0 && n > 1)
-                sb.sql("(")
-            if (i > 0)
-                sb.sql(", ")
-            sb.name(mappings[i].columnFrom)
-            if (i == n - 1 && n > 1)
-                sb.sql(")")
+        sql.expr(topLevel) {
+            paren(n > 1) {
+                tuple(info.columnMappings) {
+                    +it.columnFrom
+                }
+            }
+            +" IN (SELECT "
+            tuple(info.columnMappings) {
+                +it.columnTo
+            }
+            FROM(info.oneTable)
+            WHERE(filter)
+            +")"
         }
-
-        sb.sql(" IN (")
-
-        sb.sql("SELECT ")
-        for (i in 0 until n) {
-            if (i > 0)
-                sb.sql(", ")
-            sb.name(mappings[i].columnTo)
-        }
-
-        sb.sql(" FROM ")
-        sb.sql(info.oneTable.dbName)
-        sb.sql(" WHERE ")
-        filter.toSql(sb, true)
-
-        sb.sql(")")
-
-        sb.closeParen(topLevel)
     }
 }

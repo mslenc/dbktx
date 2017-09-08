@@ -1,7 +1,7 @@
 package com.xs0.dbktx.sqltypes
 
 import com.xs0.dbktx.expr.Literal
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 import kotlin.reflect.KClass
 
 // VARCHAR, TEXT, etc => String
@@ -57,16 +57,11 @@ class SqlTypeVarchar(
         return value
     }
 
-    override fun dummyValue(): String {
-        var string = "properstring"
-        if (string.length > maxSize)
-            string = string.substring(0, maxSize)
-        return string
+    override fun toSql(value: String, sql: Sql) {
+        sql(value)
     }
 
-    override fun toSql(value: String, sb: SqlBuilder, topLevel: Boolean) {
-        sb.sql("?").param(value)
-    }
+    override val dummyValue: String = "properString".take(maxSize)
 
     override val kotlinType: KClass<String> = String::class
 

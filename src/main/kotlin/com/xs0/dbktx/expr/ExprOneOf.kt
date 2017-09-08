@@ -1,6 +1,6 @@
 package com.xs0.dbktx.expr
 
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 
 class ExprOneOf<TABLE, T>(private val needle: Expr<in TABLE, T>, private val haystack: List<Expr<in TABLE, T>>) : ExprBoolean<TABLE> {
     init {
@@ -8,19 +8,12 @@ class ExprOneOf<TABLE, T>(private val needle: Expr<in TABLE, T>, private val hay
             throw IllegalArgumentException("Empty list for oneOf")
     }
 
-    override fun toSql(sb: SqlBuilder, topLevel: Boolean) {
-        sb.openParen(topLevel)
-
-        needle.toSql(sb, false)
-        sb.sql(" IN (")
-        for ((i, sub) in haystack.withIndex()) {
-            if (i > 0)
-                sb.sql(", ")
-            sub.toSql(sb, true)
+    override fun toSql(sql: Sql, topLevel: Boolean) {
+        sql.expr(topLevel) {
+            +needle
+            +" IN "
+            paren { tuple(haystack) { +it } }
         }
-        sb.sql(")")
-
-        sb.closeParen(topLevel)
     }
 
     companion object {

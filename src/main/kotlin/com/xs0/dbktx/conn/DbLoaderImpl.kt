@@ -7,6 +7,7 @@ import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.schema.*
 import com.xs0.dbktx.crud.EntityValues
 import com.xs0.dbktx.util.*
+import io.vertx.core.json.JsonObject
 import io.vertx.ext.sql.ResultSet
 import io.vertx.ext.sql.SQLConnection
 import io.vertx.ext.sql.TransactionIsolation
@@ -48,7 +49,7 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
     }
 
     override suspend fun
-    query(sqlBuilder: SqlBuilder): ResultSet {
+    query(sqlBuilder: Sql): ResultSet {
         return vx { handler ->
             conn.queryWithParams(sqlBuilder.getSql(), sqlBuilder.params, handler)
         }
@@ -80,44 +81,30 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
         }
     }
 
-    private fun <E : DbEntity<E, ID>, ID: Any> createInsertQuery(table: DbTable<E, ID>, values: EntityValues<E>): SqlBuilder {
-        val sb = SqlBuilder()
-        sb.sql("INSERT INTO ").name(table).sql("(")
-        var first: Boolean
-
-        first = true
-        for (column: Column<E, *> in values) {
-            if (first) {
-                first = false
-            } else {
-                sb.sql(", ")
+    private fun <E : DbEntity<E, ID>, ID: Any> createInsertQuery(table: DbTable<E, ID>, values: EntityValues<E>): Sql {
+        return Sql().apply {
+            +"INSERT INTO "
+            +table
+            paren {
+                tuple(values) {
+                    column -> +column
+                }
             }
-
-            sb.name(column)
-        }
-
-        sb.sql(") VALUES (")
-        first = true
-        for (column: Column<E, *> in values) {
-            if (first) {
-                first = false
-            } else {
-                sb.sql(", ")
+            +" VALUES "
+            paren {
+                tuple(values) {
+                    emitLiteral(it, values, this)
+                }
             }
-
-            emitLiteral(column, values, sb)
         }
-        sb.sql(")")
-
-        return sb
     }
 
-    private fun <E : DbEntity<E, *>, T: Any> emitLiteral(column: Column<E, T>, values: EntityValues<E>, sb: SqlBuilder) {
+    private fun <E : DbEntity<E, *>, T: Any> emitLiteral(column: Column<E, T>, values: EntityValues<E>, sb: Sql) {
         val value = values.get(column)
         if (value == null) {
-            sb.sql("NULL")
+            sb.raw("NULL")
         } else {
-            column.sqlType.toSql(value, sb, true)
+            column.sqlType.toSql(value, sb)
         }
     }
 
@@ -128,32 +115,21 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
     }
 
     private fun <E : DbEntity<E, ID>, ID: Any>
-    createUpdateQuery(table: DbTable<E, ID>, values: EntityValues<E>, filter: ExprBoolean<E>?): SqlBuilder? {
+    createUpdateQuery(table: DbTable<E, ID>, values: EntityValues<E>, filter: ExprBoolean<E>?): Sql? {
         if (values.isEmpty())
             return null
 
-        val sb = SqlBuilder()
-        sb.sql("UPDATE ").name(table).sql(" SET ")
-
-        var first = true
-        for (column in values) {
-            if (first) {
-                first = false
-            } else {
-                sb.sql(", ")
+        return Sql().apply {
+            +"UPDATE "
+            +table
+            +" SET "
+            tuple(values) { column ->
+                +column
+                +"="
+                emitLiteral(column, values, this)
             }
-
-            sb.name(column)
-            sb.sql("=")
-            emitLiteral(column, values, sb)
+            WHERE(filter)
         }
-
-        if (filter != null) {
-            sb.sql(" WHERE ")
-            filter.toSql(sb, true)
-        }
-
-        return sb
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID : Any>
@@ -211,12 +187,7 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
     count(table: DbTable<E, ID>, filter: ExprBoolean<E>?): Long {
-        val sb = SqlBuilder()
-        sb.sql("SELECT COUNT(*) FROM ").name(table)
-        if (filter != null) {
-            sb.sql(" WHERE ")
-            filter.toSql(sb, true)
-        }
+        val sb = Sql().SELECT("COUNT(*)").FROM(table).WHERE(filter)
 
         return query(sb).results[0].getLong(0)
     }
@@ -230,10 +201,11 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
     query(table: DbTable<E, ID>, filter: ExprBoolean<E>): List<E> {
         val entities = masterIndex[table]
 
-        val sb = SqlBuilder()
-        sb.sql("SELECT ").sql(table.columnNames()).sql(" FROM ").name(table)
-        sb.sql(" WHERE ")
-        filter.toSql(sb, true)
+        val sb = Sql().apply {
+            SELECT(table.columnNames)
+            FROM(table)
+            WHERE(filter)
+        }
 
         scheduleDelayedExec()
         return queryInternal(entities, sb)
@@ -243,8 +215,7 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
     queryAll(table: DbTable<E, ID>): List<E> {
         val entities = masterIndex[table]
 
-        val sb = SqlBuilder()
-        sb.sql("SELECT ").sql(table.columnNames()).sql(" FROM ").name(table)
+        val sb = Sql().SELECT(table.columnNames).FROM(table)
 
         scheduleDelayedExec()
         return queryInternal(entities, sb)
@@ -255,48 +226,30 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
         @Suppress("UNCHECKED_CAST")
         query as EntityQueryImpl<E, ID>
 
-        val table = query.table
-        val filter = query.filter
-        var maxRowCount = query.maxRowCount
-        var offset = query.offset
-        val orderBy = query.orderBy
+        val sb = Sql().apply {
+            SELECT(query.table.columnNames)
+            FROM(query.table)
+            WHERE(query.filter)
 
-        val entities = masterIndex.get(table)
+            if (!query.orderBy.isEmpty()) {
+                +" ORDER BY "
+                tuple(query.orderBy) {
+                    +it.expr
+                    if (!it.isAscending)
+                        +" DESC"
+                }
+            }
 
-        val sb = SqlBuilder()
-        sb.sql("SELECT ").sql(table.columnNames()).sql(" FROM ").sql(table.dbName)
-
-        if (filter != null) {
-            sb.sql(" WHERE ")
-            filter.toSql(sb, true)
-        }
-
-        if (!orderBy.isEmpty()) {
-            sb.sql(" ORDER BY ")
-            var i = 0
-            val n = orderBy.size
-            while (i < n) {
-                val o = orderBy.get(i)
-
-                if (i > 0)
-                    sb.sql(", ")
-                o.expr.toSql(sb, true)
-                if (!o.isAscending)
-                    sb.sql(" DESC")
-                i++
+            if (query.offset != null || query.maxRowCount != null) {
+                +" LIMIT "
+                this(query.maxRowCount ?: Integer.MAX_VALUE)
+                +" OFFSET "
+                this(query.offset ?: 0)
             }
         }
 
-        if (offset != null || maxRowCount != null) {
-            if (offset == null)
-                offset = 0L
-            if (maxRowCount == null)
-                maxRowCount = Integer.MAX_VALUE
 
-            sb.sql(" LIMIT ? OFFSET ?").param(maxRowCount).param(offset)
-        }
-
-        val result: List<E> = queryInternal(entities, sb)
+        val result: List<E> = queryInternal(masterIndex[query.table], sb)
         scheduleDelayedExec()
         return result
     }
@@ -365,7 +318,7 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
 
 
     private suspend fun <E : DbEntity<E, ID>, ID: Any>
-    queryInternal(entities: EntityIndex<E, ID>, sb: SqlBuilder): List<E> {
+    queryInternal(entities: EntityIndex<E, ID>, sb: Sql): List<E> {
         val table = entities.metainfo
 
         val res = ArrayList<E>()
@@ -381,11 +334,11 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
                 if (entityMaybe != null) {
                     entity = entityMaybe
                 } else {
-                    entity = table.create(id, row)
+                    entity = table.create(this, id, row)
                     info.replaceResult(entity)
                 }
             } else {
-                entity = table.create(id, row)
+                entity = table.create(this, id, row)
                 info.handleResult(entity)
             }
 
@@ -539,7 +492,7 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
     delete(table: DbTable<E, ID>, filter: ExprBoolean<E>): Long {
-        return executeUpdateLikeQuery(createDeleteQuery(table, filter), table)
+        return executeUpdateLikeQuery(Sql().raw("DELETE").FROM(table).WHERE(filter), table)
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
@@ -547,7 +500,7 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
         if (ids.isEmpty())
             return 0L
 
-        return executeUpdateLikeQuery(createDeleteQuery(table, table.idField oneOf ids), table)
+        return executeUpdateLikeQuery(Sql().raw("DELETE").FROM(table).WHERE(table.idField oneOf ids), table)
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
@@ -555,11 +508,11 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
         if (id == null)
             return false
 
-        return executeUpdateLikeQuery(createDeleteQuery(table, table.idField eq id), table) > 0
+        return executeUpdateLikeQuery(Sql().raw("DELETE").FROM(table).WHERE(table.idField eq id), table) > 0
     }
 
     private suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeUpdateLikeQuery(sqlBuilder: SqlBuilder, table: DbTable<E, ID>): Long {
+    executeUpdateLikeQuery(sqlBuilder: Sql, table: DbTable<E, ID>): Long {
         val sql = sqlBuilder.getSql()
         val params = sqlBuilder.params
 
@@ -578,17 +531,17 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
         vx<Void> { conn.execute(sql, it) }
     }
 
-    private fun <E : DbEntity<E, ID>, ID: Any>
-    createDeleteQuery(table: DbTable<E, ID>, filter: ExprBoolean<E>?): SqlBuilder {
-        val sb = SqlBuilder()
-        sb.sql("DELETE FROM ").name(table)
-
-        if (filter != null) {
-            sb.sql(" WHERE ")
-            filter.toSql(sb, true)
+    override fun <E : DbEntity<E, ID>, ID : Any> importJson(table: DbTable<E, ID>, json: JsonObject) {
+        val list: List<Any?> = table.importFromJson(json)
+        for (column in table.columns) {
+            val value = list[column.indexInRow]
+            if (value == null) {
+                if (column.nonNull)
+                    throw IllegalArgumentException("Missing value for column ${column.fieldName}")
+            } else {
+                column.sqlType.fromJson(value)
+            }
         }
-
-        return sb
     }
 
     companion object : KLogging()

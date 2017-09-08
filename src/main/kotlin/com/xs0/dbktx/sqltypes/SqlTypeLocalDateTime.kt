@@ -1,6 +1,6 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 
 import java.time.LocalDateTime
 import kotlin.reflect.KClass
@@ -22,13 +22,12 @@ class SqlTypeLocalDateTime(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlT
         return value.toString()
     }
 
-    override fun dummyValue(): LocalDateTime {
-        return LocalDateTime.now()
+    override fun toSql(value: LocalDateTime, sql: Sql) {
+        sql(value)
     }
 
-    override fun toSql(value: LocalDateTime, sb: SqlBuilder, topLevel: Boolean) {
-        sb.sql("?").param(value.toString())
-    }
+    override val dummyValue: LocalDateTime
+        get() = LocalDateTime.now()
 
     override val kotlinType: KClass<LocalDateTime> = LocalDateTime::class
 }

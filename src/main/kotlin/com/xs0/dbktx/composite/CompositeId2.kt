@@ -2,7 +2,7 @@ package com.xs0.dbktx.composite
 
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.NonNullColumn
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 
 abstract class CompositeId2<E : DbEntity<E, ID>, A: Any, B: Any, ID : CompositeId2<E, A, B, ID>>
     private constructor()
@@ -30,12 +30,12 @@ abstract class CompositeId2<E : DbEntity<E, ID>, A: Any, B: Any, ID : CompositeI
         throw IllegalArgumentException()
     }
 
-    override fun toSql(sb: SqlBuilder, topLevel: Boolean) {
-        sb.sql("(")
-        columnA.sqlType.toSql(partA, sb, true)
-        sb.sql(", ")
-        columnB.sqlType.toSql(partB, sb, true)
-        sb.sql(")")
+    override fun toSql(sql: Sql, topLevel: Boolean) {
+        sql.paren {
+            columnA.sqlType.toSql(partA, this)
+            +", "
+            columnB.sqlType.toSql(partB, this)
+        }
     }
 
     override val numColumns: Int

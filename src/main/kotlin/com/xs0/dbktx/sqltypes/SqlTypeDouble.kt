@@ -1,6 +1,6 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 import kotlin.reflect.KClass
 
 class SqlTypeDouble(concreteType: SqlTypeKind,
@@ -42,13 +42,11 @@ class SqlTypeDouble(concreteType: SqlTypeKind,
         return value
     }
 
-    override fun dummyValue(): Double {
-        return 2 * Math.PI
+    override fun toSql(value: Double, sql: Sql) {
+        sql(value)
     }
 
-    override fun toSql(value: Double, sb: SqlBuilder, topLevel: Boolean) {
-        sb.sql("?").param(value)
-    }
+    override val dummyValue: Double = 2 * Math.PI
 
     override val kotlinType: KClass<Double> = Double::class
 }

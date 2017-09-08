@@ -16,7 +16,16 @@ interface RowProp<E : DbEntity<E, *>, T> : Expr<E, T> {
     infix fun neq(value: T): ExprBoolean<E> = neq(makeLiteral(value))
     infix fun `!=`(value: T): ExprBoolean<E> = neq(makeLiteral(value))
 
-    infix fun oneOf(values: Set<T>): ExprBoolean<E> = oneOf(values.map { makeLiteral(it) })
+    infix fun oneOf(values: Set<T>): ExprBoolean<E> {
+        return when {
+            values.isEmpty() ->
+                throw IllegalArgumentException("Can't have empty set with oneOf")
+            values.size == 1 ->
+                eq(values.first())
+            else ->
+                oneOf(values.map { makeLiteral(it) })
+        }
+    }
 
     infix fun oneOf(values: Iterable<T>): ExprBoolean<E> {
         return if (values is Set) {

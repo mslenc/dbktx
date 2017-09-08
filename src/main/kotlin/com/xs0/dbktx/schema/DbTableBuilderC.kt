@@ -1,6 +1,5 @@
 package com.xs0.dbktx.schema
 
-import com.xs0.dbktx.schema.MultiColumn
 import com.xs0.dbktx.composite.CompositeId
 import kotlin.reflect.KClass
 

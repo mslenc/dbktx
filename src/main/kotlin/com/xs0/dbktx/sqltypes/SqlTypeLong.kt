@@ -1,6 +1,6 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 import kotlin.reflect.KClass
 
 class SqlTypeLong(
@@ -50,18 +50,15 @@ class SqlTypeLong(
         return value
     }
 
-    override fun dummyValue(): Long {
-        return maxVal / 2
-    }
-
-    override fun toSql(value: Long, sb: SqlBuilder, topLevel: Boolean) {
-        sb.sql("?")
+    override fun toSql(value: Long, sql: Sql) {
         if (isUnsigned && concreteType === SqlTypeKind.BIGINT && value < 0) {
-            sb.param(java.lang.Long.toUnsignedString(value))
+            sql.raw(java.lang.Long.toUnsignedString(value))
         } else {
-            sb.param(value)
+            sql(value)
         }
     }
+
+    override val dummyValue: Long = maxVal / 2
 
     override val kotlinType: KClass<Long> = Long::class
 }

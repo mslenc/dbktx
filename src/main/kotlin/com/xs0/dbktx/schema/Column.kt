@@ -5,13 +5,16 @@ import com.xs0.dbktx.expr.ExprString
 import com.xs0.dbktx.expr.Literal
 import com.xs0.dbktx.sqltypes.SqlType
 import com.xs0.dbktx.crud.EntityValues
-import com.xs0.dbktx.util.SqlBuilder
+import com.xs0.dbktx.util.Sql
 
 interface Column<E: DbEntity<E, *>, T : Any> : RowProp<E, T> {
     val table: DbTable<E, *>
     val fieldName: String
+    val quotedFieldName: String
     val sqlType: SqlType<T>
     val indexInRow: Int
+    val nonNull: Boolean
+    val nullable: Boolean get() = !nonNull
 
     override operator fun invoke(row: List<Any?>): T? {
         val value = row[indexInRow] ?: return null
@@ -26,8 +29,8 @@ interface Column<E: DbEntity<E, *>, T : Any> : RowProp<E, T> {
         return values.get(this)
     }
 
-    override fun toSql(sb: SqlBuilder, topLevel: Boolean) {
-        sb.name(this)
+    override fun toSql(sql: Sql, topLevel: Boolean) {
+        sql(this)
     }
 
     override fun makeLiteral(value: T): Expr<E, T> {
@@ -60,14 +63,16 @@ interface NonNullStringColumn<E: DbEntity<E, *>> : NonNullOrderedColumn<E, Strin
 interface NullableStringColumn<E: DbEntity<E, *>> : NullableOrderedColumn<E, String>, StringColumn<E>
 
 
-open class ColumnImpl<E : DbEntity<E, *>, T: Any>(
-        override val table: DbTable<E, *>,
+abstract class ColumnImpl<E : DbEntity<E, *>, T: Any>(
+        final override val table: DbTable<E, *>,
         private val getter: (E) -> T?,
-        override val fieldName: String,
-        override val sqlType: SqlType<T>,
-        override val indexInRow: Int)
+        final override val fieldName: String,
+        final override val sqlType: SqlType<T>,
+        final override val indexInRow: Int)
 
     : Column<E, T> {
+
+    final override val quotedFieldName = Sql.quoteIdentifier(fieldName)
 
     override fun invoke(entity: E): T? {
         return getter(entity)
@@ -84,6 +89,8 @@ class NonNullColumnImpl<E : DbEntity<E, *>, T: Any>(
     : ColumnImpl<E, T>(table, getter, fieldName, sqlType, indexInRow),
         NonNullColumn<E, T> {
 
+    override val nonNull: Boolean = true
+
     override fun invoke(entity: E): T {
         return getter(entity)
     }
@@ -97,18 +104,22 @@ class NullableColumnImpl<E : DbEntity<E, *>, T: Any>(
         indexInRow: Int)
 
     : ColumnImpl<E, T>(table, getter, fieldName, sqlType, indexInRow),
-        NullableColumn<E, T>
+        NullableColumn<E, T> {
+
+    override val nonNull: Boolean = false
+}
 
 
-
-open class OrderedColumnImpl<E : DbEntity<E, *>, T: Comparable<T>>(
-        override val table: DbTable<E, *>,
+abstract class OrderedColumnImpl<E : DbEntity<E, *>, T: Comparable<T>>(
+        final override val table: DbTable<E, *>,
         private val getter: (E) -> T?,
-        override val fieldName: String,
-        override val sqlType: SqlType<T>,
-        override val indexInRow: Int)
+        final override val fieldName: String,
+        final override val sqlType: SqlType<T>,
+        final override val indexInRow: Int)
 
     : OrderedColumn<E, T> {
+
+    final override val quotedFieldName: String = Sql.quoteIdentifier(fieldName)
 
     override fun invoke(entity: E): T? {
         return getter(entity)
@@ -125,6 +136,8 @@ class NonNullOrderedColumnImpl<E : DbEntity<E, *>, T: Comparable<T>>(
     : OrderedColumnImpl<E, T>(table, getter, fieldName, sqlType, indexInRow),
         NonNullOrderedColumn<E, T> {
 
+    override val nonNull = true
+
     override fun invoke(entity: E): T {
         return getter(entity)
     }
@@ -138,7 +151,10 @@ class NullableOrderedColumnImpl<E : DbEntity<E, *>, T: Comparable<T>>(
         indexInRow: Int)
 
     : OrderedColumnImpl<E, T>(table, getter, fieldName, sqlType, indexInRow),
-        NullableOrderedColumn<E, T>
+        NullableOrderedColumn<E, T> {
+
+    override val nonNull = false
+}
 
 
 
@@ -146,11 +162,13 @@ class NullableOrderedColumnImpl<E : DbEntity<E, *>, T: Comparable<T>>(
 sealed class StringColumnImpl<E : DbEntity<E, *>>(
         override val table: DbTable<E, *>,
         private val getter: (E) -> String?,
-        override val fieldName: String,
+        final override val fieldName: String,
         override val sqlType: SqlType<String>,
         override val indexInRow: Int)
 
     : StringColumn<E> {
+
+    override val quotedFieldName: String = Sql.quoteIdentifier(fieldName)
 
     override fun invoke(entity: E): String? {
         return getter(entity)
@@ -167,6 +185,7 @@ class NonNullStringColumnImpl<E : DbEntity<E, *>>(
     : StringColumnImpl<E>(table, getter, fieldName, sqlType, indexInRow),
         NonNullStringColumn<E>
 {
+    override val nonNull = true
 
     override fun invoke(entity: E): String {
         return getter(entity)
@@ -180,5 +199,8 @@ class NullableStringColumnImpl<E : DbEntity<E, *>>(
         sqlType: SqlType<String>,
         indexInRow: Int)
     : StringColumnImpl<E>(table, getter, fieldName, sqlType, indexInRow),
-        NullableStringColumn<E>
+        NullableStringColumn<E> {
+
+    override val nonNull = false
+}
 

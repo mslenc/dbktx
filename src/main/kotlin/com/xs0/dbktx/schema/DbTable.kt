@@ -1,9 +1,9 @@
 package com.xs0.dbktx.schema
 
-import com.xs0.dbktx.*
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.crud.*
 import com.xs0.dbktx.expr.ExprBoolean
+import com.xs0.dbktx.util.Sql
 import io.vertx.core.json.JsonObject
 import kotlin.reflect.KClass
 
@@ -13,10 +13,12 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         val entityClass: KClass<E>,
         internal val idClass: KClass<ID>) {
 
+    val quotedDbName: String = Sql.quoteIdentifier(dbName)
+
     internal val columns = ArrayList<Column<E, *>>()
     internal val columnsByDbName = HashMap<String, Column<E, *>>()
 
-    lateinit internal var constructor: (ID, List<Any?>) -> E
+    lateinit internal var factory: (DbConn, ID, List<Any?>) -> E
     lateinit internal var idField: NonNullRowProp<E, ID>
 
     lateinit internal var columnNames: String
@@ -33,7 +35,7 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
     }
 
     fun validate(): DbTable<E, ID> {
-        if (constructor == null)
+        if (factory == null)
             throw IllegalStateException("Missing constructor for table " + dbName)
         if (idField == null)
             throw IllegalStateException("Missing idField for table " + dbName)
@@ -46,12 +48,8 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return idField(row)
     }
 
-    fun create(id: ID, row: List<Any?>): E {
-        return constructor(id, row)
-    }
-
-    fun columnNames(): String {
-        return columnNames
+    fun create(db: DbConn, id: ID, row: List<Any?>): E {
+        return factory(db, id, row)
     }
 
     val numColumns: Int
@@ -81,7 +79,7 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         }
     }
 
-    fun fromJson(jsonObject: JsonObject): E {
+    internal fun importFromJson(jsonObject: JsonObject): List<Any?> {
         val n = columns.size
         val values = arrayOfNulls<Any>(n)
         for (i in 0 until n) {
@@ -92,8 +90,7 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
             }
         }
 
-        val row = listOf(*values)
-        return create(createId(row), row)
+        return listOf(*values)
     }
 
     fun insertion(db: DbConn): DbInsert<E, ID> {

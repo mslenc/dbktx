@@ -1,6 +1,5 @@
 package com.xs0.dbktx.composite
 
-import com.xs0.dbktx.*
 import com.xs0.dbktx.schema.Column
 import com.xs0.dbktx.expr.CompositeExpr
 import com.xs0.dbktx.expr.Expr
