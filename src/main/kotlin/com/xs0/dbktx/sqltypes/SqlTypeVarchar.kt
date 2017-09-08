@@ -1,6 +1,7 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.*
+import com.xs0.dbktx.expr.Literal
+import com.xs0.dbktx.util.SqlBuilder
 import kotlin.reflect.KClass
 
 // VARCHAR, TEXT, etc => String

@@ -1,6 +1,6 @@
 package schema1
 
-import com.xs0.dbktx.DbConn
+import com.xs0.dbktx.conn.DbConn
 
 import schema1.TestSchema.PEOPLE
 import schema1.TestSchema.TAGS

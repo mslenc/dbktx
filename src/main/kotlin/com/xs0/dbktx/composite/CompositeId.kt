@@ -1,6 +1,11 @@
 package com.xs0.dbktx.composite
 
 import com.xs0.dbktx.*
+import com.xs0.dbktx.schema.Column
+import com.xs0.dbktx.expr.CompositeExpr
+import com.xs0.dbktx.expr.Expr
+import com.xs0.dbktx.schema.DbEntity
+import com.xs0.dbktx.schema.DbTable
 
 abstract class CompositeId<E : DbEntity<E, ID>, ID : CompositeId<E, ID>> : CompositeExpr<E, ID> {
     abstract override fun equals(other: Any?): Boolean

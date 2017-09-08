@@ -1,6 +1,6 @@
 package schema1
 
-import com.xs0.dbktx.DbConnectorImpl
+import com.xs0.dbktx.conn.DbConnectorImpl
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.asyncsql.MySQLClient

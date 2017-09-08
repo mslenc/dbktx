@@ -1,6 +1,7 @@
 package com.xs0.dbktx.sqltypes
 
 import com.xs0.dbktx.*
+import com.xs0.dbktx.util.*
 import java.util.Base64
 import java.util.UUID
 
@@ -200,7 +201,7 @@ private fun ByteArray.toUUID(): UUID {
 
 private fun UUID.toBytes(): ByteArray {
     val bytes = ByteArray(16)
-    putLongBE(mostSignificantBits,  bytes, 0)
+    putLongBE(mostSignificantBits, bytes, 0)
     putLongBE(leastSignificantBits, bytes, 8)
     return bytes
 }

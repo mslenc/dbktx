@@ -1,8 +1,8 @@
 package schema1
 
-import com.xs0.dbktx.DbEntity
-import com.xs0.dbktx.DbTable
-import com.xs0.dbktx.ExprBoolean
+import com.xs0.dbktx.schema.DbEntity
+import com.xs0.dbktx.schema.DbTable
+import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.fieldprops.*
 
 class DbTags(override val id: Int,

@@ -1,8 +1,8 @@
 package com.xs0.dbktx.composite
 
-import com.xs0.dbktx.DbEntity
-import com.xs0.dbktx.NonNullColumn
-import com.xs0.dbktx.SqlBuilder
+import com.xs0.dbktx.schema.DbEntity
+import com.xs0.dbktx.schema.NonNullColumn
+import com.xs0.dbktx.util.SqlBuilder
 
 abstract class CompositeId2<E : DbEntity<E, ID>, A: Any, B: Any, ID : CompositeId2<E, A, B, ID>>
     private constructor()

@@ -1,6 +1,6 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.SqlBuilder
+import com.xs0.dbktx.util.SqlBuilder
 
 import java.util.Base64
 

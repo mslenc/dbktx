@@ -1,6 +1,6 @@
 package com.xs0.dbktx.sqltypes
 
-import com.xs0.dbktx.SqlBuilder
+import com.xs0.dbktx.util.SqlBuilder
 import kotlin.reflect.KClass
 
 class SqlTypeIntBoolean(concreteType: SqlTypeKind, isNotNull: Boolean, trueValue: Int?, falseValue: Int?) : SqlType<Boolean>(isNotNull = isNotNull) {
