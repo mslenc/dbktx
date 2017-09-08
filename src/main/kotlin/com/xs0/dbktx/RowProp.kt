@@ -8,7 +8,10 @@ interface RowProp<E : DbEntity<E, *>, T> : Expr<E, T> {
     fun makeLiteral(value: T): Expr<E, T>
 
     infix fun eq(value: T): ExprBoolean<E> = eq(makeLiteral(value))
+    infix fun `==`(value: T): ExprBoolean<E> = eq(makeLiteral(value))
+
     infix fun neq(value: T): ExprBoolean<E> = neq(makeLiteral(value))
+    infix fun `!=`(value: T): ExprBoolean<E> = neq(makeLiteral(value))
 
     infix fun oneOf(values: Set<T>): ExprBoolean<E> = oneOf(values.map { makeLiteral(it) })
 

@@ -14,6 +14,10 @@ interface Expr<E, T> : SqlEmitter<E> {
         return ExprBinary(this, ExprBinary.Op.EQ, other)
     }
 
+    infix fun `==`(other: Expr<in E, T>): ExprBoolean<E> {
+        return ExprBinary(this, ExprBinary.Op.EQ, other)
+    }
+
     infix fun neq(other: Expr<in E, T>): ExprBoolean<E> {
         return ExprBinary(this, ExprBinary.Op.NEQ, other)
     }
