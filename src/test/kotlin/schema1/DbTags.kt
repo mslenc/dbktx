@@ -10,17 +10,18 @@ class DbTags(override val id: Int,
 
     override val metainfo = TABLE
 
-    val tag: String get() = TAG.from(row)
+    val tag: String get() = TAG(row)
+    val ownerId: Int get() = OWNER_ID(row)
 
     companion object TABLE : DbTable<DbTags, Int>(TestSchema, "tags", DbTags::class, Int::class) {
-        val ID = b.nonNullInt("id", INT(), { x -> x.id }, primaryKey = true, autoIncrement = true)
-        val TAG = b.nonNullString("tag", VARCHAR(255), { x -> x.tag })
-        val OWNER_ID = b.nonNullInt("owner_id", INT(), { x -> x.id }, references = DbPeople::class)
+        val ID = b.nonNullInt("id", INT(), DbTags::id, primaryKey = true, autoIncrement = true)
+        val TAG = b.nonNullString("tag", VARCHAR(255), DbTags::tag)
+        val OWNER_ID = b.nonNullInt("owner_id", INT(), DbTags::ownerId, references = DbPeople::class)
 
         val OWNER_REF = b.relToOne<DbPeople, Int>(OWNER_ID)
 
         init {
-            b.build({ id, row -> DbTags(id, row) })
+            b.build(::DbTags)
         }
 
         fun filter(builder: TABLE.() -> ExprBoolean<DbTags>): ExprBoolean<DbTags> {

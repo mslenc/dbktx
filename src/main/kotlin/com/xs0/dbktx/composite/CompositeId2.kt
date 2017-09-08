@@ -14,8 +14,8 @@ abstract class CompositeId2<E : DbEntity<E, ID>, A: Any, B: Any, ID : CompositeI
     lateinit var partB: B
 
     protected constructor(row: List<Any?>) : this() {
-        this.partA = columnA.from(row)
-        this.partB = columnB.from(row)
+        this.partA = columnA(row)
+        this.partB = columnB(row)
     }
 
     protected constructor(partA: A, partB: B) : this() {

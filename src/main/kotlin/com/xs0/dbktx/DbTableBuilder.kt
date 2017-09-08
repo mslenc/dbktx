@@ -484,7 +484,7 @@ internal constructor(
             val targetTable = table.schema.getTableFor(targetClass)
             @Suppress("UNCHECKED_CAST")
             val targetIdColumns = targetTable.idField as MultiColumn<TARGET, TID>
-            val targetId = targetIdColumns.from(dummyRow(targetTable.columns))
+            val targetId = targetIdColumns(dummyRow(targetTable.columns))
 
             val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
                 ColumnMapping(columnA, targetId.columnA),

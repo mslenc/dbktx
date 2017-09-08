@@ -20,6 +20,10 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
 
     protected val b: DbTableBuilder<E, ID> = DbTableBuilder(this)
 
+    init {
+        schema.register(this)
+    }
+
     override fun hashCode(): Int {
         return dbName.hashCode()
     }
@@ -35,7 +39,7 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
     }
 
     fun createId(row: List<Any?>): ID {
-        return idField.from(row)
+        return idField(row)
     }
 
     fun create(id: ID, row: List<Any?>): E {
