@@ -61,4 +61,8 @@ class RelToOneImpl<FROM : DbEntity<FROM, FROMID>, FROMID : Any, TO : DbEntity<TO
 
         return map.columnFrom oneOf set
     }
+
+    override suspend fun invoke(from: FROM): TO? {
+        return from.db.find(from, this)
+    }
 }

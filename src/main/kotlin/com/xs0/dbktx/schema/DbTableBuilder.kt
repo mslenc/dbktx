@@ -1,5 +1,6 @@
 package com.xs0.dbktx.schema
 
+import com.xs0.dbktx.composite.CompositeId
 import com.xs0.dbktx.sqltypes.SqlType
 import com.xs0.dbktx.sqltypes.SqlTypes
 import java.math.BigDecimal
@@ -7,6 +8,7 @@ import java.time.*
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 import com.xs0.dbktx.composite.CompositeId2
+import com.xs0.dbktx.composite.CompositeId3
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.fieldprops.SqlTypeDef
 import com.xs0.dbktx.sqltypes.SqlTypeKind
@@ -325,9 +327,9 @@ internal constructor(
 
 
     fun nonNullStringEnum(fieldName: String,
-                          type: SqlTypeDef = SqlTypeDef(SqlTypeKind.ENUM),
                           values: Set<String>,
                           getter: (E) -> String,
+                          type: SqlTypeDef = SqlTypeDef(SqlTypeKind.ENUM),
                           primaryKey: Boolean = false,
                           references: Ref<String>? = null): NonNullColumn<E, String> {
 
@@ -337,10 +339,10 @@ internal constructor(
         return column
     }
 
-    fun nonNullStringEnum(fieldName: String,
-                          type: SqlTypeDef = SqlTypeDef(SqlTypeKind.ENUM),
+    fun nullableStringEnum(fieldName: String,
                           values: Set<String>,
                           getter: (E) -> String?,
+                          type: SqlTypeDef = SqlTypeDef(SqlTypeKind.ENUM),
                           references: Ref<String>? = null): NullableColumn<E, String> {
 
         val sqlType = SqlTypes.makeEnumString(type.sqlTypeKind, values, isNotNull = false)
@@ -352,10 +354,10 @@ internal constructor(
 
     inline fun <reified ENUM : Enum<ENUM>>
             nonNullIntEnum(fieldName: String,
+                           typeDef: SqlTypeDef,
                            noinline getter: (E) -> ENUM,
                            noinline toDbRep: (ENUM)->Int,
                            noinline fromDbRep: (Int)->ENUM,
-                           typeDef: SqlTypeDef,
                            references: Ref<ENUM>? = null,
                            primaryKey: Boolean = false
                            ): NonNullColumn<E, ENUM> {
@@ -363,15 +365,15 @@ internal constructor(
         val klass = ENUM::class
         val dummyValue = enumValues<ENUM>()[0]
 
-        return nonNullIntEnum(fieldName, getter, toDbRep, fromDbRep, typeDef, klass, dummyValue, references, primaryKey = primaryKey)
+        return nonNullIntEnum(fieldName, typeDef, getter, toDbRep, fromDbRep, klass, dummyValue, references, primaryKey = primaryKey)
     }
 
     fun <ENUM : Enum<ENUM>>
             nonNullIntEnum(fieldName: String,
+                           typeDef: SqlTypeDef,
                            getter: (E) -> ENUM,
                            toDbRep: (ENUM)->Int,
                            fromDbRep: (Int)->ENUM,
-                           typeDef: SqlTypeDef,
                            klass: KClass<ENUM>,
                            dummyValue: ENUM,
                            references: Ref<ENUM>? = null,
@@ -475,41 +477,6 @@ internal constructor(
         return this.relToOne(sourceColumn, foreignKey as KClass<TARGET>)
     }
 
-    fun <TARGET : DbEntity<TARGET, TID>, TID : CompositeId2<TARGET, A, B, TID>, A : Any, B : Any> relToOne(columnA: Column<E, A>, columnB: Column<E, B>, targetClass: KClass<TARGET>): RelToOne<E, TARGET> {
-        return relToOne(columnA, columnB, targetClass, null)
-    }
-
-    fun <TARGET : DbEntity<TARGET, TID>, TID : CompositeId2<TARGET, A, B, TID>, A : Any, B : Any> relToOne(columnA: Column<E, A>, columnB: Column<E, B>, targetClass: KClass<TARGET>, idConstructor: ((A, B)->TID)?): RelToOne<E, TARGET> {
-        val result = RelToOneImpl<E, ID, TARGET, TID>()
-        table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
-            val targetTable = table.schema.getTableFor(targetClass)
-            @Suppress("UNCHECKED_CAST")
-            val targetIdColumns = targetTable.idField as MultiColumn<TARGET, TID>
-            val targetId = targetIdColumns(dummyRow(targetTable.columns))
-
-            val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
-                    ColumnMapping(columnA, targetId.columnA),
-                    ColumnMapping(columnB, targetId.columnB)
-            )
-
-            val info = ManyToOneInfo(table, targetTable, fields)
-
-            val idCons: (E)->TID?
-            if (idConstructor != null) {
-                idCons = { source ->
-                    val valA = columnA(source)
-                    val valB = columnB(source)
-                    if (valA != null && valB != null) idConstructor(valA, valB) else null
-                }
-            } else {
-                idCons = info.makeForwardMapper()
-            }
-
-            result.init(info, idCons)
-        }
-        return result
-    }
-
     fun <TARGET : DbEntity<TARGET, TID>, TID: Any>
     relToOne(sourceField: Column<E, TID>, targetClass: KClass<TARGET>): RelToOne<E, TARGET> {
         val result = RelToOneImpl<E, ID, TARGET, TID>()
@@ -543,6 +510,72 @@ internal constructor(
             rel.init(info, relToOne.idMapper, info.makeReverseQueryBuilder())
         }
         return rel
+    }
+
+    fun <TARGET : DbEntity<TARGET, TID>, TID : CompositeId2<TARGET, A, B, TID>, A : Any, B : Any>
+    relToOne(columnA: Column<E, A>, columnB: Column<E, B>, targetClass: KClass<TARGET>, idConstructor: ((A, B)->TID)? = null): RelToOne<E, TARGET> {
+        val result = RelToOneImpl<E, ID, TARGET, TID>()
+        table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
+            val targetTable = table.schema.getTableFor(targetClass)
+            @Suppress("UNCHECKED_CAST")
+            val targetIdColumns = targetTable.idField as MultiColumn<TARGET, TID>
+            val targetId = targetIdColumns(dummyRow(targetTable.columns))
+
+            val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
+                    ColumnMapping(columnA, targetId.column1),
+                    ColumnMapping(columnB, targetId.column2)
+            )
+
+            val info = ManyToOneInfo(table, targetTable, fields)
+
+            val idCons: (E)->TID?
+            if (idConstructor != null) {
+                idCons = { source ->
+                    val valA = columnA(source)
+                    val valB = columnB(source)
+                    if (valA != null && valB != null) idConstructor(valA, valB) else null
+                }
+            } else {
+                idCons = info.makeForwardMapper()
+            }
+
+            result.init(info, idCons)
+        }
+        return result
+    }
+
+    fun <TARGET : DbEntity<TARGET, TID>, TID : CompositeId3<TARGET, T1, T2, T3, TID>, T1: Any, T2: Any, T3: Any>
+    relToOne(column1: Column<E, T1>, column2: Column<E, T2>, column3: Column<E, T3>, targetClass: KClass<TARGET>, idConstructor: ((T1, T2, T3)->TID)? = null): RelToOne<E, TARGET> {
+        val result = RelToOneImpl<E, ID, TARGET, TID>()
+        table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
+            val targetTable = table.schema.getTableFor(targetClass)
+            @Suppress("UNCHECKED_CAST")
+            val targetIdColumns = targetTable.idField as MultiColumn<TARGET, TID>
+            val targetId = targetIdColumns(dummyRow(targetTable.columns))
+
+            val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
+                    ColumnMapping(column1, targetId.column1),
+                    ColumnMapping(column2, targetId.column2),
+                    ColumnMapping(column3, targetId.column3)
+            )
+
+            val info = ManyToOneInfo(table, targetTable, fields)
+
+            val idCons: (E)->TID?
+            if (idConstructor != null) {
+                idCons = { source ->
+                    val val1 = column1(source)
+                    val val2 = column2(source)
+                    val val3 = column3(source)
+                    if (val1 != null && val2 != null && val3 != null) idConstructor(val1, val2, val3) else null
+                }
+            } else {
+                idCons = info.makeForwardMapper()
+            }
+
+            result.init(info, idCons)
+        }
+        return result
     }
 
     companion object {

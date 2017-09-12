@@ -23,6 +23,14 @@ interface EntityQuery<E : DbEntity<E, *>> {
 
     fun offset(offset: Long): EntityQuery<E>
     fun maxRowCount(maxRowCount: Int): EntityQuery<E>
+
+    operator fun timesAssign(filter: ExprBoolean<E>) {
+        filter(filter)
+    }
+
+    operator fun minusAssign(exclude: ExprBoolean<E>) {
+        exclude(exclude)
+    }
 }
 
 internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
@@ -85,11 +93,8 @@ internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
 
         if (order.isComposite) {
             val comp = order as CompositeExpr
-            var i = 0
-            val n = comp.numParts
-            while (i < n) {
+            for (i in 1..comp.numParts) {
                 orderBy(comp.getPart(i), ascending)
-                i++
             }
         } else {
             if (_orderBy == null)

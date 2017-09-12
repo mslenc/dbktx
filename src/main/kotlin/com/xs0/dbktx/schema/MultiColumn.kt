@@ -7,8 +7,8 @@ import com.xs0.dbktx.util.Sql
 
 private fun buildFieldTuple(id: CompositeId<*, *>): String {
     val sb = StringBuilder()
-    for (i in 0 until id.numColumns) {
-        sb.append(if (i == 0) "(" else ", ")
+    for (i in 1 .. id.numColumns) {
+        sb.append(if (i == 1) "(" else ", ")
         sb.append(id.getColumn(i).quotedFieldName)
     }
     return sb.append(")").toString()
@@ -61,7 +61,7 @@ class MultiColumn<E : DbEntity<E, ID>, ID : CompositeId<E, ID>>(
         for (i in 0 until numCols)
             row.add(null)
 
-        for (i in 0 until numParts) {
+        for (i in 1..numParts) {
             val part = getPart(i)
             val value = part.extract(values) ?: return null
             row[part.indexInRow] = value

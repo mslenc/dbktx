@@ -6,5 +6,5 @@ object TestSchema: DbSchema() {
     val PEOPLE = DbPeople.TABLE
     val TAGS = DbTags.TABLE
 
-    init { this.finishInit() }
+    init { finishInit() }
 }
