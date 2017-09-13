@@ -32,8 +32,16 @@ abstract class DbMutationImpl<E : DbEntity<E, ID>, ID: Any> protected constructo
 
     private fun <TARGET : DbEntity<TARGET, TID>, TID, VALTYPE: Any>
     doColMap(colMap: ColumnMapping<E, TARGET, VALTYPE>, target: TARGET) {
-        set(colMap.columnFrom, colMap.columnTo.invoke(target))
+        val colFrom = colMap.columnFrom
+        val colTo = colMap.columnTo
+
+        if (colFrom is NonNullColumn) {
+            set(colFrom, colTo.invoke(target))
+        } else
+        if (colFrom is NullableColumn) {
+            set(colFrom, colTo.invoke(target))
+        } else {
+            throw IllegalStateException("Column is neither nullable or nonNull")
+        }
     }
-
-
 }

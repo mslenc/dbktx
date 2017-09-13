@@ -24,7 +24,7 @@ class DbConnectorImpl(
     : DbConnector
 
 {
-    override suspend fun connect(): DbConn {
+    suspend override fun connect(block: suspend (DbConn) -> Unit) {
         val rawConn: SQLConnection = try {
             vx { handler -> sqlClient.getConnection(handler) }
         } catch (e: Exception) {
@@ -32,11 +32,9 @@ class DbConnectorImpl(
             throw e
         }
 
-        return DbLoaderImpl(rawConn, delayedExecScheduler)
-    }
-
-    fun rawClient(): AsyncSQLClient {
-        return sqlClient
+        DbLoaderImpl(rawConn, delayedExecScheduler).use {
+            block(it)
+        }
     }
 
     companion object : KLogging()

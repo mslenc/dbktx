@@ -28,6 +28,10 @@ interface DbMutation<E : DbEntity<E, *>> {
         set(this, value)
     }
 
+    operator fun <T: Any> NonNullColumn<E, T>.plusAssign(value: Expr<in E, T>) {
+        set(this, value)
+    }
+
     fun <T : Any> setNull(column: NullableColumn<E, T>): DbMutation<E> {
         return set(column, ExprNull.create())
     }

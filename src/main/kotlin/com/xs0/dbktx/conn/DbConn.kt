@@ -20,7 +20,7 @@ import kotlinx.coroutines.experimental.Deferred
  * A connection to the database, providing methods for querying, updating and
  * transaction management.
  */
-interface DbConn: AutoCloseable {
+interface DbConn {
     suspend fun query(sqlBuilder: Sql): ResultSet
 
     fun queryAsync(sqlBuilder: Sql): Deferred<ResultSet> {
@@ -201,8 +201,6 @@ interface DbConn: AutoCloseable {
     Z.deleteAsync(id: ID): Deferred<Boolean> {
         return defer { delete(id) }
     }
-
-    override fun close()
 
     fun <E : DbEntity<E, ID>, ID: Any>
     importJson(table: DbTable<E, ID>, json: JsonObject)

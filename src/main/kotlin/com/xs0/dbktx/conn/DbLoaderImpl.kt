@@ -22,7 +22,7 @@ import java.util.*
 import kotlin.collections.LinkedHashMap
 import kotlin.coroutines.experimental.suspendCoroutine
 
-class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: DelayedExecScheduler) : DbConn {
+class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: DelayedExecScheduler) : DbConn, AutoCloseable {
 
     private val conn: SQLConnection
     private val masterIndex = MasterIndex()
@@ -504,7 +504,8 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    delete(table: Z, id: ID): Boolean {
+    Z.delete(id: ID): Boolean {
+        val table: Z = this // we're extension
         return executeUpdateLikeQuery(Sql().raw("DELETE").FROM(table).WHERE(table.idField eq id), table) > 0
     }
 

@@ -31,7 +31,7 @@ fun main(args: Array<String>) {
             var response = "!!!"
 
             try {
-                dbConnector.connect().use { db ->
+                dbConnector.connect { db ->
                     val sb = StringBuilder()
 
                     val mitja = db.load(TestSchema.PEOPLE, 1)

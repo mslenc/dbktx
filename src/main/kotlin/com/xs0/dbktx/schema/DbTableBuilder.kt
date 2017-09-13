@@ -1,6 +1,5 @@
 package com.xs0.dbktx.schema
 
-import com.xs0.dbktx.composite.CompositeId
 import com.xs0.dbktx.sqltypes.SqlType
 import com.xs0.dbktx.sqltypes.SqlTypes
 import java.math.BigDecimal
