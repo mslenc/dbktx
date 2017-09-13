@@ -33,7 +33,7 @@ class RelToManyImpl<FROM : DbEntity<FROM, FID>, FID: Any, TO : DbEntity<TO, TID>
         return ExprFilterContainsChild(info, setFilter)
     }
 
-    override suspend fun invoke(from: FROM): List<TO> {
-        return from.db.load(from, this)
+    override suspend fun invoke(from: FROM, filter: ExprBoolean<TO>?): List<TO> {
+        return from.db.load(from, this, filter)
     }
 }

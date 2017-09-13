@@ -1,5 +1,7 @@
 package com.xs0.dbktx.conn
 
+import com.xs0.dbktx.crud.DbInsert
+import com.xs0.dbktx.crud.DbUpdate
 import com.xs0.dbktx.crud.EntityQuery
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.schema.DbEntity
@@ -38,11 +40,6 @@ interface DbConn: AutoCloseable {
     suspend fun <E : DbEntity<E, ID>, ID: Any>
     query(table: DbTable<E, ID>, filter: ExprBoolean<E>): List<E>
 
-    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    query(table: Z, filterBuilder: Z.() -> ExprBoolean<E>): List<E> {
-        return query(table, table.filterBuilder())
-    }
-
     fun <E : DbEntity<E, ID>, ID: Any>
     queryAsync(table: DbTable<E, ID>, filter: ExprBoolean<E>): Deferred<List<E>> {
         return defer { query(table, filter) }
@@ -57,6 +54,11 @@ interface DbConn: AutoCloseable {
         return defer { queryAll(table) }
     }
 
+
+    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    Z.count(filter: Z.() -> ExprBoolean<E>): Long {
+        return count(this, filter())
+    }
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
     count(table: DbTable<E, ID>, filter: ExprBoolean<E>?): Long
@@ -175,34 +177,66 @@ interface DbConn: AutoCloseable {
     }
 
 
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    delete(table: DbTable<E, ID>, filter: ExprBoolean<E>): Long
+    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    delete(table: Z, filter: Z.() -> ExprBoolean<E>): Long
 
-    fun <E : DbEntity<E, ID>, ID: Any>
-    deleteAsync(table: DbTable<E, ID>, filter: ExprBoolean<E>): Deferred<Long> {
+    fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    deleteAsync(table: Z, filter: Z.() -> ExprBoolean<E>): Deferred<Long> {
         return defer { delete(table, filter) }
     }
 
+    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    delete(table: Z, ids: Set<ID>): Long
 
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    delete(table: DbTable<E, ID>, ids: Set<ID>): Long
-
-    fun <E : DbEntity<E, ID>, ID: Any>
-    deleteAsync(table: DbTable<E, ID>, ids: Set<ID>): Deferred<Long> {
+    fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    deleteAsync(table: Z, ids: Set<ID>): Deferred<Long> {
         return defer { delete(table, ids) }
     }
 
 
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    delete(table: DbTable<E, ID>, id: ID?): Boolean
+    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    Z.delete(id: ID): Boolean
 
-    fun <E : DbEntity<E, ID>, ID: Any>
-    deleteAsync(table: DbTable<E, ID>, id: ID): Deferred<Boolean> {
-        return defer { delete(table, id) }
+    fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    Z.deleteAsync(id: ID): Deferred<Boolean> {
+        return defer { delete(id) }
     }
 
     override fun close()
 
     fun <E : DbEntity<E, ID>, ID: Any>
     importJson(table: DbTable<E, ID>, json: JsonObject)
+
+
+    suspend operator fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    Z.invoke(id: ID): E {
+        return load(this, id)
+    }
+
+    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    Z.query(filter: Z.() -> ExprBoolean<E>): List<E> {
+        return query(this, filter())
+    }
+
+    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    Z.queryAsync(filter: Z.() -> ExprBoolean<E>): Deferred<List<E>> {
+        return queryAsync(this, filter())
+    }
+
+    suspend fun <E: DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    insert(table: Z, builder: DbInsert<E, ID>.() -> Unit): ID {
+        val insert = table.insertion(this)
+        insert.apply(builder)
+        return insert.execute()
+    }
+
+    suspend fun <E: DbEntity<E, ID>, ID: Any>
+    update(entity: E, builder: DbUpdate<E>.() -> Unit): Boolean {
+        val update = entity.metainfo.update(this, entity)
+        update.apply(builder)
+        return update.execute() > 0
+    }
+
+    fun <E : DbEntity<E, ID>, ID: Any>
+    newQuery(table: DbTable<E, ID>) = table.newQuery(this)
 }

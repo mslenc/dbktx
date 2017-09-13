@@ -490,24 +490,21 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
         return delete(entity.metainfo, setOf(entity.id)) > 0
     }
 
-    override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    delete(table: DbTable<E, ID>, filter: ExprBoolean<E>): Long {
-        return executeUpdateLikeQuery(Sql().raw("DELETE").FROM(table).WHERE(filter), table)
+    override suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    delete(table: Z, filter: Z.() -> ExprBoolean<E>): Long {
+        return executeUpdateLikeQuery(Sql().raw("DELETE").FROM(table).WHERE(table.filter()), table)
     }
 
-    override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    delete(table: DbTable<E, ID>, ids: Set<ID>): Long {
+    override suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    delete(table: Z, ids: Set<ID>): Long {
         if (ids.isEmpty())
             return 0L
 
         return executeUpdateLikeQuery(Sql().raw("DELETE").FROM(table).WHERE(table.idField oneOf ids), table)
     }
 
-    override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    delete(table: DbTable<E, ID>, id: ID?): Boolean {
-        if (id == null)
-            return false
-
+    override suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    delete(table: Z, id: ID): Boolean {
         return executeUpdateLikeQuery(Sql().raw("DELETE").FROM(table).WHERE(table.idField eq id), table) > 0
     }
 
