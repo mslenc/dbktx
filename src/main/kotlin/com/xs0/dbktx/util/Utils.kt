@@ -135,3 +135,26 @@ inline suspend fun <T> vx(crossinline callback: (Handler<AsyncResult<T>>) -> Uni
 
 
 
+fun escapeSqlLikePattern(pattern: String, escapeChar: Char): String {
+    // lazy allocate, because most patterns are not expected to actually contain
+    // _ or %
+    var sb: StringBuilder? = null
+
+    var i = 0
+    val n = pattern.length
+    while (i < n) {
+        val c = pattern[i]
+        if (c == '%' || c == '_' || c == escapeChar) {
+            if (sb == null) {
+                sb = StringBuilder(pattern.length + 16)
+                sb.append(pattern, 0, i)
+            }
+            sb.append(escapeChar)
+        }
+        if (sb != null)
+            sb.append(c)
+        i++
+    }
+
+    return if (sb != null) sb.toString() else pattern
+}

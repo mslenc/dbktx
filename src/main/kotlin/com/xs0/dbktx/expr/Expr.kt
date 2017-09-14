@@ -2,6 +2,7 @@ package com.xs0.dbktx.expr
 
 import com.xs0.dbktx.sqltypes.SqlTypeVarchar
 import com.xs0.dbktx.util.Sql
+import com.xs0.dbktx.util.escapeSqlLikePattern
 
 interface SqlEmitter {
     fun toSql(sql: Sql, topLevel: Boolean = false)
@@ -90,15 +91,15 @@ interface NonNullOrderedExpr<E, T>: OrderedExpr<E, T>, NonNullExpr<E, T>
 
 interface ExprString<E> : OrderedExpr<E, String> {
     infix fun contains(value: String): ExprBoolean<E> {
-        return like("%" + escapePattern(value, '|') + "%", '|')
+        return like("%" + escapeSqlLikePattern(value, '|') + "%", '|')
     }
 
     infix fun startsWith(value: String): ExprBoolean<E> {
-        return like(escapePattern(value, '|') + "%", '|')
+        return like(escapeSqlLikePattern(value, '|') + "%", '|')
     }
 
     infix fun endsWith(value: String): ExprBoolean<E> {
-        return like("%" + escapePattern(value, '|'), '|')
+        return like("%" + escapeSqlLikePattern(value, '|'), '|')
     }
 
     infix fun like(pattern: String): ExprBoolean<E> {
@@ -115,30 +116,6 @@ interface ExprString<E> : OrderedExpr<E, String> {
 
     fun like(pattern: Expr<in E, String>, escapeChar: Char): ExprBoolean<E> {
         return ExprLike(this, pattern, escapeChar)
-    }
-
-    private fun escapePattern(pattern: String, escapeChar: Char): String {
-        // lazy allocate, because most patterns are not expected to actually contain
-        // _ or %
-        var sb: StringBuilder? = null
-
-        var i = 0
-        val n = pattern.length
-        while (i < n) {
-            val c = pattern[i]
-            if (c == '%' || c == '_' || c == escapeChar) {
-                if (sb == null) {
-                    sb = StringBuilder(pattern.length + 16)
-                    sb.append(pattern, 0, i)
-                }
-                sb.append(escapeChar)
-            }
-            if (sb != null)
-                sb.append(c)
-            i++
-        }
-
-        return if (sb != null) sb.toString() else pattern
     }
 }
 
