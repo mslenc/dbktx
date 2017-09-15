@@ -13,7 +13,7 @@ internal class EntityIndex<E : DbEntity<E, ID>, ID: Any>(
         val metainfo: DbTable<E, ID>) {
 
     private var index: HashMap<ID, DelayedLoadStateNullable<E>> = HashMap()
-    private var idsToLoad = HashSet<ID>()
+    private var idsToLoad = LinkedHashSet<ID>()
 
     operator fun get(id: ID): DelayedLoadStateNullable<E> {
         return index.computeIfAbsent(id) { _ -> DelayedLoadStateNullable() }
@@ -28,7 +28,7 @@ internal class EntityIndex<E : DbEntity<E, ID>, ID: Any>(
             return null
 
         val res = idsToLoad
-        idsToLoad = HashSet()
+        idsToLoad = LinkedHashSet()
         return res
     }
 
@@ -52,7 +52,7 @@ internal class EntityIndex<E : DbEntity<E, ID>, ID: Any>(
         this.index = HashMap()
 
         val idsToLoad = this.idsToLoad
-        this.idsToLoad = HashSet()
+        this.idsToLoad = LinkedHashSet()
 
         if (idsToLoad.isEmpty())
             return
@@ -82,7 +82,7 @@ internal class ToManyIndex<FROM: DbEntity<FROM, FROMID>, FROMID: Any, TO: DbEnti
         val relation: RelToManyImpl<FROM, FROMID, TO, TOID>) {
 
     private var index: HashMap<FROMID, DelayedLoadState<List<TO>>> = HashMap()
-    private var idsToLoad = HashSet<FROMID>()
+    private var idsToLoad = LinkedHashSet<FROMID>()
 
     operator fun get(id: FROMID): DelayedLoadState<List<TO>> {
         return index.computeIfAbsent(id) { _ -> DelayedLoadState() }
@@ -97,7 +97,7 @@ internal class ToManyIndex<FROM: DbEntity<FROM, FROMID>, FROMID: Any, TO: DbEnti
             return null;
 
         val res = idsToLoad
-        idsToLoad = HashSet()
+        idsToLoad = LinkedHashSet()
         return res
     }
 
@@ -122,7 +122,7 @@ internal class ToManyIndex<FROM: DbEntity<FROM, FROMID>, FROMID: Any, TO: DbEnti
         this.index = HashMap()
 
         val idsToLoad = this.idsToLoad
-        this.idsToLoad = HashSet()
+        this.idsToLoad = LinkedHashSet()
 
         if (idsToLoad.isEmpty())
             return

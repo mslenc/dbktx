@@ -85,8 +85,8 @@ internal fun toHexString(bytes: ByteArray, prefix: String, suffix: String, out: 
 
     for (b in bytes) {
         val i = b.toInt() and 255
-        out.append(HEX_CHARS[i shr 4])
-        out.append(HEX_CHARS[i      ])
+        out.append(HEX_CHARS[i shr  4])
+        out.append(HEX_CHARS[i and 15])
     }
 
     out.append(suffix)

@@ -96,7 +96,7 @@ internal constructor(
         return column
     }
 
-    fun nullableLong(fieldName: String, type: SqlTypeDef, getter: (E) -> Long,
+    fun nullableLong(fieldName: String, type: SqlTypeDef, getter: (E) -> Long?,
                      unsigned: Boolean = false,
                      references: Ref<Long>? = null): NullableOrderedColumn<E, Long> {
 

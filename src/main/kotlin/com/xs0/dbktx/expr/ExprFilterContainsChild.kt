@@ -18,7 +18,7 @@ class ExprFilterContainsChild<FROM : DbEntity<FROM, FID>, FID: Any, TO : DbEntit
                     +it.columnTo
                 }
             }
-            +"IN (SELECT "
+            +" IN (SELECT "
             tuple(mappings) {
                 +it.columnFrom
             }

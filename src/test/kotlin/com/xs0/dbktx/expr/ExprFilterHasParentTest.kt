@@ -11,6 +11,7 @@ import io.vertx.ext.sql.ResultSet
 import io.vertx.ext.sql.SQLConnection
 import kotlinx.coroutines.experimental.Unconfined
 import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.experimental.runBlocking
 import org.junit.Test
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -19,32 +20,38 @@ import org.junit.Assert.*
 
 class ExprFilterHasParentTest {
     @Test
-    fun testParentQuery() {
+    fun testParentQuery() = runBlocking {
         val called = AtomicBoolean(false)
+        var theSql: String? = null
+        var theParams: JsonArray? = null
+
         val connection = object : MockSQLConnection() {
             override fun queryWithParams(sql: String, params: JsonArray, resultHandler: Handler<AsyncResult<ResultSet>>): SQLConnection {
-                assertEquals("SELECT company_id, key, name, tag_line, t_created, t_updated FROM brands WHERE company_id IN (SELECT id FROM companies WHERE name > ?)", sql)
-
-                assertEquals(1, params.size().toLong())
-                assertEquals("qwe", params.getString(0))
-
                 called.set(true)
+                theSql = sql
+                theParams = params
+
                 return this
             }
         }
+
         val delayedExec = DelayedExec()
         val db = DbLoaderImpl(connection, delayedExec)
 
-        launch(Unconfined) {
-            db.run {
-                TestSchema1.BRAND.query {
-                    COMPANY_REF.has(TestSchema1.COMPANY) {
-                        NAME gte "qwe"
-                    }
+        val deferred = db.run {
+            TestSchema1.BRAND.queryAsync {
+                COMPANY_REF.has(TestSchema1.COMPANY) {
+                    NAME gte "qwe"
                 }
             }
         }
 
         assertTrue(called.get())
+
+        assertEquals("SELECT company_id, key, name, tag_line, t_created, t_updated FROM brands WHERE company_id IN (SELECT id FROM companies WHERE name >= ?)", theSql)
+
+        assertEquals(1, theParams!!.size())
+        assertEquals("qwe", theParams!!.getString(0))
+
     }
 }

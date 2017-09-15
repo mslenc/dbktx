@@ -6,6 +6,7 @@ import com.xs0.dbktx.fieldprops.BIGINT
 import com.xs0.dbktx.fieldprops.DATETIME
 import com.xs0.dbktx.fieldprops.VARCHAR
 import com.xs0.dbktx.schema.*
+import java.math.BigDecimal
 import java.time.LocalDateTime
 
 class Brand(db: DbConn, id: Brand.Id, private val row: List<Any?>)
