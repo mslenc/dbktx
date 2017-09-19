@@ -11,6 +11,8 @@ interface RelToOne<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>> {
     }
 
     infix fun eq(ref: TO): ExprBoolean<FROM>
+    infix fun `==`(ref: TO): ExprBoolean<FROM> = eq(ref)
+
     infix fun oneOf(refs: Iterable<TO>): ExprBoolean<FROM>
 
     suspend operator fun invoke(from: FROM): TO?

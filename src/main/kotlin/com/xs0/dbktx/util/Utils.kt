@@ -158,3 +158,50 @@ fun escapeSqlLikePattern(pattern: String, escapeChar: Char): String {
 
     return if (sb != null) sb.toString() else pattern
 }
+
+inline fun <T, K> List<T>.groupBy(selector: (T)->K): MutableMap<K, MutableList<T>> {
+    val result: MutableMap<K, MutableList<T>> = LinkedHashMap()
+    for (el in this) {
+        val key = selector(el)
+        result.computeIfAbsent(key, { _ -> ArrayList() }).add(el)
+    }
+    return result
+}
+
+inline fun <T, K> List<T>.groupByNullable(selector: (T)->K?): MutableMap<K?, MutableList<T>> {
+    val result: MutableMap<K?, MutableList<T>> = LinkedHashMap()
+    for (el in this) {
+        val key = selector(el)
+        result.computeIfAbsent(key, { _ -> ArrayList() }).add(el)
+    }
+    return result
+}
+
+inline fun <T, K> List<T>.indexBy(selector: (T)->K): MutableMap<K, T> {
+    val result: MutableMap<K, T> = LinkedHashMap()
+    for (el in this) {
+        val key = selector(el)
+        if (result.put(key, el) != null)
+            throw IllegalStateException("More than one element mapped to $key")
+    }
+    return result
+}
+
+inline fun <T> MutableList<T>.removeFirstMatching(selector: (T)->Boolean): Boolean {
+    for (i in 0 until size) {
+        if (selector(get(i))) {
+            removeAt(i)
+            return true
+        }
+    }
+    return false
+}
+
+inline fun <T> List<T>.indexOfFirstMatching(selector: (T)->Boolean): Int? {
+    for (i in 0 until size) {
+        if (selector(get(i))) {
+            return i
+        }
+    }
+    return null
+}

@@ -15,7 +15,7 @@ fun main(args: Array<String>) {
     val conn: Connection = DriverManager.getConnection("jdbc:mysql://localhost/e_klub?characterEncoding=utf8&serverTimezone=UTC", "root", "root")
     val codeGen = CodeGen(conn)
 
-    println(codeGen.handleTable("program_grupe"))
+    println(codeGen.handleTable("vadbene_skupine_treningi"))
 }
 
 
