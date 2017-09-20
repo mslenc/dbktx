@@ -40,12 +40,13 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
         if (scheduled)
             return
 
+        scheduled = true
+
         delayedExecScheduler.schedule({
             scheduled = false
             goLoadDelayed()
         })
 
-        scheduled = true
     }
 
     override suspend fun
@@ -93,18 +94,18 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
             +" VALUES "
             paren {
                 tuple(values) {
-                    emitLiteral(it, values, this)
+                    emitValue(it, values, this)
                 }
             }
         }
     }
 
-    private fun <E : DbEntity<E, *>, T: Any> emitLiteral(column: Column<E, T>, values: EntityValues<E>, sb: Sql) {
-        val value = values.get(column)
+    private fun <E : DbEntity<E, *>, T: Any> emitValue(column: Column<E, T>, values: EntityValues<E>, sb: Sql) {
+        val value = values.getExpr(column)
         if (value == null) {
             sb.raw("NULL")
         } else {
-            column.sqlType.toSql(value, sb)
+            value.toSql(sb, true)
         }
     }
 
@@ -126,7 +127,7 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
             tuple(values) { column ->
                 +column
                 +"="
-                emitLiteral(column, values, this)
+                emitValue(column, values, this)
             }
             WHERE(filter)
         }

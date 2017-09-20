@@ -1,12 +1,13 @@
 package com.xs0.dbktx
 
+import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.conn.DbLoaderImpl
 import com.xs0.dbktx.schemas.test1.Brand
 import com.xs0.dbktx.schemas.test1.Company
 import com.xs0.dbktx.schemas.test1.Item
 import com.xs0.dbktx.schemas.test1.TestSchema1
 import com.xs0.dbktx.schemas.test1.TestSchema1.ITEM
-import com.xs0.dbktx.schemas.test1.TestSchema1.tablesByDbName
+//import com.xs0.dbktx.schemas.test1.TestSchema1.tablesByDbName
 import com.xs0.dbktx.util.DelayedExec
 import com.xs0.dbktx.util.MockSQLConnection
 import io.vertx.core.AsyncResult
@@ -15,6 +16,7 @@ import io.vertx.core.Handler
 import io.vertx.core.json.JsonArray
 import io.vertx.ext.sql.ResultSet
 import io.vertx.ext.sql.SQLConnection
+import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.runBlocking
 import org.junit.Before
 import org.junit.Test
@@ -182,7 +184,7 @@ class DbLoaderTest {
         assertEquals(0, results[1].size)
         assertEquals(2, results[2].size)
 
-        // TODO: check some props as well
+//         TODO: check some props as well
     }
 
     @Test
@@ -226,22 +228,23 @@ class DbLoaderTest {
         val brand1 = Brand(db, id1, asList(id1.companyId, id1.key, "Sheeps Inc.", "Wool and stool!", "2017-02-25", "2017-03-27"))
         val brand2 = Brand(db, id2, asList(id2.companyId, id2.key, "Gooey Phooey", "Tee hee mee bee", "2017-03-26", "2017-04-27"))
 
+        // these should contain the order of the following async call
+        val idxof0 = 2
+        val idxof1 = 0
+        val idxof2 = 1
         val futures: Array<Deferred<List<Item>>> = arrayOf(
             db.loadAsync(brand1, Brand.ITEMS_SET),
             db.loadAsync(brand2, Brand.ITEMS_SET),
             db.loadAsync(brand0, Brand.ITEMS_SET)
         )
 
-
-        assertEquals("SELECT company_id, sku, brand_key, name, price, t_created, t_updated FROM items WHERE (brand_key, company_id) IN ((?, ?), (?, ?), (?, ?))", theSql!!)
-
-        checkParams(theParams!!, id0.key, id0.companyId,
-                                 id1.key, id1.companyId,
-                                 id2.key, id2.companyId)
-
         assertFalse(called)
         delayedExec.executePending()
         assertTrue(called)
+
+        assertEquals("SELECT company_id, sku, brand_key, name, price, t_created, t_updated FROM items WHERE (brand_key, company_id) IN ((?, 256), (?, 16), (?, 1024))", theSql!!)
+
+        checkParams(theParams!!, id0.key, id1.key, id2.key)
 
         val results = arrayOf(
             futures[0].await(),
@@ -253,14 +256,14 @@ class DbLoaderTest {
         assertNotNull(results[1])
         assertNotNull(results[2])
 
-        assertTrue(results[0]!!.succeeded())
-        assertTrue(results[1]!!.succeeded())
-        assertTrue(results[2]!!.succeeded())
+//        assertTrue(results[0]!!.succeeded())
+//        assertTrue(results[1]!!.succeeded())
+//        assertTrue(results[2]!!.succeeded())
 
-        assertEquals(0, results[0].result().size)
-        assertEquals(3, results[1].result().size)
-        assertEquals(1, results[2].result().size)
+        assertEquals(0, results[idxof0].size)
+        assertEquals(3, results[idxof1].size)
+        assertEquals(1, results[idxof2].size)
 
-        // TODO: check some props as well
+//         TODO: check some props as well
     }
 }

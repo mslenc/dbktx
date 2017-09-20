@@ -1,5 +1,6 @@
 package schema1
 
+import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.conn.DbConnectorImpl
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
@@ -31,7 +32,7 @@ fun main(args: Array<String>) {
             var response = "!!!"
 
             try {
-                dbConnector.connect { db ->
+                dbConnector.connect { db: DbConn ->
                     val sb = StringBuilder()
 
                     val mitja = db.load(TestSchema.PEOPLE, 1)

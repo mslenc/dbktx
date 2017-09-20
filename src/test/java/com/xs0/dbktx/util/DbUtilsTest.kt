@@ -22,9 +22,9 @@ class UtilsTest {
         val bytes = ByteArray(30)
 
         putIntBE(0xCAFE_BABE.toInt(), bytes, 1)
-//        putIntLE(0xDEAD_BEEF.toInt(), bytes, 6)
+        putIntLE(0xDEAD_BEEF.toInt(), bytes, 6)
         putLongBE(0x2132_4354_6576_8798L, bytes, 11)
-//        putLongLE(0xA1B2_C3D4_E5F6_0718L, bytes, 20)
+        putLongLE(0x61B2_C3D4_E5F6_0718L, bytes, 20)
 
         assertEquals(0x00, (bytes[0].toInt() and 255))
         assertEquals(0xCA, (bytes[1].toInt() and 255))
@@ -53,7 +53,7 @@ class UtilsTest {
         assertEquals(0xD4, (bytes[24].toInt() and 255))
         assertEquals(0xC3, (bytes[25].toInt() and 255))
         assertEquals(0xB2, (bytes[26].toInt() and 255))
-        assertEquals(0xA1, (bytes[27].toInt() and 255))
+        assertEquals(0x61, (bytes[27].toInt() and 255))
         assertEquals(0x00, (bytes[28].toInt() and 255))
         assertEquals(0x00, (bytes[29].toInt() and 255))
     }

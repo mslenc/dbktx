@@ -29,6 +29,7 @@ internal class EntityIndex<E : DbEntity<E, ID>, ID: Any>(
 
         val res = idsToLoad
         idsToLoad = LinkedHashSet()
+
         return res
     }
 

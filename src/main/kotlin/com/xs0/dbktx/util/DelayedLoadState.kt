@@ -8,9 +8,9 @@ import kotlin.coroutines.experimental.suspendCoroutine
 
 private val logger = KotlinLogging.logger {}
 
-internal class DelayedLoadState<RES> {
+class DelayedLoadState<RES> {
     private var existingResult: RES? = null // only if state == LOADED
-    internal var state = EntityState.INITIAL
+    var state = EntityState.INITIAL
         private set
     private var handlers: ListEl<Continuation<RES>>? = null // only if state == LOADING
 

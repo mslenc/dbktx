@@ -10,11 +10,18 @@ abstract class DbMutationImpl<E : DbEntity<E, ID>, ID: Any> protected constructo
 
     protected val values = EntityValues<E>()
 
-    override operator fun <T: Any>
-    set(column: Column<E, T>, value: Expr<in E, T>): DbMutationImpl<E, ID> {
-        values.apply {
-            column to value
-        }
+    override fun <T : Any> set(column: NonNullColumn<E, T>, value: T): DbMutation<E> {
+        values.set(column, value)
+        return this
+    }
+
+    override fun <T : Any> set(column: NullableColumn<E, T>, value: T?): DbMutation<E> {
+        values.set(column, value)
+        return this
+    }
+
+    override fun <T : Any> set(column: Column<E, T>, value: Expr<E, T>): DbMutation<E> {
+        values.set(column, value)
         return this
     }
 

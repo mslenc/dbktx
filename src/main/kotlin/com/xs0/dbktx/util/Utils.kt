@@ -4,6 +4,7 @@ import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
 import kotlinx.coroutines.experimental.*
 import mu.KotlinLogging
+import java.lang.Long.reverseBytes
 import kotlin.coroutines.experimental.Continuation
 import kotlin.coroutines.experimental.suspendCoroutine
 
@@ -113,9 +114,20 @@ fun putIntBE(value: Int, bytes: ByteArray, pos: Int) {
     bytes[pos + 3] = value         .toByte()
 }
 
+fun putIntLE(value: Int, bytes: ByteArray, pos: Int) {
+    bytes[pos    ] = value         .toByte()
+    bytes[pos + 1] = value.ushr( 8).toByte()
+    bytes[pos + 2] = value.ushr(16).toByte()
+    bytes[pos + 3] = value.ushr(24).toByte()
+}
+
 fun putLongBE(value: Long, bytes: ByteArray, pos: Int) {
     putIntBE(value.ushr(32).toInt(), bytes, pos)
     putIntBE(value.toInt(), bytes, pos + 4)
+}
+
+fun putLongLE(value: Long, bytes: ByteArray, pos: Int) {
+    putLongBE(reverseBytes(value), bytes, pos)
 }
 
 fun <T> defer(block: suspend () -> T): Deferred<T> {

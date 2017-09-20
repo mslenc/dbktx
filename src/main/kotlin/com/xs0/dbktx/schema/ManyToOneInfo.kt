@@ -17,7 +17,7 @@ class ManyToOneInfo<FROM : DbEntity<FROM, FID>, FID : Any, TO : DbEntity<TO, TID
             for (mapping in columnMappings)
                 doMapping(mapping, source, row)
 
-            oneTable.createId(Arrays.asList(row))
+            oneTable.createId(row.toList())
         }
     }
 
