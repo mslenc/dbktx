@@ -7,6 +7,7 @@ interface DbMutation<E : DbEntity<E, *>> {
     operator fun <T : Any> set(column: NonNullColumn<E, T>, value: T): DbMutation<E>
     operator fun <T : Any> set(column: NullableColumn<E, T>, value: T?): DbMutation<E>
     operator fun <T : Any> set(column: Column<E, T>, value: Expr<E, T>): DbMutation<E>
+    fun <T : Any> setNull(column: NullableColumn<E, T>): DbMutation<E>
 
     operator fun <T: Any> NullableColumn<E, T>.plusAssign(value: T?) {
         set(this, value)

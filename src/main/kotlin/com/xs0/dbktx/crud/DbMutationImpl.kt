@@ -25,6 +25,11 @@ abstract class DbMutationImpl<E : DbEntity<E, ID>, ID: Any> protected constructo
         return this
     }
 
+    override fun <T : Any> setNull(column: NullableColumn<E, T>): DbMutation<E> {
+        values.set(column, (null as T?))
+        return this
+    }
+
     override fun <TARGET : DbEntity<TARGET, TID>, TID: Any>
     set(relation: RelToOne<E, TARGET>, target: TARGET): DbMutation<E> {
         @Suppress("UNCHECKED_CAST")
