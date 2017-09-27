@@ -15,7 +15,7 @@ fun main(args: Array<String>) {
     val conn: Connection = DriverManager.getConnection("jdbc:mysql://localhost/e_klub?characterEncoding=utf8&serverTimezone=UTC", "root", "root")
     val codeGen = CodeGen(conn)
 
-    println(codeGen.handleTable("vadbene_skupine_treningi"))
+    println(codeGen.handleTable("s_poste"))
 }
 
 
@@ -52,9 +52,16 @@ internal class CodeGen(private val conn: Connection) {
 
 
             if (colType.startsWith("char") || colType.startsWith("varchar") || colType.startsWith("varbinary") || colType.startsWith("binary") || colType.contains("text")) {
-                this.javaType = "String"
-                this.columnMaker = "String"
-                this.typeDef = if (colType.endsWith(")")) colType.toUpperCase() else colType.toUpperCase() + "()"
+                if (fieldName.contains("id_") && colType.endsWith("(36)")) {
+                    imports.add("java.util.UUID")
+                    this.javaType = "UUID"
+                    this.columnMaker = "UUID"
+                    this.typeDef = colType.toUpperCase()
+                } else {
+                    this.javaType = "String"
+                    this.columnMaker = "String"
+                    this.typeDef = if (colType.endsWith(")")) colType.toUpperCase() else colType.toUpperCase() + "()"
+                }
             } else if (colType.contains("blob")) {
                 this.javaType = "ByteArray"
                 this.columnMaker = "Bytes"
