@@ -2,7 +2,7 @@ group 'com.xs0'
 version '0.9-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.1.50'
+    ext.kotlin_version = '1.1.51'
     ext.vertx_version = '3.4.2'
 
     repositories {
@@ -32,7 +32,7 @@ repositories {
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
-    compile "org.jetbrains.kotlinx:kotlinx-coroutines-core:0.18"
+    compile "org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19"
     compile "io.github.microutils:kotlin-logging:1.4.6"
 
     compile "io.vertx:vertx-core:$vertx_version"
