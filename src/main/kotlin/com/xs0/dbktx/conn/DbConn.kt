@@ -212,6 +212,11 @@ interface DbConn {
     }
 
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+            Z.get(id: ID): E? {
+        return find(this, id)
+    }
+
+    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
     Z.query(filter: Z.() -> ExprBoolean<E>): List<E> {
         return query(this, filter())
     }
@@ -222,15 +227,15 @@ interface DbConn {
     }
 
     suspend fun <E: DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    insert(table: Z, builder: DbInsert<E, ID>.() -> Unit): ID {
-        val insert = table.insertion(this)
+    Z.insert(builder: DbInsert<E, ID>.() -> Unit): ID {
+        val insert = insertion(this@DbConn)
         insert.apply(builder)
         return insert.execute()
     }
 
-    suspend fun <E: DbEntity<E, ID>, ID: Any>
-    update(entity: E, builder: DbUpdate<E>.() -> Unit): Boolean {
-        val update = entity.metainfo.update(this, entity)
+    suspend fun <E: DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    Z.update(entity: E, builder: DbUpdate<E>.() -> Unit): Boolean {
+        val update = update(this@DbConn, entity)
         update.apply(builder)
         return update.execute() > 0
     }

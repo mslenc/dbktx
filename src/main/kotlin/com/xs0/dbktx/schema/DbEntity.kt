@@ -11,7 +11,13 @@ abstract class DbEntity<E : DbEntity<E, ID>, ID: Any>(
 
     abstract val metainfo: DbTable<E, ID>
 
-    fun update(db: DbConn): DbUpdate<E> {
+    fun createUpdate(): DbUpdate<E> {
         return metainfo.updateById(db, id)
+    }
+
+    suspend fun executeUpdate(modifier: DbUpdate<E>.() -> Unit): Boolean {
+        val update = createUpdate()
+        update.modifier()
+        return update.execute() > 0
     }
 }
