@@ -163,7 +163,7 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
 
     override suspend fun <E : DbEntity<E, ID>, ID : Any>
     load(table: DbTable<E, ID>, id: ID): E {
-        return find(table, id) ?: throw IllegalArgumentException("No ${table.dbName} with id $id")
+        return find(table, id) ?: throw NoSuchEntity("No ${table.dbName} with id $id")
     }
 
     override suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
