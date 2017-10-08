@@ -99,19 +99,19 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
     }
 
     fun updateAll(db: DbConn): DbUpdate<E> {
-        return DbUpdateImpl(db, this, null, null)
+        return DbUpdateImpl(db, this, null, null, null)
     }
 
     fun update(db: DbConn, filter: ExprBoolean<E>): DbUpdate<E> {
-        return DbUpdateImpl(db, this, filter, null)
+        return DbUpdateImpl(db, this, filter, null, null)
     }
 
     fun update(db: DbConn, entity: E): DbUpdate<E> {
-        return updateById(db, entity.id)
+        return DbUpdateImpl(db, this, idField eq entity.id, setOf(entity.id), entity)
     }
 
     fun updateById(db: DbConn, id: ID): DbUpdate<E> {
-        return DbUpdateImpl(db, this, idField eq id, setOf(id))
+        return DbUpdateImpl(db, this, idField eq id, setOf(id), null)
     }
 
     fun update(db: DbConn, vararg entities: E): DbUpdate<E> {
@@ -121,22 +121,25 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
     fun updateByIds(db: DbConn, vararg ids: ID): DbUpdate<E> {
         val idsSet = setOf(*ids)
         val filter = idField oneOf idsSet
-        return DbUpdateImpl(db, this, filter, idsSet)
+        return DbUpdateImpl(db, this, filter, idsSet, null)
     }
 
     fun update(db: DbConn, entities: Collection<E>): DbUpdate<E> {
+        if (entities.size == 1)
+            return update(db, entities.first())
+
         val idsSet = HashSet<ID>()
         for (entity in entities)
             idsSet.add(entity.id)
 
         val filter = idField oneOf idsSet
-        return DbUpdateImpl(db, this, filter, idsSet)
+        return DbUpdateImpl(db, this, filter, idsSet, null)
     }
 
     fun updateByIds(db: DbConn, ids: Collection<ID>): DbUpdate<E> {
         val idsSet = HashSet(ids)
         val filter = idField oneOf idsSet
-        return DbUpdateImpl(db, this, filter, idsSet)
+        return DbUpdateImpl(db, this, filter, idsSet, null)
     }
 }
 

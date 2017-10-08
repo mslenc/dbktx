@@ -233,6 +233,13 @@ interface DbConn {
         return insert.execute()
     }
 
+    fun <E: DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    Z.insertion(builder: DbInsert<E, ID>.() -> Unit): DbInsert<E, ID> {
+        val insertion = insertion(this@DbConn)
+        insertion.apply(builder)
+        return insertion
+    }
+
     suspend fun <E: DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
     Z.update(entity: E, builder: DbUpdate<E>.() -> Unit): Boolean {
         val update = update(this@DbConn, entity)

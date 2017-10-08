@@ -4,9 +4,9 @@ import com.xs0.dbktx.expr.Expr
 import com.xs0.dbktx.schema.*
 
 interface DbMutation<E : DbEntity<E, *>> {
-    operator fun <T : Any> set(column: NonNullColumn<E, T>, value: T): DbMutation<E>
-    operator fun <T : Any> set(column: NullableColumn<E, T>, value: T?): DbMutation<E>
-    operator fun <T : Any> set(column: Column<E, T>, value: Expr<E, T>): DbMutation<E>
+    fun <T : Any> set(column: NonNullColumn<E, T>, value: T): DbMutation<E>
+    fun <T : Any> set(column: NullableColumn<E, T>, value: T?): DbMutation<E>
+    fun <T : Any> set(column: Column<E, T>, value: Expr<E, T>): DbMutation<E>
     fun <T : Any> setNull(column: NullableColumn<E, T>): DbMutation<E>
 
     operator fun <T: Any> NullableColumn<E, T>.plusAssign(value: T?) {
@@ -21,8 +21,8 @@ interface DbMutation<E : DbEntity<E, *>> {
         set(this, value)
     }
 
-    operator fun <TARGET : DbEntity<TARGET, TID>, TID: Any>
-            set(relation: RelToOne<E, TARGET>, target: TARGET): DbMutation<E>
+    fun <TARGET : DbEntity<TARGET, TID>, TID: Any>
+        set(relation: RelToOne<E, TARGET>, target: TARGET): DbMutation<E>
 
     operator fun <TARGET : DbEntity<TARGET, TID>, TID: Any>
         RelToOne<E, TARGET>.plusAssign(target: TARGET) {
