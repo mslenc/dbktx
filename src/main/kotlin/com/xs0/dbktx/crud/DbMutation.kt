@@ -4,6 +4,8 @@ import com.xs0.dbktx.expr.Expr
 import com.xs0.dbktx.schema.*
 
 interface DbMutation<E : DbEntity<E, *>> {
+    val table: DbTable<E, *>
+
     fun <T : Any> set(column: NonNullColumn<E, T>, value: T): DbMutation<E>
     fun <T : Any> set(column: NullableColumn<E, T>, value: T?): DbMutation<E>
     fun <T : Any> set(column: Column<E, T>, value: Expr<E, T>): DbMutation<E>

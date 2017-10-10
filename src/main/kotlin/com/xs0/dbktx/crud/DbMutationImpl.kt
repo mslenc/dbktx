@@ -6,7 +6,7 @@ import com.xs0.dbktx.schema.*
 
 abstract class DbMutationImpl<E : DbEntity<E, ID>, ID: Any> protected constructor(
         protected val db: DbConn,
-        protected val table: DbTable<E, ID>) : DbMutation<E> {
+        override val table: DbTable<E, ID>) : DbMutation<E> {
 
     protected val values = EntityValues<E>()
 
