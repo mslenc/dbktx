@@ -22,10 +22,20 @@ class SqlTypeBigDecimal(concreteType: SqlTypeKind,
     }
 
     override fun fromJson(value: Any): BigDecimal {
+        if (value is BigDecimal)
+            return value
+
         if (value is CharSequence)
             return BigDecimal(value.toString())
 
-        throw IllegalArgumentException("Not a string(bigdecimal) value - " + value)
+        if (value is Number) {
+            if (value is Double || value is Float)
+                return BigDecimal(value.toDouble())
+
+            return BigDecimal(value.toLong())
+        }
+
+        throw IllegalArgumentException("Not a recognized bigdecimal value - " + value + " (" + value.javaClass + ")")
     }
 
     override fun toJson(value: BigDecimal): String {
