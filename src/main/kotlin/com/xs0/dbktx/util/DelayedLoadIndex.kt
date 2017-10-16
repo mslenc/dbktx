@@ -4,6 +4,7 @@ import com.xs0.dbktx.conn.DbLoaderImpl
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.DbTable
 import com.xs0.dbktx.schema.RelToManyImpl
+import kotlinx.coroutines.experimental.sync.Mutex
 import mu.KLogging
 
 import java.util.*
@@ -12,6 +13,7 @@ import kotlin.collections.HashSet
 internal class EntityIndex<E : DbEntity<E, ID>, ID: Any>(
         val metainfo: DbTable<E, ID>) {
 
+    internal val mutex = Mutex()
     private var index: HashMap<ID, DelayedLoadStateNullable<E>> = HashMap()
     private var idsToLoad = LinkedHashSet<ID>()
 
@@ -74,8 +76,12 @@ internal class EntityIndex<E : DbEntity<E, ID>, ID: Any>(
 
     companion object : KLogging()
 
-    internal inline fun loadNow(dbLoaderImpl: DbLoaderImpl): Boolean {
+    internal inline fun loadNow(dbLoaderImpl: DbLoaderImpl) {
         return dbLoaderImpl.loadDelayedTable(this)
+    }
+
+    fun removeIdToLoad(id: ID): Boolean {
+        return idsToLoad.remove(id)
     }
 }
 
@@ -144,7 +150,7 @@ internal class ToManyIndex<FROM: DbEntity<FROM, FROMID>, FROMID: Any, TO: DbEnti
 
     companion object : KLogging()
 
-    internal inline fun loadNow(dbLoaderImpl: DbLoaderImpl): Boolean {
+    internal inline fun loadNow(dbLoaderImpl: DbLoaderImpl) {
         return dbLoaderImpl.loadDelayedToManyRel(this)
     }
 }

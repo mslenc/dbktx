@@ -15,6 +15,7 @@ import io.vertx.ext.sql.UpdateResult
 import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.Unconfined
 import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.experimental.sync.Mutex
 import mu.KLogging
 
 import java.util.*
@@ -24,16 +25,26 @@ import kotlin.coroutines.experimental.suspendCoroutine
 
 class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: DelayedExecScheduler) : DbConn, AutoCloseable {
 
-    private val conn: SQLConnection
+    private val _dbConn: SQLConnection // use via dbOp
+    private val mutex = Mutex()
     private val masterIndex = MasterIndex()
     private var scheduled: Boolean = false // used when batching loads, true means that we're already scheduled (see scheduleDelayedExec())
 
     init {
-        this.conn = MultiQueryConn(conn)
+        this._dbConn = MultiQueryConn(conn)
+    }
+
+    private suspend inline fun <T> dbOp(block: (SQLConnection) -> T): T {
+        mutex.lock()
+        try {
+            return block(_dbConn)
+        } finally {
+            mutex.unlock()
+        }
     }
 
     override fun close() {
-        conn.close()
+        _dbConn.close()
     }
 
     private fun scheduleDelayedExec() {
@@ -51,9 +62,13 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
 
     override suspend fun
     query(sqlBuilder: Sql): ResultSet {
-        return vx { handler ->
+        val sql = sqlBuilder.getSql()
+        logger.trace { "Starting query $sql" }
+        val result: ResultSet = dbOp { conn -> vx { handler ->
             conn.queryWithParams(sqlBuilder.getSql(), sqlBuilder.params, handler)
-        }
+        } }
+        logger.trace { "Ended query $sql" }
+        return result
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
@@ -68,7 +83,7 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
         val sql = sqlBuilder.getSql()
         val params = sqlBuilder.params
 
-        val updateResult = vx<UpdateResult> { conn.updateWithParams(sql, params, it) }
+        val updateResult = dbOp { conn -> vx<UpdateResult> { handler -> conn.updateWithParams(sql, params, handler) } }
 
         masterIndex.flushRelated(table)
 
@@ -167,18 +182,18 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
     }
 
     override suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    loadForAll(ref: RelToOne<FROM, TO>, sources: Collection<FROM>?): Map<FROM, TO> {
+    loadForAll(ref: RelToOne<FROM, TO>, sources: Collection<FROM>?): Map<FROM, TO?> {
         if (sources == null || sources.isEmpty())
             return emptyMap()
 
         @Suppress("UNCHECKED_CAST")
         val rel = ref as RelToOneImpl<FROM, FROMID, TO, TOID>
 
-        val futures = LinkedHashMap<FROM, Deferred<TO>>()
+        val futures = LinkedHashMap<FROM, Deferred<TO?>>()
         for (source in sources)
-            futures.put(source, loadAsync(source, rel))
+            futures.put(source, findAsync(source, rel))
 
-        val result = LinkedHashMap<FROM, TO>()
+        val result = LinkedHashMap<FROM, TO?>()
         for ((source, future) in futures)
             result[source] = future.await()
 
@@ -322,54 +337,66 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
     queryInternal(entities: EntityIndex<E, ID>, sb: Sql): List<E> {
         val table = entities.metainfo
 
-        val res = ArrayList<E>()
-        for (json in query(sb).results) {
-            val row = json.list
+        entities.mutex.lock()
+        try {
+            val res = ArrayList<E>()
+            for (json in query(sb).results) {
+                val row = json.list
 
-            val id = table.createId(row)
-            val info = entities[id]
+                val id = table.createId(row)
+                val info = entities[id]
 
-            val entity: E
-            if (info.state == EntityState.LOADED) {
-                val entityMaybe = info.value
-                if (entityMaybe != null) {
-                    entity = entityMaybe
+                val entity: E
+                if (info.state == EntityState.LOADED) {
+                    val entityMaybe = info.value
+                    if (entityMaybe != null) {
+                        entity = entityMaybe
+                    } else {
+                        entity = table.create(this, id, row)
+                        info.replaceResult(entity)
+                    }
                 } else {
                     entity = table.create(this, id, row)
-                    info.replaceResult(entity)
+                    logger.trace { "Added entity with $id to ${table.dbName}" }
+                    info.handleResult(entity)
+                    if (entities.removeIdToLoad(id))
+                        logger.trace { "Removed id to load $id" }
                 }
-            } else {
-                entity = table.create(this, id, row)
-                info.handleResult(entity)
-            }
 
-            res.add(entity)
+                res.add(entity)
+            }
+            return res
+        } finally {
+            entities.mutex.unlock()
         }
-        return res
     }
 
     private fun goLoadDelayed() {
-        for (index in masterIndex.allCachedTables)
-            if (index.loadNow(this)) // hoop because of type system :(
-                return
-
         for (index in masterIndex.allCachedToManyRels)
-            if (index.loadNow(this))
-                return
+            index.loadNow(this)
+
+        for (index in masterIndex.allCachedTables)
+            index.loadNow(this) // hoop because of type system :(
     }
 
     internal fun <E : DbEntity<E, ID>, ID: Any>
-    loadDelayedTable(index: EntityIndex<E, ID>): Boolean {
-        val ids: MutableSet<ID> = index.getAndClearIdsToLoad() ?: return false
-
-        // TODO: split large lists into chunks
-
-        val table = index.metainfo
-        val idField = table.idField
-
-        logger.debug("Querying {} for ids {}", table.dbName, ids)
-
+    loadDelayedTable(index: EntityIndex<E, ID>) {
         launch(Unconfined) {
+            val ids: MutableSet<ID>
+            index.mutex.lock()
+            try {
+                ids = index.getAndClearIdsToLoad() ?: return@launch
+            } finally {
+                index.mutex.unlock()
+            }
+
+            // TODO: split large lists into chunks
+
+            val table = index.metainfo
+            val idField = table.idField
+
+            logger.debug("Querying {} for ids {}", table.dbName, ids)
+
             val result: List<E>
             try {
                 result = query(table, idField oneOf ids)
@@ -387,21 +414,22 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
             if (!ids.isEmpty())
                 index.reportNull(ids)
         }
-        return true
     }
 
     internal fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    loadDelayedToManyRel(index: ToManyIndex<FROM, FROMID, TO, TOID>): Boolean {
-        val fromIds = index.getAndClearIdsToLoad() ?: return false
-
-        // TODO: split large lists into chunks
-
-        val rel = index.relation
-
-        val manyTable = rel.targetTable
-        val condition = rel.createCondition(fromIds)
-
+    loadDelayedToManyRel(index: ToManyIndex<FROM, FROMID, TO, TOID>) {
         launch(Unconfined) {
+            val fromIds = index.getAndClearIdsToLoad() ?: return@launch
+
+            // TODO: split large lists into chunks
+
+            val rel = index.relation
+
+            val manyTable = rel.targetTable
+            val condition = rel.createCondition(fromIds)
+
+            logger.debug { "Querying toMany ${rel.sourceTable.dbName} -> ${rel.targetTable.dbName} for source ids $fromIds" }
+
             val result = try {
                 query(manyTable, condition)
             } catch (e: Throwable) {
@@ -425,23 +453,22 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
             for (id in fromIds)
                 index[id].handleResult(emptyList())
         }
-        return true
     }
 
     override suspend fun rollback() {
-        vx<Void> { conn.rollback(it) }
+        dbOp { conn -> vx<Void> { conn.rollback(it) } }
     }
 
     override suspend fun commit() {
-        vx<Void> { conn.commit(it) }
+        dbOp { conn -> vx<Void> { conn.commit(it) } }
     }
 
     override suspend fun setAutoCommit(autoCommit: Boolean) {
-        vx<Void> { conn.setAutoCommit(autoCommit, it) }
+        dbOp { conn -> vx<Void> { conn.setAutoCommit(autoCommit, it) } }
     }
 
     override suspend fun setTransactionIsolation(isolation: TransactionIsolation) {
-        vx<Void> { conn.setTransactionIsolation(isolation, it) }
+        dbOp { conn -> vx<Void> { conn.setTransactionIsolation(isolation, it) } }
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
@@ -517,7 +544,7 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
 
         logger.debug("Executing update:\n{}\nparams: {}", sql, params)
 
-        val updateResult = vx<UpdateResult> { conn.updateWithParams(sql, params, it) }
+        val updateResult = dbOp { conn -> vx<UpdateResult> { conn.updateWithParams(sql, params, it) } }
 
         // TODO: look at specific id, as to not destroy so much cache
         masterIndex.flushRelated(table)
@@ -527,7 +554,7 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
     override suspend fun
     execute(sql: String) {
         logger.debug("Executing {}", sql)
-        vx<Void> { conn.execute(sql, it) }
+        dbOp { conn -> vx<Void> { conn.execute(sql, it) } }
     }
 
     override fun <E : DbEntity<E, ID>, ID : Any> importJson(table: DbTable<E, ID>, json: JsonObject) {
