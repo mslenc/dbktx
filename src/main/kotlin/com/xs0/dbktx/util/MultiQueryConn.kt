@@ -181,5 +181,10 @@ class MultiQueryConn(private val conn: SQLConnection) : SQLConnection {
         return this
     }
 
+    override fun setOptions(options: SQLOptions?): SQLConnection {
+        conn.setOptions(options)
+        return this
+    }
+
     companion object : KLogging()
 }
