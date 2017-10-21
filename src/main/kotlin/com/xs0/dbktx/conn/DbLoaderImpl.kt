@@ -337,122 +337,119 @@ class DbLoaderImpl(conn: SQLConnection, private val delayedExecScheduler: Delaye
     queryInternal(entities: EntityIndex<E, ID>, sb: Sql): List<E> {
         val table = entities.metainfo
 
-        entities.mutex.lock()
-        try {
-            val res = ArrayList<E>()
-            for (json in query(sb).results) {
-                val row = json.list
+        val res = ArrayList<E>()
+        for (json in query(sb).results) {
+            val row = json.list
 
-                val id = table.createId(row)
-                val info = entities[id]
+            val id = table.createId(row)
+            val info = entities[id]
 
-                val entity: E
-                if (info.state == EntityState.LOADED) {
-                    val entityMaybe = info.value
-                    if (entityMaybe != null) {
-                        entity = entityMaybe
-                    } else {
-                        entity = table.create(this, id, row)
-                        info.replaceResult(entity)
-                    }
+            val entity: E
+            if (info.state == EntityState.LOADED) {
+                val entityMaybe = info.value
+                if (entityMaybe != null) {
+                    entity = entityMaybe
                 } else {
                     entity = table.create(this, id, row)
-                    logger.trace { "Added entity with $id to ${table.dbName}" }
-                    info.handleResult(entity)
-                    if (entities.removeIdToLoad(id))
-                        logger.trace { "Removed id to load $id" }
+                    info.replaceResult(entity)
                 }
-
-                res.add(entity)
+            } else {
+                entity = table.create(this, id, row)
+                logger.trace { "Added entity with $id to ${table.dbName}" }
+                info.handleResult(entity)
+                if (entities.removeIdToLoad(id))
+                    logger.trace { "Removed id to load $id" }
             }
-            return res
-        } finally {
-            entities.mutex.unlock()
+
+            res.add(entity)
         }
+        return res
     }
 
     private fun goLoadDelayed() {
+        launch(Unconfined) {
+            loadFirstDelayedEntity()
+        }
+    }
+
+    private suspend fun loadFirstDelayedEntity() {
         for (index in masterIndex.allCachedToManyRels)
-            index.loadNow(this)
+            if (index.loadNow(this)) // hoop because of type system :(
+                return
 
         for (index in masterIndex.allCachedTables)
-            index.loadNow(this) // hoop because of type system :(
+            if (index.loadNow(this))
+                return
     }
 
-    internal fun <E : DbEntity<E, ID>, ID: Any>
-    loadDelayedTable(index: EntityIndex<E, ID>) {
-        launch(Unconfined) {
-            val ids: MutableSet<ID>
-            index.mutex.lock()
-            try {
-                ids = index.getAndClearIdsToLoad() ?: return@launch
-            } finally {
-                index.mutex.unlock()
-            }
+    internal suspend fun <E : DbEntity<E, ID>, ID: Any>
+    loadDelayedTable(index: EntityIndex<E, ID>): Boolean {
+        val ids = index.getAndClearIdsToLoad() ?: return false
 
-            // TODO: split large lists into chunks
+        // TODO: split large lists into chunks
 
-            val table = index.metainfo
-            val idField = table.idField
+        val table = index.metainfo
+        val idField = table.idField
 
-            logger.debug("Querying {} for ids {}", table.dbName, ids)
+        logger.debug("Querying {} for ids {}", table.dbName, ids)
 
-            val result: List<E>
-            try {
-                result = query(table, idField oneOf ids)
-            } catch (e : Exception) {
-                logger.error("Failed to query by IDs", e)
-                index.reportError(ids, e)
-                return@launch
-            } finally {
-                scheduleDelayedExec() // for next batch
-            }
-
-            for (entity: E in result)
-                ids.remove(entity.id)
-
-            if (!ids.isEmpty())
-                index.reportNull(ids)
+        val result: List<E>
+        try {
+            result = query(table, idField oneOf ids)
+        } catch (e : Exception) {
+            logger.error("Failed to query by IDs", e)
+            index.reportError(ids, e)
+            return true
+        } finally {
+            scheduleDelayedExec() // for next batch
         }
+
+        for (entity: E in result)
+            ids.remove(entity.id)
+
+        if (!ids.isEmpty())
+            index.reportNull(ids)
+
+        return true
     }
 
-    internal fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    loadDelayedToManyRel(index: ToManyIndex<FROM, FROMID, TO, TOID>) {
-        launch(Unconfined) {
-            val fromIds = index.getAndClearIdsToLoad() ?: return@launch
+    internal suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
+    loadDelayedToManyRel(index: ToManyIndex<FROM, FROMID, TO, TOID>): Boolean {
+        val fromIds = index.getAndClearIdsToLoad() ?: return false
 
-            // TODO: split large lists into chunks
+        // TODO: split large lists into chunks
 
-            val rel = index.relation
+        val rel = index.relation
 
-            val manyTable = rel.targetTable
-            val condition = rel.createCondition(fromIds)
+        val manyTable = rel.targetTable
+        val condition = rel.createCondition(fromIds)
 
-            logger.debug { "Querying toMany ${rel.sourceTable.dbName} -> ${rel.targetTable.dbName} for source ids $fromIds" }
+        logger.debug { "Querying toMany ${rel.sourceTable.dbName} -> ${rel.targetTable.dbName} for source ids $fromIds" }
 
-            val result = try {
-                query(manyTable, condition)
-            } catch (e: Throwable) {
-                index.reportError(fromIds, e)
-                return@launch
-            } finally {
-                scheduleDelayedExec() // for next batch
-            }
-
-            val mapped = LinkedHashMap<FROMID, ArrayList<TO>>()
-            for (to in result) {
-                val fromId = rel.reverseMap(to)!!
-                mapped.computeIfAbsent(fromId, { _ -> ArrayList() }).add(to)
-            }
-
-            for ((key, value) in mapped) {
-                index[key].handleResult(value)
-            }
-
-            fromIds.removeAll(mapped.keys)
-            for (id in fromIds)
-                index[id].handleResult(emptyList())
+        val result = try {
+            query(manyTable, condition)
+        } catch (e: Throwable) {
+            index.reportError(fromIds, e)
+            return true
+        } finally {
+            scheduleDelayedExec() // for next batch
         }
+
+        val mapped = LinkedHashMap<FROMID, ArrayList<TO>>()
+        for (to in result) {
+            val fromId = rel.reverseMap(to)!!
+            mapped.computeIfAbsent(fromId, { _ -> ArrayList() }).add(to)
+        }
+
+        for ((key, value) in mapped) {
+            index[key].handleResult(value)
+        }
+
+        fromIds.removeAll(mapped.keys)
+        for (id in fromIds)
+            index[id].handleResult(emptyList())
+
+        return true
     }
 
     override suspend fun rollback() {

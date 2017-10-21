@@ -76,7 +76,7 @@ internal class EntityIndex<E : DbEntity<E, ID>, ID: Any>(
 
     companion object : KLogging()
 
-    internal inline fun loadNow(dbLoaderImpl: DbLoaderImpl) {
+    internal suspend fun loadNow(dbLoaderImpl: DbLoaderImpl): Boolean {
         return dbLoaderImpl.loadDelayedTable(this)
     }
 
@@ -150,7 +150,7 @@ internal class ToManyIndex<FROM: DbEntity<FROM, FROMID>, FROMID: Any, TO: DbEnti
 
     companion object : KLogging()
 
-    internal inline fun loadNow(dbLoaderImpl: DbLoaderImpl) {
+    internal suspend fun loadNow(dbLoaderImpl: DbLoaderImpl): Boolean {
         return dbLoaderImpl.loadDelayedToManyRel(this)
     }
 }
