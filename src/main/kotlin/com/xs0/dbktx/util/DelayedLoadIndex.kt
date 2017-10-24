@@ -1,6 +1,7 @@
 package com.xs0.dbktx.util
 
 import com.xs0.dbktx.conn.DbLoaderImpl
+import com.xs0.dbktx.conn.DbLoaderInternal
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.DbTable
 import com.xs0.dbktx.schema.RelToManyImpl
@@ -76,7 +77,7 @@ internal class EntityIndex<E : DbEntity<E, ID>, ID: Any>(
 
     companion object : KLogging()
 
-    internal suspend fun loadNow(dbLoaderImpl: DbLoaderImpl): Boolean {
+    internal suspend fun loadNow(dbLoaderImpl: DbLoaderInternal): Boolean {
         return dbLoaderImpl.loadDelayedTable(this)
     }
 
@@ -150,7 +151,7 @@ internal class ToManyIndex<FROM: DbEntity<FROM, FROMID>, FROMID: Any, TO: DbEnti
 
     companion object : KLogging()
 
-    internal suspend fun loadNow(dbLoaderImpl: DbLoaderImpl): Boolean {
+    internal suspend fun loadNow(dbLoaderImpl: DbLoaderInternal): Boolean {
         return dbLoaderImpl.loadDelayedToManyRel(this)
     }
 }

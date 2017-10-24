@@ -7,14 +7,16 @@ import io.vertx.core.Handler
 import io.vertx.core.json.JsonArray
 import io.vertx.ext.sql.*
 import mu.KLogging
+import java.io.PrintWriter
+import java.io.StringWriter
 
 class MultiQueryConn(private val conn: SQLConnection) : SQLConnection {
-    private var executing: Boolean = false
+    private var executing: String? = null
     private var closed: Boolean = false
 
     private fun <T> wrap(handler: Handler<AsyncResult<T>>): Handler<AsyncResult<T>> {
         return Handler { result ->
-            executing = false
+            executing = null
             handler.handle(result)
         }
     }
@@ -25,12 +27,21 @@ class MultiQueryConn(private val conn: SQLConnection) : SQLConnection {
             return false
         }
 
-        if (executing) {
-            handler.handle(Future.failedFuture(DatabaseException("Already executing a query")))
+        if (executing != null) {
+            handler.handle(Future.failedFuture(DatabaseException("Already executing a query:\n$executing")))
             return false
         }
 
-        executing = true
+        try {
+            throw Throwable()
+        } catch (t: Throwable) {
+            val s = StringWriter()
+            val p = PrintWriter(s)
+            t.printStackTrace(p)
+            p.flush()
+            executing = s.toString()
+        }
+
         return true
     }
 
@@ -119,7 +130,13 @@ class MultiQueryConn(private val conn: SQLConnection) : SQLConnection {
     override fun close(resultHandler: Handler<AsyncResult<Void>>) {
         if (checkState(resultHandler)) {
             closed = true
+            logger.debug("Closing connection")
             conn.close(wrap(resultHandler))
+        } else {
+            closed = true
+            logger.error("close() called while executing.. Unless the query aborted just before this, it is a bug")
+            // but we still close the connection, otherwise it will probably linger forever
+            conn.close { _ -> }
         }
     }
 

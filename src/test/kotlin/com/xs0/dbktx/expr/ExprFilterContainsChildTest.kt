@@ -49,6 +49,8 @@ class ExprFilterContainsChildTest {
             }
         }
 
+        assertFalse(called.get())
+        delayedExec.executePending()
         assertTrue(called.get())
 
         assertEquals("SELECT company_id, key, name, tag_line, t_created, t_updated FROM brands WHERE (key, company_id) IN (SELECT brand_key, company_id FROM items WHERE name IN (?, ?))", theSql)

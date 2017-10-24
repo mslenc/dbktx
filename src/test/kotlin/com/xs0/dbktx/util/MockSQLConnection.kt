@@ -86,4 +86,7 @@ open class MockSQLConnection : SQLConnection {
         TODO("not implemented")
     }
 
+    override fun setOptions(options: SQLOptions?): SQLConnection {
+        TODO("not implemented")
+    }
 }

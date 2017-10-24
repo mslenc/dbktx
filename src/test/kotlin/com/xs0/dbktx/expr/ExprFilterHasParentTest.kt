@@ -46,6 +46,8 @@ class ExprFilterHasParentTest {
             }
         }
 
+        assertFalse(called.get())
+        delayedExec.executePending()
         assertTrue(called.get())
 
         assertEquals("SELECT company_id, key, name, tag_line, t_created, t_updated FROM brands WHERE company_id IN (SELECT id FROM companies WHERE name >= ?)", theSql)
