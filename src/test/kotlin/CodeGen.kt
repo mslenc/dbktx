@@ -76,7 +76,7 @@ object CodeGen {
         val conn: Connection = DriverManager.getConnection(conf.jdbcUrl, conf.username, conf.password)
         val codeGen = CodeGenerator(conn, conf)
 
-        println(codeGen.handleTable("reg_continents"))
+        println(codeGen.handleTable("comp_ranks"))
     }
 
     fun findConfFile(): CodeGenConf {
@@ -186,6 +186,10 @@ internal class CodeGenerator(private val conn: Connection, private val conf: Cod
             } else if (colType.startsWith("float")) {
                 this.javaType = "Float"
                 this.columnMaker = "Float"
+                this.typeDef = colType.toUpperCase() + "()"
+            } else if (colType.startsWith("double")) {
+                this.javaType = "Double"
+                this.columnMaker = "Double"
                 this.typeDef = colType.toUpperCase() + "()"
             } else {
                 this.javaType = "??? ($name)"
