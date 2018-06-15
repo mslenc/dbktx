@@ -18,7 +18,7 @@ class RelToOneImpl<FROM : DbEntity<FROM, FROMID>, FROMID : Any, TO : DbEntity<TO
         return idMapper(from)
     }
 
-    val targetTable: DbTable<TO, TOID>
+    override val targetTable: DbTable<TO, TOID>
         get() = info.oneTable
 
     override fun has(relatedProperty: ExprBoolean<TO>): ExprBoolean<FROM> {

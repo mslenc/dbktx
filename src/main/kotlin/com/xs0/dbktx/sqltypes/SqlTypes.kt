@@ -106,6 +106,16 @@ internal object SqlTypes {
         }
     }
 
+    fun makeInstantFromMillis(sqlType: SqlTypeKind, isNotNull: Boolean): SqlType<Instant> {
+        when (sqlType) {
+            BIGINT ->
+                return SqlTypeInstantFromMillis(sqlType, isNotNull = isNotNull)
+
+            else ->
+                throw UnsupportedOperationException("No mapping from $sqlType to Instant (millis)")
+        }
+    }
+
     fun makeYear(sqlType: SqlTypeKind, isNotNull: Boolean): SqlType<Year> {
         when (sqlType) {
             YEAR ->

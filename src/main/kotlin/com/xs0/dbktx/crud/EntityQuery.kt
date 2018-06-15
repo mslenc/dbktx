@@ -7,12 +7,29 @@ import com.xs0.dbktx.expr.Expr
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.DbTable
+import com.xs0.dbktx.schema.RelToOne
 import com.xs0.dbktx.util.DelayedLoadState
 import com.xs0.dbktx.util.OrderSpec
 import java.util.ArrayList
 import kotlin.coroutines.experimental.suspendCoroutine
 
-interface EntityQuery<E : DbEntity<E, *>> {
+interface Query {
+
+}
+
+internal open class QueryImpl {
+    private val alias2table = LinkedHashMap<String, TableInQuery<*>>()
+
+    fun isTableAliasTaken(tableAlias: String): Boolean {
+        return alias2table.containsKey(tableAlias)
+    }
+
+    fun registerTableInQuery(tableInQuery: TableInQuery<*>) {
+        alias2table.put(tableInQuery.tableAlias, tableInQuery)
+    }
+}
+
+interface EntityQuery<E : DbEntity<E, *>>: Query {
     suspend fun run(): List<E>
     suspend fun countAll(): Long
 
@@ -20,6 +37,10 @@ interface EntityQuery<E : DbEntity<E, *>> {
     fun exclude(exclude: ExprBoolean<E>): EntityQuery<E>
 
     fun orderBy(order: Expr<in E, *>, ascending: Boolean = true): EntityQuery<E>
+    fun <R: DbEntity<R, *>>
+        orderBy(ref: RelToOne<E, R>, order: Expr<in R, *>, ascending: Boolean = true): EntityQuery<E>
+    fun <R1: DbEntity<R1, *>, R2: DbEntity<R2, *>>
+        orderBy(ref1: RelToOne<E, R1>, ref2: RelToOne<R1, R2>, order: Expr<in R2, *>, ascending: Boolean = true): EntityQuery<E>
 
     fun offset(offset: Long): EntityQuery<E>
     fun maxRowCount(maxRowCount: Int): EntityQuery<E>
@@ -36,11 +57,13 @@ interface EntityQuery<E : DbEntity<E, *>> {
 internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
         internal val table: DbTable<E, ID>,
         internal val loader: DbConn)
-    : EntityQuery<E> {
+    : QueryImpl(), EntityQuery<E> {
+
+    private val baseTable = BaseTableInQuery(this, table)
 
     internal var filter: ExprBoolean<E>? = null
-    private var  _orderBy: ArrayList<OrderSpec<E>>? = null
-    internal val orderBy: List<OrderSpec<E>>
+    private var  _orderBy: ArrayList<OrderSpec<*>>? = null
+    internal val orderBy: List<OrderSpec<*>>
         get() {
             return _orderBy ?: emptyList()
         }
@@ -88,22 +111,40 @@ internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
         return filter(exclude.not())
     }
 
-    override fun orderBy(order: Expr<in E, *>, ascending: Boolean): EntityQueryImpl<E, ID> {
+    override fun
+    orderBy(order: Expr<in E, *>, ascending: Boolean): EntityQueryImpl<E, ID> {
         checkModifiable()
+        addOrder(baseTable, order, ascending)
+        return this
+    }
 
+    override fun <R : DbEntity<R, *>>
+    orderBy(ref: RelToOne<E, R>, order: Expr<in R, *>, ascending: Boolean): EntityQuery<E> {
+        checkModifiable()
+        addOrder(baseTable.leftJoin(ref), order, ascending)
+        return this
+    }
+
+    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>>
+    orderBy(ref1: RelToOne<E, R1>, ref2: RelToOne<R1, R2>, order: Expr<in R2, *>, ascending: Boolean): EntityQuery<E> {
+        checkModifiable()
+        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2), order, ascending)
+        return this
+    }
+
+    private fun <R: DbEntity<R, *>>
+    addOrder(table: TableInQuery<R>, order: Expr<in R, *>, ascending: Boolean) {
         if (order.isComposite) {
             val comp = order as CompositeExpr
             for (i in 1..comp.numParts) {
-                orderBy(comp.getPart(i), ascending)
+                addOrder(table, comp.getPart(i), ascending)
             }
         } else {
             if (_orderBy == null)
                 _orderBy = ArrayList()
 
-            _orderBy?.add(OrderSpec(order, ascending))
+            _orderBy?.add(OrderSpec(table, order, ascending))
         }
-
-        return this
     }
 
     override fun offset(offset: Long): EntityQueryImpl<E, ID> {

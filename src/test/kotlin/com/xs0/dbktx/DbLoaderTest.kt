@@ -166,9 +166,9 @@ class DbLoaderTest {
         delayedExec.executePending()
         assertTrue(called)
 
-        assertEquals("SELECT company_id, key, name, tag_line, t_created, t_updated FROM brands WHERE company_id IN ($comId2, $comId0, $comId1)", theSql)
+        assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B WHERE company_id IN ($comId2, $comId0, $comId1)", theSql)
 
-        assertEquals("id, name, t_created, t_updated", TestSchema1.COMPANY.columnNames)
+        assertEquals("C.id, C.name, C.t_created, C.t_updated", TestSchema1.COMPANY.defaultColumnNames)
 
         val results = arrayOf(
             futures[0].await(),
@@ -222,7 +222,7 @@ class DbLoaderTest {
 
         val db: DbConn = DbLoaderImpl(conn, delayedExec)
 
-        assertEquals("company_id, key, name, tag_line, t_created, t_updated", TestSchema1.BRAND.columnNames)
+        assertEquals("B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated", TestSchema1.BRAND.defaultColumnNames)
 
         val brand0 = Brand(db, id0, asList(id0.companyId, id0.key, "Abc (tm)", "We a-b-c for you!", "2017-04-27", "2017-05-27"))
         val brand1 = Brand(db, id1, asList(id1.companyId, id1.key, "Sheeps Inc.", "Wool and stool!", "2017-02-25", "2017-03-27"))

@@ -16,4 +16,6 @@ interface RelToOne<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>> {
     infix fun oneOf(refs: Iterable<TO>): ExprBoolean<FROM>
 
     suspend operator fun invoke(from: FROM): TO?
+
+    val targetTable: DbTable<TO, *>
 }

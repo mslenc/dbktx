@@ -8,14 +8,14 @@ class ExprFilterContainsChild<FROM : DbEntity<FROM, FID>, FID: Any, TO : DbEntit
         private val info: ManyToOneInfo<TO, TID, FROM, FID>,
         private val filter: ExprBoolean<TO>) : ExprBoolean<FROM> {
 
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, topLevel: Boolean, tableAlias: String) {
         val mappings = info.columnMappings
         val n = mappings.size
 
         sql.expr(topLevel) {
             paren(n > 1) {
                 tuple(mappings) {
-                    +it.columnTo
+                    sql(it.columnTo, false, tableAlias)
                 }
             }
             +" IN (SELECT "

@@ -5,11 +5,11 @@ import com.xs0.dbktx.expr.*
 import com.xs0.dbktx.crud.EntityValues
 import com.xs0.dbktx.util.Sql
 
-private fun buildFieldTuple(id: CompositeId<*, *>): String {
+private fun buildFieldTuple(id: CompositeId<*, *>, tableAlias: String): String {
     val sb = StringBuilder()
     for (i in 1 .. id.numColumns) {
         sb.append(if (i == 1) "(" else ", ")
-        sb.append(id.getColumn(i).quotedFieldName)
+        sb.append(tableAlias).append('.').append(id.getColumn(i).quotedFieldName)
     }
     return sb.append(")").toString()
 }
@@ -21,10 +21,8 @@ class MultiColumn<E : DbEntity<E, ID>, ID : CompositeId<E, ID>>(
     override val numParts: Int
         get() = prototype.numColumns
 
-    private val fieldTuple by lazy { buildFieldTuple(prototype) }
-
-    override fun toSql(sql: Sql, topLevel: Boolean) {
-        sql.raw(fieldTuple)
+    override fun toSql(sql: Sql, topLevel: Boolean, tableAlias: String) {
+        sql.raw(buildFieldTuple(prototype, tableAlias))
     }
 
     override fun makeLiteral(value: ID): Expr<E, ID> {

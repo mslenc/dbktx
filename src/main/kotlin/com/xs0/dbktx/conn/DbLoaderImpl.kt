@@ -196,7 +196,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
         val entities = masterIndex[table]
 
         val sb = Sql().apply {
-            SELECT(table.columnNames)
+            SELECT(table.defaultColumnNames)
             FROM(table)
             WHERE(filter)
         }
@@ -493,8 +493,8 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
     query(table: DbTable<E, ID>, filter: ExprBoolean<E>): List<E> {
         val sb = Sql().apply {
-            SELECT(table.columnNames)
-            FROM(table)
+            SELECT(table.defaultColumnNames)
+            FROM(table, table.aliasPrefix)
             WHERE(filter)
         }
 
@@ -503,7 +503,7 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
     queryAll(table: DbTable<E, ID>): List<E> {
-        val sb = Sql().SELECT(table.columnNames).FROM(table)
+        val sb = Sql().SELECT(table.defaultColumnNames).FROM(table, table.aliasPrefix)
 
         return db.enqueueQuery(table, sb)
     }
@@ -514,7 +514,7 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         query as EntityQueryImpl<E, ID>
 
         val sb = Sql().apply {
-            SELECT(query.table.columnNames)
+            SELECT(query.table.defaultColumnNames)
             FROM(query.table)
             WHERE(query.filter)
 

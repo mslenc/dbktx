@@ -34,5 +34,17 @@ class ExprBools<E> internal constructor(private val parts: List<ExprBoolean<E>>,
 
             return ExprBools(parts, op)
         }
+
+        internal fun <E> create(op: Op, parts: Iterable<ExprBoolean<E>>): ExprBoolean<E> {
+            val partsList = parts.toList()
+
+            if (partsList.isEmpty())
+                throw IllegalArgumentException("Can't have an empty list of parts with OR or AND")
+
+            if (partsList.size == 1)
+                return partsList.single()
+
+            return ExprBools(partsList, op)
+        }
     }
 }

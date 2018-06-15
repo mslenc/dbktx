@@ -31,10 +31,12 @@ internal constructor(
         while (i < n) {
             if (i > 0)
                 columnNames.append(", ")
+            columnNames.append(table.aliasPrefix)
+            columnNames.append(".")
             columnNames.append(table.columns[i].fieldName)
             i++
         }
-        table.columnNames = columnNames.toString()
+        table.defaultColumnNames = columnNames.toString()
 
         return table.validate()
     }
@@ -231,6 +233,15 @@ internal constructor(
                         references: Ref<Instant>? = null): NullableOrderedColumn<E, Instant> {
 
         val sqlType = SqlTypes.makeInstant(type.sqlTypeKind, isNotNull = false)
+        val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column, references)
+        return column
+    }
+
+    fun nullableInstantFromMillis(fieldName: String, type: SqlTypeDef, getter: (E) -> Instant?,
+                                  references: Ref<Instant>? = null): NullableOrderedColumn<E, Instant> {
+
+        val sqlType = SqlTypes.makeInstantFromMillis(type.sqlTypeKind, isNotNull = false)
         val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
         finishAddColumn(column, references)
         return column

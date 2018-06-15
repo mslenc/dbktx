@@ -78,8 +78,8 @@ class Sql {
         return quotedRaw(formatDuration(param))
     }
 
-    operator fun invoke(column: Column<*, *>): Sql {
-        sql.append(column.quotedFieldName)
+    operator fun invoke(column: Column<*, *>, tableAlias: String): Sql {
+        sql.append(tableAlias).append('.').append(column.quotedFieldName)
         return this
     }
 
@@ -127,14 +127,14 @@ class Sql {
         return raw("SELECT ").raw(what)
     }
 
-    fun FROM(table: DbTable<*,*>): Sql {
-        return raw(" FROM ").raw(table.quotedDbName)
+    fun FROM(table: DbTable<*,*>, alias: String): Sql {
+        return raw(" FROM ").raw(table.quotedDbName).raw(" AS ").raw(alias)
     }
 
-    fun WHERE(filter: ExprBoolean<*>?): Sql {
+    fun WHERE(filter: ExprBoolean<*>?, tableAlias: String): Sql {
         if (filter != null) {
             raw(" WHERE ")
-            filter.toSql(this, true)
+            filter.toSql(this, true, tableAlias)
         }
         return this
     }

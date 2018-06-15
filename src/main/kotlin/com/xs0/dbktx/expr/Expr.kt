@@ -1,11 +1,12 @@
 package com.xs0.dbktx.expr
 
+import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.sqltypes.SqlTypeVarchar
 import com.xs0.dbktx.util.Sql
 import com.xs0.dbktx.util.escapeSqlLikePattern
 
 interface SqlEmitter {
-    fun toSql(sql: Sql, topLevel: Boolean = false)
+    fun toSql(sql: Sql, topLevel: Boolean = false, tableAlias: String)
 }
 
 class SqlRange<E, T>(val minumum: Expr<in E, T>,
@@ -134,5 +135,15 @@ interface ExprBoolean<E> : SqlEmitter {
 
     infix fun or(other: ExprBoolean<E>): ExprBoolean<E> {
         return ExprBools.create(this, ExprBools.Op.OR, other)
+    }
+
+    companion object {
+        fun <E> createOR(exprs: Iterable<ExprBoolean<E>>): ExprBoolean<E> {
+            return ExprBools.create(ExprBools.Op.OR, exprs)
+        }
+
+        fun <E> createAND(exprs: Iterable<ExprBoolean<E>>): ExprBoolean<E> {
+            return ExprBools.create(ExprBools.Op.AND, exprs)
+        }
     }
 }
