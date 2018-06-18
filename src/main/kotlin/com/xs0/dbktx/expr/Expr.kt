@@ -1,21 +1,20 @@
 package com.xs0.dbktx.expr
 
+import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.sqltypes.SqlTypeVarchar
 import com.xs0.dbktx.util.Sql
 import com.xs0.dbktx.util.escapeSqlLikePattern
 
 interface SqlEmitter {
-    fun toSql(sql: Sql, topLevel: Boolean = false, tableAlias: String)
+    fun toSql(sql: Sql, topLevel: Boolean = false)
 }
 
 class SqlRange<E, T>(val minumum: Expr<in E, T>,
                      val maximum: Expr<in E, T>)
 
 interface Expr<E, T> : SqlEmitter {
-    infix fun eq(other: Expr<in E, T>): ExprBoolean<E> {
-        return ExprBinary(this, ExprBinary.Op.EQ, other)
-    }
+
 
     infix fun `==`(other: Expr<in E, T>): ExprBoolean<E> {
         return ExprBinary(this, ExprBinary.Op.EQ, other)
@@ -53,21 +52,7 @@ interface NonNullExpr<E, T> : Expr<E, T>
 
 
 interface OrderedExpr<E, T> : Expr<E, T> {
-    infix fun lt(value: Expr<in E, T>): ExprBoolean<E> {
-        return ExprBinary(this, ExprBinary.Op.LT, value)
-    }
 
-    infix fun lte(value: Expr<in E, T>): ExprBoolean<E> {
-        return ExprBinary(this, ExprBinary.Op.LTE, value)
-    }
-
-    infix fun gt(value: Expr<in E, T>): ExprBoolean<E> {
-        return ExprBinary(this, ExprBinary.Op.GT, value)
-    }
-
-    infix fun gte(value: Expr<in E, T>): ExprBoolean<E> {
-        return ExprBinary(this, ExprBinary.Op.GTE, value)
-    }
 
     infix fun between(range: SqlRange<in E, T>): ExprBoolean<E> {
         return ExprBetween(this, range.minumum, range.maximum, between = true)

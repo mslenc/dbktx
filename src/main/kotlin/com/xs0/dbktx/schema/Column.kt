@@ -30,7 +30,7 @@ interface Column<E: DbEntity<E, *>, T : Any> : RowProp<E, T> {
     }
 
     override fun toSql(sql: Sql, topLevel: Boolean) {
-        sql(this)
+        sql.column(this, sql.currentTable())
     }
 
     override fun makeLiteral(value: T): Expr<E, T> {

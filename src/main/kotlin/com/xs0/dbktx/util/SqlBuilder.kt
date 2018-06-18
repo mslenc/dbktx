@@ -1,5 +1,6 @@
 package com.xs0.dbktx.util
 
+import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.expr.SqlEmitter
 import com.xs0.dbktx.schema.Column
@@ -8,10 +9,25 @@ import com.xs0.dbktx.sqltypes.toHexString
 import io.vertx.core.json.JsonArray
 import java.math.BigDecimal
 import java.time.*
+import java.util.*
 
 class Sql {
     private val sql = StringBuilder()
     val params = JsonArray()
+    private val tableContextStack = Stack<TableInQuery<*>>()
+
+    fun withTable(table: TableInQuery<*>, block: Sql.()->Unit) {
+        tableContextStack.push(table)
+        try {
+            this.block()
+        } finally {
+            tableContextStack.pop()
+        }
+    }
+
+    fun currentTable(): TableInQuery<*> {
+        return tableContextStack.peek() ?: throw IllegalStateException("No table in context stack")
+    }
 
     fun getSql(): String {
         return sql.toString()
@@ -78,8 +94,13 @@ class Sql {
         return quotedRaw(formatDuration(param))
     }
 
-    operator fun invoke(column: Column<*, *>, tableAlias: String): Sql {
-        sql.append(tableAlias).append('.').append(column.quotedFieldName)
+    fun columnForSelect(table: TableInQuery<*>, column: Column<*, *>): Sql {
+        sql.append(table.tableAlias).append('.').append(column.quotedFieldName)
+        return this
+    }
+
+    fun columnForUpdate(column: Column<*, *>): Sql {
+        sql.append(column.quotedFieldName)
         return this
     }
 

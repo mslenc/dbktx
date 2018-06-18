@@ -33,7 +33,7 @@ interface EntityQuery<E : DbEntity<E, *>>: Query {
     suspend fun run(): List<E>
     suspend fun countAll(): Long
 
-    fun filter(filter: ExprBoolean<E>): EntityQuery<E>
+    fun filter(block: FilterBuilder<E>.() -> ExprBoolean<E>): EntityQuery<E>
     fun exclude(exclude: ExprBoolean<E>): EntityQuery<E>
 
     fun orderBy(order: Expr<in E, *>, ascending: Boolean = true): EntityQuery<E>
