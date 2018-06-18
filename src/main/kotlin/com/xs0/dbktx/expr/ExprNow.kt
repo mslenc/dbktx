@@ -30,10 +30,4 @@ class ExprNow<ENTITY, T> : Expr<ENTITY, T> {
     override fun rangeTo(other: Expr<in ENTITY, T>): SqlRange<ENTITY, T> {
         throw UnsupportedOperationException("NOW() can't be used for comparisons")
     }
-
-    companion object {
-        fun <E : DbEntity<E, *>, T> NOW(): ExprNow<E, T> {
-            return ExprNow()
-        }
-    }
 }

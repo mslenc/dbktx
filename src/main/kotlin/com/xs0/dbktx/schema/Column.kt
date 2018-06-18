@@ -58,7 +58,7 @@ interface NonNullOrderedColumn<E: DbEntity<E, *>, T: Comparable<T>>: OrderedColu
 interface NullableOrderedColumn<E: DbEntity<E, *>, T: Comparable<T>>: OrderedColumn<E, T>, NullableColumn<E, T>, NullableOrderedProp<E, T>
 
 
-interface StringColumn<E: DbEntity<E, *>> : OrderedColumn<E, String>, ExprString<E>
+interface StringColumn<E: DbEntity<E, *>> : OrderedColumn<E, String>
 interface NonNullStringColumn<E: DbEntity<E, *>> : NonNullOrderedColumn<E, String>, StringColumn<E>
 interface NullableStringColumn<E: DbEntity<E, *>> : NullableOrderedColumn<E, String>, StringColumn<E>
 

@@ -7,7 +7,7 @@ class ExprBetween<E, T>(
         private val minimum: Expr<in E, T>,
         private val maximum: Expr<in E, T>,
         private val between: Boolean
-): ExprBoolean<E> {
+): ExprBoolean {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.expr(topLevel) {
             +value
@@ -18,7 +18,7 @@ class ExprBetween<E, T>(
         }
     }
 
-    override fun not(): ExprBoolean<E> {
+    override operator fun not(): ExprBoolean {
         return ExprBetween(value, minimum, maximum, !between)
     }
 }

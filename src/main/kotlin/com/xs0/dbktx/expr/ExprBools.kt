@@ -2,7 +2,7 @@ package com.xs0.dbktx.expr
 
 import com.xs0.dbktx.util.Sql
 
-class ExprBools<E> internal constructor(private val parts: List<ExprBoolean<E>>, private val op: Op) : ExprBoolean<E> {
+internal class ExprBools<E> internal constructor(private val parts: List<ExprBoolean<E>>, private val op: Op) : ExprBoolean<E> {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.expr(topLevel) {
             sql.tuple(parts, separator = op.sql) {
