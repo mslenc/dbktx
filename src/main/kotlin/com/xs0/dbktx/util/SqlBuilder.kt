@@ -152,10 +152,14 @@ class Sql {
         return raw(" FROM ").raw(table.quotedDbName).raw(" AS ").raw(alias)
     }
 
-    fun WHERE(filter: ExprBoolean<*>?, tableAlias: String): Sql {
+    fun FROM(tiq: TableInQuery<*>): Sql {
+        return raw(" FROM ").raw(tiq.table.quotedDbName).raw(" AS ").raw(tiq.tableAlias)
+    }
+
+    fun WHERE(filter: ExprBoolean?): Sql {
         if (filter != null) {
             raw(" WHERE ")
-            filter.toSql(this, true, tableAlias)
+            filter.toSql(this, true)
         }
         return this
     }

@@ -1,8 +1,10 @@
 package com.xs0.dbktx.crud
 
-import com.xs0.dbktx.schema.DbEntity
-import com.xs0.dbktx.schema.DbTable
-import com.xs0.dbktx.schema.RelToOne
+import com.xs0.dbktx.composite.CompositeId
+import com.xs0.dbktx.expr.CompositeExpr
+import com.xs0.dbktx.expr.Expr
+import com.xs0.dbktx.schema.*
+import com.xs0.dbktx.util.Sql
 
 enum class JoinType {
     LEFT_JOIN,
@@ -60,3 +62,31 @@ internal class JoinedTableInQuery<E: DbEntity<E, *>>(query: QueryImpl, tableAlia
 
 internal class BaseTableInQuery<E: DbEntity<E, *>>(query: QueryImpl, table: DbTable<E, *>)
     : TableInQuery<E>(query, table.aliasPrefix, table)
+
+
+class BoundColumnForSelect<E: DbEntity<E, *>, T : Any>(val column: Column<E, T>, val tableInQuery: TableInQuery<E>) : Expr<E, T> {
+    override fun toSql(sql: Sql, topLevel: Boolean) {
+        sql.raw(tableInQuery.tableAlias)
+        sql.raw(".")
+        sql.raw(column.quotedFieldName)
+    }
+}
+
+class BoundMultiColumnForSelect<E : DbEntity<E, ID>, ID : CompositeId<E, ID>>(val multiColumn: MultiColumn<E, ID>, val tableInQuery: TableInQuery<E>) : CompositeExpr<E, ID> {
+    override val numParts: Int
+        get() = multiColumn.numColumns
+
+    override fun toSql(sql: Sql, topLevel: Boolean) {
+        sql.paren {
+            sql.tuple(1..numParts) { colIdx ->
+                sql.raw(tableInQuery.tableAlias)
+                sql.raw(".")
+                sql.raw(multiColumn.getPart(colIdx).quotedFieldName)
+            }
+        }
+    }
+
+    override fun getPart(index: Int): Expr<E, *> {
+        return BoundColumnForSelect(multiColumn.getPart(index), tableInQuery)
+    }
+}

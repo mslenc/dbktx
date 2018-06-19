@@ -71,11 +71,11 @@ interface ExprBoolean : SqlEmitter {
     operator fun not(): ExprBoolean
 
     companion object {
-        fun <E> createOR(exprs: Iterable<ExprBoolean>): ExprBoolean {
+        fun createOR(exprs: Iterable<ExprBoolean>): ExprBoolean {
             return ExprBools.create(ExprBools.Op.OR, exprs)
         }
 
-        fun <E> createAND(exprs: Iterable<ExprBoolean>): ExprBoolean {
+        fun createAND(exprs: Iterable<ExprBoolean>): ExprBoolean {
             return ExprBools.create(ExprBools.Op.AND, exprs)
         }
     }

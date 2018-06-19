@@ -6,16 +6,16 @@ import com.xs0.dbktx.util.Sql
 
 class ExprFilterContainsChild<FROM : DbEntity<FROM, FID>, FID: Any, TO : DbEntity<TO, TID>, TID: Any>(
         private val info: ManyToOneInfo<TO, TID, FROM, FID>,
-        private val filter: ExprBoolean<TO>) : ExprBoolean<FROM> {
+        private val filter: ExprBoolean) : ExprBoolean {
 
-    override fun toSql(sql: Sql, topLevel: Boolean, tableAlias: String) {
+    override fun toSql(sql: Sql, topLevel: Boolean) {
         val mappings = info.columnMappings
         val n = mappings.size
 
         sql.expr(topLevel) {
             paren(n > 1) {
                 tuple(mappings) {
-                    sql(it.columnTo, false, tableAlias)
+                    sql(it.columnTo, false)
                 }
             }
             +" IN (SELECT "

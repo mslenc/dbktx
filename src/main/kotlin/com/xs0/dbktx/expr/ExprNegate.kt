@@ -2,7 +2,7 @@ package com.xs0.dbktx.expr
 
 import com.xs0.dbktx.util.Sql
 
-class ExprNegate<TABLE>(private val inner: ExprBoolean<TABLE>) : ExprBoolean<TABLE> {
+class ExprNegate(private val inner: ExprBoolean) : ExprBoolean {
 
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.expr(topLevel) {
@@ -11,7 +11,7 @@ class ExprNegate<TABLE>(private val inner: ExprBoolean<TABLE>) : ExprBoolean<TAB
         }
     }
 
-    override fun not(): ExprBoolean<TABLE> {
+    override fun not(): ExprBoolean {
         return inner
     }
 }

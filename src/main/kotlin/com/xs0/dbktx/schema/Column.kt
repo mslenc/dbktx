@@ -1,10 +1,11 @@
 package com.xs0.dbktx.schema
 
+import com.xs0.dbktx.crud.BoundColumnForSelect
 import com.xs0.dbktx.expr.Expr
-import com.xs0.dbktx.expr.ExprString
 import com.xs0.dbktx.expr.Literal
 import com.xs0.dbktx.sqltypes.SqlType
 import com.xs0.dbktx.crud.EntityValues
+import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.util.Sql
 
 interface Column<E: DbEntity<E, *>, T : Any> : RowProp<E, T> {
@@ -27,10 +28,6 @@ interface Column<E: DbEntity<E, *>, T : Any> : RowProp<E, T> {
 
     override fun extract(values: EntityValues<E>): T? {
         return values.getValue(this)
-    }
-
-    override fun toSql(sql: Sql, topLevel: Boolean) {
-        sql.column(this, sql.currentTable())
     }
 
     override fun makeLiteral(value: T): Expr<E, T> {
@@ -76,6 +73,10 @@ abstract class ColumnImpl<E : DbEntity<E, *>, T: Any>(
 
     override fun invoke(entity: E): T? {
         return getter(entity)
+    }
+
+    override fun bindForSelect(tableInQuery: TableInQuery<E>): Expr<E, T> {
+        return BoundColumnForSelect(this, tableInQuery)
     }
 }
 

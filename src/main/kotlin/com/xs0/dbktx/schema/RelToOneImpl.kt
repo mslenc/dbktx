@@ -21,11 +21,9 @@ class RelToOneImpl<FROM : DbEntity<FROM, FROMID>, FROMID : Any, TO : DbEntity<TO
     override val targetTable: DbTable<TO, TOID>
         get() = info.oneTable
 
-    override fun has(relatedProperty: ExprBoolean<TO>): ExprBoolean<FROM> {
-        return ExprFilterHasParent(info, relatedProperty)
-    }
 
-    override fun eq(ref: TO): ExprBoolean<FROM> {
+
+    override fun eq(ref: TO): ExprBoolean {
         return if (info.columnMappings.size == 1) {
             makeEq(info.columnMappings[0], ref)
         } else {
