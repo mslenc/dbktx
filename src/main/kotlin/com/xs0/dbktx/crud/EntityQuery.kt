@@ -16,7 +16,7 @@ interface Query {
 
 }
 
-internal open class QueryImpl {
+internal abstract class QueryImpl {
     private val alias2table = LinkedHashMap<String, TableInQuery<*>>()
 
     fun isTableAliasTaken(tableAlias: String): Boolean {
@@ -28,22 +28,88 @@ internal open class QueryImpl {
     }
 }
 
-interface EntityQuery<E : DbEntity<E, *>>: Query {
+interface FilterableQuery<E : DbEntity<E, *>>: Query {
+    val baseTable : TableInQuery<E>
+
+    fun filter(block: FilterBuilder<E>.() -> ExprBoolean): FilterableQuery<E>
+    fun <REF: DbEntity<REF, *>>
+        filter(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> ExprBoolean): FilterableQuery<E>
+    fun <REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>>
+        filter(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> ExprBoolean): FilterableQuery<E>
+
+
+    fun exclude(block: FilterBuilder<E>.() -> ExprBoolean): FilterableQuery<E>
+    fun <REF: DbEntity<REF, *>>
+        exclude(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> ExprBoolean): FilterableQuery<E>
+    fun <REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>>
+        exclude(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> ExprBoolean): FilterableQuery<E>
+}
+
+internal abstract class FilterableQueryImpl<E: DbEntity<E, ID>, ID: Any>(
+        internal val table: DbTable<E, ID>,
+        internal val loader: DbConn) : QueryImpl(), FilterableQuery<E> {
+
+    override val baseTable = BaseTableInQuery(this, table) as TableInQuery<E>
+
+    protected abstract fun checkModifiable()
+    internal var filters: ExprBoolean? = null
+
+    private fun <E: DbEntity<E, *>>
+        doFilter(tableInQuery: TableInQuery<E>, negate: Boolean, block: FilterBuilder<E>.() -> ExprBoolean) {
+
+        checkModifiable()
+
+        val filterBuilder = TableInQueryBoundFilterBuilder(tableInQuery)
+        val filter = filterBuilder.block()
+        val finalFilter = if (negate) !filter else filter
+
+        val existing = this.filters
+
+        if (existing != null) {
+            this.filters = ExprBools.create(existing, ExprBools.Op.AND, finalFilter)
+        } else {
+            this.filters = finalFilter
+        }
+    }
+
+    override fun filter(block: FilterBuilder<E>.() -> ExprBoolean): FilterableQuery<E> {
+        doFilter(baseTable, false, block)
+        return this
+    }
+
+    override fun <REF : DbEntity<REF, *>> filter(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> ExprBoolean): FilterableQuery<E> {
+        doFilter(baseTable.innerJoin(ref), false, block)
+        return this
+    }
+
+    override fun <REF1 : DbEntity<REF1, *>, REF2 : DbEntity<REF2, *>> filter(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> ExprBoolean): FilterableQuery<E> {
+        doFilter(baseTable.innerJoin(ref1).innerJoin(ref2), false, block)
+        return this
+    }
+
+    override fun exclude(block: FilterBuilder<E>.() -> ExprBoolean): FilterableQuery<E> {
+        doFilter(baseTable, true, block)
+        return this
+    }
+
+    override fun <REF : DbEntity<REF, *>> exclude(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> ExprBoolean): FilterableQuery<E> {
+        doFilter(baseTable.innerJoin(ref), true, block)
+        return this
+    }
+
+    override fun <REF1 : DbEntity<REF1, *>, REF2 : DbEntity<REF2, *>> exclude(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> ExprBoolean): FilterableQuery<E> {
+        doFilter(baseTable.innerJoin(ref1).innerJoin(ref2), true, block)
+        return this
+    }
+
+
+}
+
+interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E> {
+
     suspend fun run(): List<E>
     suspend fun countAll(): Long
 
-    fun filter(block: FilterBuilder<E>.() -> ExprBoolean): EntityQuery<E>
-    fun <REF: DbEntity<REF, *>>
-        filter(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> ExprBoolean): EntityQuery<E>
-    fun <REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>>
-        filter(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> ExprBoolean): EntityQuery<E>
-
-
-    fun exclude(block: FilterBuilder<E>.() -> ExprBoolean): EntityQuery<E>
-    fun <REF: DbEntity<REF, *>>
-        exclude(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> ExprBoolean): EntityQuery<E>
-    fun <REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>>
-        exclude(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> ExprBoolean): EntityQuery<E>
 
 
     fun orderBy(order: Expr<in E, *>, ascending: Boolean = true): EntityQuery<E>
@@ -63,19 +129,21 @@ interface EntityQuery<E : DbEntity<E, *>>: Query {
 }
 
 class TableInQueryBoundFilterBuilder<E: DbEntity<E, *>>(val table: TableInQuery<E>) : FilterBuilder<E> {
+    override fun currentTable(): TableInQuery<E> {
+        return table
+    }
+
     override fun <T: Any> bind(prop: RowProp<E, T>): Expr<E, T> {
         return prop.bindForSelect(table)
     }
 }
 
 internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
-        internal val table: DbTable<E, ID>,
-        internal val loader: DbConn)
-    : QueryImpl(), EntityQuery<E> {
+        table: DbTable<E, ID>,
+        loader: DbConn)
+    : FilterableQueryImpl<E, ID>(table, loader), EntityQuery<E> {
 
-    private val baseTable = BaseTableInQuery(this, table)
 
-    internal var filters: ExprBoolean? = null
 
     private var  _orderBy: ArrayList<OrderSpec<*>>? = null
     internal val orderBy: List<OrderSpec<*>>
@@ -105,57 +173,9 @@ internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
         }
     }
 
-    private fun checkModifiable() {
+    override fun checkModifiable() {
         if (queryState.state !== INITIAL || countState.state !== INITIAL)
             throw IllegalStateException("Already querying")
-    }
-
-    private fun <E: DbEntity<E, *>>
-        doFilter(tableInQuery: TableInQuery<E>, negate: Boolean, block: FilterBuilder<E>.() -> ExprBoolean) {
-
-        checkModifiable()
-
-        val filterBuilder = TableInQueryBoundFilterBuilder(tableInQuery)
-        val filter = filterBuilder.block()
-        val finalFilter = if (negate) !filter else filter
-
-        val existing = this.filters
-
-        if (existing != null) {
-            this.filters = ExprBools.create(existing, ExprBools.Op.AND, finalFilter)
-        } else {
-            this.filters = finalFilter
-        }
-    }
-
-    override fun filter(block: FilterBuilder<E>.() -> ExprBoolean): EntityQuery<E> {
-        doFilter(baseTable, false, block)
-        return this
-    }
-
-    override fun <REF : DbEntity<REF, *>> filter(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> ExprBoolean): EntityQuery<E> {
-        doFilter(baseTable.innerJoin(ref), false, block)
-        return this
-    }
-
-    override fun <REF1 : DbEntity<REF1, *>, REF2 : DbEntity<REF2, *>> filter(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> ExprBoolean): EntityQuery<E> {
-        doFilter(baseTable.innerJoin(ref1).innerJoin(ref2), false, block)
-        return this
-    }
-
-    override fun exclude(block: FilterBuilder<E>.() -> ExprBoolean): EntityQuery<E> {
-        doFilter(baseTable, true, block)
-        return this
-    }
-
-    override fun <REF : DbEntity<REF, *>> exclude(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> ExprBoolean): EntityQuery<E> {
-        doFilter(baseTable.innerJoin(ref), true, block)
-        return this
-    }
-
-    override fun <REF1 : DbEntity<REF1, *>, REF2 : DbEntity<REF2, *>> exclude(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> ExprBoolean): EntityQuery<E> {
-        doFilter(baseTable.innerJoin(ref1).innerJoin(ref2), true, block)
-        return this
     }
 
     override fun

@@ -8,8 +8,6 @@ import com.xs0.dbktx.util.escapeSqlLikePattern
 interface FilterBuilder<E: DbEntity<E, *>> {
     fun currentTable(): TableInQuery<E>
     fun <T: Any> bind(prop: RowProp<E, T>): Expr<E, T>
-    fun <TO: DbEntity<TO, *>> follow(relToOne: RelToOne<E, TO>): FilterBuilder<TO>
-    fun <TO: DbEntity<TO, *>> allocateTableAliasNonJoin(dbTable: DbTable<TO, *>): TableInQuery<TO>
 
     infix fun <T: Any> Expr<E, T>.eq(other: Expr<E, T>): ExprBoolean {
         return ExprBinary(this, ExprBinary.Op.EQ, other)
@@ -152,7 +150,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return ExprLike(this, pattern, escapeChar)
     }
 
-    infix fun <T> Expr<E, T>.oneOf(values: List<Expr<in E, T>>): ExprBoolean {
+    infix fun <T> Expr<E, T>.oneOf(values: List<Expr<E, T>>): ExprBoolean {
         if (values.isEmpty())
             throw IllegalArgumentException("No possibilities specified")
 
@@ -176,11 +174,19 @@ interface FilterBuilder<E: DbEntity<E, *>> {
     }
 
     fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.has(block: FilterBuilder<TO>.() -> ExprBoolean): ExprBoolean {
-        val dstTable = allocateTableAliasNonJoin(this.targetTable)
+        val dstTable = currentTable().subQueryOrJoin(this)
         val dstFilter = TableInQueryBoundFilterBuilder(dstTable)
-
         val parentFilter = dstFilter.block()
 
         return ExprFilterHasParent((this as RelToOneImpl<E, *, TO, *>).info, parentFilter, currentTable(), dstTable)
+    }
+
+    fun <TO: DbEntity<TO, *>> RelToMany<E, TO>.contains(block: FilterBuilder<TO>.() -> ExprBoolean): ExprBoolean {
+        val dstTable = currentTable().forcedSubQuery(this)
+        val dstFilter = TableInQueryBoundFilterBuilder(dstTable)
+        val setFilter = dstFilter.block()
+        val relImpl = this as RelToManyImpl<E, *, TO, *>
+
+        return ExprFilterContainsChild(currentTable(), relImpl.info, setFilter, dstTable)
     }
 }

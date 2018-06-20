@@ -124,10 +124,10 @@ interface DbConn {
 
 
     suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBoolean<TO>?): List<TO>
+    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBoolean): List<TO>
 
     suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    loadAsync(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBoolean<TO>): Deferred<List<TO>> {
+    loadAsync(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBoolean): Deferred<List<TO>> {
         return defer { load(from, relation, filter) }
     }
 

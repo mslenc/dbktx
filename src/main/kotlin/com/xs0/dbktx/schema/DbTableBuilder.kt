@@ -517,7 +517,7 @@ internal constructor(
             @Suppress("UNCHECKED_CAST")
             val relToOne = oppositeRel() as RelToOneImpl<TARGET, TID, E, ID>
             val info = relToOne.info
-            rel.init(info, relToOne.idMapper, info.makeReverseQueryBuilder())
+            rel.init(relToOne, info, relToOne.idMapper, info.makeReverseQueryBuilder())
         }
         return rel
     }

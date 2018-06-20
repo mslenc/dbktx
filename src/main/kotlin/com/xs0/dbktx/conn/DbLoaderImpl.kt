@@ -568,19 +568,19 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
     }
 
     override suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBoolean<TO>?): List<TO> {
-        if (filter == null)
-            return load(from, relation)
-
+    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBoolean): List<TO> {
         val fromIds = setOf(from.id)
 
         @Suppress("UNCHECKED_CAST")
         val rel = relation as RelToManyImpl<FROM, FROMID, TO, TOID>
 
         val manyTable = rel.targetTable
-        val condition = rel.createCondition(fromIds)
+        val query = manyTable.newQuery(this)
 
-        return query(manyTable, condition.and(filter))
+        query.filter { rel.createCondition(fromIds, query.baseTable) }
+        query.filter { filter }
+
+        return query.run()
     }
 
     override suspend fun rollback() {
