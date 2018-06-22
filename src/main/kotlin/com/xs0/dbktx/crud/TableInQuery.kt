@@ -92,10 +92,7 @@ sealed class TableInQuery<E : DbEntity<E, *>>(val query: QueryImpl, val tableAli
 
 internal class JoinedTableInQuery<E: DbEntity<E, *>>(query: QueryImpl, tableAlias: String, table: DbTable<E, *>,
                                                      val prevTable: TableInQuery<*>, val join: Join)
-    : TableInQuery<E>(query, tableAlias, table) {
-
-}
-
+    : TableInQuery<E>(query, tableAlias, table)
 
 internal class BaseTableInQuery<E: DbEntity<E, *>>(query: QueryImpl, table: DbTable<E, *>)
     : TableInQuery<E>(query, table.aliasPrefix, table)
@@ -103,11 +100,17 @@ internal class BaseTableInQuery<E: DbEntity<E, *>>(query: QueryImpl, table: DbTa
 internal class SubTableInQuery<E: DbEntity<E, *>>(query: QueryImpl, tableAlias: String, table: DbTable<E, *>, val prevTable: TableInQuery<*>)
     : TableInQuery<E>(query, tableAlias, table)
 
+internal class BaseTableInUpdateQuery<E: DbEntity<E, *>>(query: QueryImpl, table: DbTable<E, *>)
+    : TableInQuery<E>(query, "", table)
+
+
 
 class BoundColumnForSelect<E: DbEntity<E, *>, T : Any>(val column: Column<E, T>, val tableInQuery: TableInQuery<E>) : Expr<E, T> {
     override fun toSql(sql: Sql, topLevel: Boolean) {
-        sql.raw(tableInQuery.tableAlias)
-        sql.raw(".")
+        if (tableInQuery.tableAlias.isNotEmpty()) {
+            sql.raw(tableInQuery.tableAlias)
+            sql.raw(".")
+        }
         sql.raw(column.quotedFieldName)
     }
 }
@@ -119,8 +122,10 @@ class BoundMultiColumnForSelect<E : DbEntity<E, ID>, ID : CompositeId<E, ID>>(va
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.paren {
             sql.tuple(1..numParts) { colIdx ->
-                sql.raw(tableInQuery.tableAlias)
-                sql.raw(".")
+                if (tableInQuery.tableAlias.isNotEmpty()) {
+                    sql.raw(tableInQuery.tableAlias)
+                    sql.raw(".")
+                }
                 sql.raw(multiColumn.getPart(colIdx).quotedFieldName)
             }
         }

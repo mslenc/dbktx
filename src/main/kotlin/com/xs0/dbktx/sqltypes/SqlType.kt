@@ -19,7 +19,7 @@ abstract class SqlType<T : Any> protected constructor(val isNotNull: Boolean, va
 
     abstract fun toSql(value: T, sql: Sql)
     open fun toSqlNull(sql: Sql) {
-        sql.
+        sql.raw("NULL")
     }
 }
 

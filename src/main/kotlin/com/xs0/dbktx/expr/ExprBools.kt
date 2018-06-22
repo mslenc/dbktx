@@ -2,7 +2,7 @@ package com.xs0.dbktx.expr
 
 import com.xs0.dbktx.util.Sql
 
-internal class ExprBools<E> internal constructor(private val parts: List<ExprBoolean<E>>, private val op: Op) : ExprBoolean<E> {
+internal class ExprBools internal constructor(private val parts: List<ExprBoolean>, private val op: Op) : ExprBoolean {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.expr(topLevel) {
             sql.tuple(parts, separator = op.sql) {
@@ -16,9 +16,18 @@ internal class ExprBools<E> internal constructor(private val parts: List<ExprBoo
         OR(" OR ")
     }
 
+    override fun not(): ExprBoolean {
+        // !(A && B)   <=>  !A || !B
+        // !(A || B)   <=>  !A && !B
+
+        val otherOp = if (op == Op.AND) Op.OR else Op.AND
+
+        return ExprBools(parts.map { it.not() }, otherOp)
+    }
+
     companion object {
-        internal fun <E> create(left: ExprBoolean<E>, op: Op, right: ExprBoolean<E>): ExprBools<E> {
-            val parts = ArrayList<ExprBoolean<E>>()
+        internal fun create(left: ExprBoolean, op: Op, right: ExprBoolean): ExprBools {
+            val parts = ArrayList<ExprBoolean>()
 
             if (left is ExprBools && left.op == op) {
                 parts.addAll(left.parts)
@@ -35,7 +44,7 @@ internal class ExprBools<E> internal constructor(private val parts: List<ExprBoo
             return ExprBools(parts, op)
         }
 
-        internal fun <E> create(op: Op, parts: Iterable<ExprBoolean<E>>): ExprBoolean<E> {
+        internal fun create(op: Op, parts: Iterable<ExprBoolean>): ExprBoolean {
             val partsList = parts.toList()
 
             if (partsList.isEmpty())

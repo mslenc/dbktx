@@ -692,13 +692,15 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         if (ids.isEmpty())
             return 0L
 
-        return db.enqueueDeleteQuery(table, Sql().raw("DELETE").FROM(table).WHERE(table.idField oneOf ids), ids)
+        val query = table.newDeleteQuery(this)
+        query.filter { table.idField oneOf ids }
+        return query.deleteAllMatchingRows()
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
     Z.delete(id: ID): Boolean {
         val table: Z = this // we're extension
-        return db.enqueueDeleteQuery(table, Sql().raw("DELETE").FROM(table).WHERE(table.idField eq id), setOf(id)) > 0
+        return delete(table, setOf(id)) > 0
     }
 
 

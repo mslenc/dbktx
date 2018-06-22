@@ -4,9 +4,9 @@ import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.expr.Expr
 import com.xs0.dbktx.schema.*
 
-abstract class DbMutationImpl<E : DbEntity<E, ID>, ID: Any> protected constructor(
+internal abstract class DbMutationImpl<E : DbEntity<E, ID>, ID: Any> protected constructor(
         protected val db: DbConn,
-        override val table: DbTable<E, ID>) : DbMutation<E> {
+        override val table: BaseTableInUpdateQuery<E>) : DbMutation<E> {
 
     protected val values = EntityValues<E>()
 

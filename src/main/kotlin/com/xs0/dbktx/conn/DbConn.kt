@@ -1,14 +1,11 @@
 package com.xs0.dbktx.conn
 
-import com.xs0.dbktx.crud.DbInsert
-import com.xs0.dbktx.crud.DbUpdate
-import com.xs0.dbktx.crud.EntityQuery
+import com.xs0.dbktx.crud.*
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.DbTable
 import com.xs0.dbktx.schema.RelToMany
 import com.xs0.dbktx.schema.RelToOne
-import com.xs0.dbktx.crud.EntityValues
 import com.xs0.dbktx.util.Sql
 import com.xs0.dbktx.util.defer
 import io.vertx.core.json.JsonObject
@@ -56,8 +53,10 @@ interface DbConn {
 
 
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.count(filter: Z.() -> ExprBoolean<E>): Long {
-        return count(this, filter())
+    Z.count(filter: FilterBuilder<E>.() -> ExprBoolean): Long {
+        val query = newQuery(this@DbConn)
+        query.filter { filter() }
+        return query.countAll()
     }
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
@@ -177,12 +176,12 @@ interface DbConn {
     }
 
 
-    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    delete(table: Z, filter: Z.() -> ExprBoolean<E>): Long
+    suspend fun <E : DbEntity<E, ID>, ID: Any>
+    delete(deleteQuery: DeleteQuery<E>): Long
 
     fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    deleteAsync(table: Z, filter: Z.() -> ExprBoolean<E>): Deferred<Long> {
-        return defer { delete(table, filter) }
+    deleteAsync(deleteQuery: DeleteQuery<E>): Deferred<Long> {
+        return defer { delete(deleteQuery) }
     }
 
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>

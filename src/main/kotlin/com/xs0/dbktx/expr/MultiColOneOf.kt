@@ -1,30 +1,39 @@
 package com.xs0.dbktx.expr
 
+import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.ManyToOneInfo
 import com.xs0.dbktx.schema.NonNullColumn
 import com.xs0.dbktx.util.Sql
 
-class MultiColOneOf<FROM : DbEntity<FROM, FROMID>, FROMID : Any, TO : DbEntity<TO, TOID>, TOID : Any>
-    : ExprBoolean<FROM> {
+class MultiColOneOf<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
+    : ExprBoolean {
 
-    private val info: ManyToOneInfo<FROM, FROMID, TO, TOID>
+    private val info: ManyToOneInfo<FROM, *, TO, *>
     private val refs: List<TO>
+    private val negated: Boolean
+    private val tableInQuery: TableInQuery<FROM>
 
-    constructor(info: ManyToOneInfo<FROM, FROMID, TO, TOID>, refs: List<TO>) {
+    constructor(tableInQuery: TableInQuery<FROM>, info: ManyToOneInfo<FROM, *, TO, *>, refs: List<TO>, negated: Boolean = false) {
+        this.tableInQuery = tableInQuery
         this.info = info
         this.refs = refs
+        this.negated = negated
+    }
+
+    override fun not(): ExprBoolean {
+        return MultiColOneOf(tableInQuery, info, refs, !negated)
     }
 
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.expr(topLevel) {
             paren {
                 tuple(info.columnMappings) {
-                    +it.columnFrom
+                    columnForSelect(tableInQuery, it.columnFrom)
                 }
             }
 
-            +" IN "
+            +(if (negated) " NOT IN " else " IN ")
 
             paren {
                 tuple(refs) { ref ->

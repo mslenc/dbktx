@@ -125,6 +125,10 @@ abstract class OrderedColumnImpl<E : DbEntity<E, *>, T: Comparable<T>>(
     override fun invoke(entity: E): T? {
         return getter(entity)
     }
+
+    override fun bindForSelect(tableInQuery: TableInQuery<E>): Expr<E, T> {
+        return BoundColumnForSelect(this, tableInQuery)
+    }
 }
 
 class NonNullOrderedColumnImpl<E : DbEntity<E, *>, T: Comparable<T>>(
@@ -173,6 +177,10 @@ sealed class StringColumnImpl<E : DbEntity<E, *>>(
 
     override fun invoke(entity: E): String? {
         return getter(entity)
+    }
+
+    override fun bindForSelect(tableInQuery: TableInQuery<E>): Expr<E, String> {
+        return BoundColumnForSelect(this, tableInQuery)
     }
 }
 

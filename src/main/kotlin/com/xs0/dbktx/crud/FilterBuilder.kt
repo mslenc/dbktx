@@ -181,6 +181,40 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return ExprFilterHasParent((this as RelToOneImpl<E, *, TO, *>).info, parentFilter, currentTable(), dstTable)
     }
 
+    infix fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.eq(ref: TO): ExprBoolean {
+        this as RelToOneImpl<E, *, TO, *>
+
+        val colMappings = this.info.columnMappings
+
+        return if (colMappings.size == 1) {
+            RelToOneImpl.makeEq(colMappings[0], ref, currentTable())
+        } else {
+            ExprBools(colMappings.map { RelToOneImpl.makeEq(it, ref, currentTable()) }.toList(), ExprBools.Op.AND)
+        }
+    }
+
+    infix fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.oneOf(refs: Iterable<TO>): ExprBoolean {
+        this as RelToOneImpl<E, *, TO, *>
+
+        val colMappings = this.info.columnMappings
+        val refList = refs as? List ?: refs.toList()
+
+        return when {
+            refList.isEmpty() ->
+                throw IllegalArgumentException("No choices provided to oneOf")
+
+            refList.size == 1 ->
+                eq(refList.first())
+
+            colMappings.size == 1 ->
+                RelToOneImpl.makeOneOf(colMappings[0], refList, currentTable())
+
+            else ->
+                MultiColOneOf(currentTable(), info, refList)
+        }
+    }
+
+
     fun <TO: DbEntity<TO, *>> RelToMany<E, TO>.contains(block: FilterBuilder<TO>.() -> ExprBoolean): ExprBoolean {
         val dstTable = currentTable().forcedSubQuery(this)
         val dstFilter = TableInQueryBoundFilterBuilder(dstTable)
