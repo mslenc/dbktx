@@ -50,7 +50,7 @@ internal fun generateAliasTo(query: QueryImpl, table: DbTable<*, *>): String {
 }
 
 sealed class TableInQuery<E : DbEntity<E, *>>(val query: QueryImpl, val tableAlias: String, val table: DbTable<E, *>) {
-    private val joins = LinkedList<JoinedTableInQuery<*>>()
+    internal val joins = LinkedList<JoinedTableInQuery<*>>()
 
     fun <R: DbEntity<R, *>> forcedSubQuery(rel: RelToMany<E, R>): TableInQuery<R> {
         val alias = generateAliasTo(query, rel.targetTable)

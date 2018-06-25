@@ -1,10 +1,12 @@
 package com.xs0.dbktx.util
 
+import com.xs0.dbktx.crud.JoinType
 import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.expr.SqlEmitter
 import com.xs0.dbktx.schema.Column
 import com.xs0.dbktx.schema.DbTable
+import com.xs0.dbktx.schema.RelToOneImpl
 import com.xs0.dbktx.sqltypes.toHexString
 import io.vertx.core.json.JsonArray
 import java.math.BigDecimal
@@ -153,7 +155,38 @@ class Sql {
     }
 
     fun FROM(tiq: TableInQuery<*>): Sql {
-        return raw(" FROM ").raw(tiq.table.quotedDbName).raw(" AS ").raw(tiq.tableAlias)
+        raw(" FROM ").raw(tiq.table.quotedDbName).raw(" AS ").raw(tiq.tableAlias)
+
+        buildJoins(tiq)
+
+        return this
+    }
+
+    private fun buildJoins(tiq: TableInQuery<*>) {
+        for (join in tiq.joins) {
+            val joinType = join.join.joinType
+            if (joinType == JoinType.SUB_QUERY)
+                continue
+
+            val rel = join.join.relToOne as RelToOneImpl<*,*,*,*>
+            val sourceAlias = join.prevTable.tableAlias
+            val targetTable = rel.targetTable
+            val targetAlias = join.tableAlias
+
+            if (joinType == JoinType.INNER_JOIN) {
+                raw(" INNER JOIN ")
+            } else {
+                raw(" LEFT JOIN ")
+            }
+
+            raw(targetTable.quotedDbName).raw(" AS ").raw(join.tableAlias).raw(" ON ")
+
+            tuple(rel.info.columnMappings, separator = " AND ") { colMap ->
+                raw(sourceAlias).raw(".").raw(colMap.columnFrom.quotedFieldName)
+                raw(" = ")
+                raw(targetAlias).raw(".").raw(colMap.columnTo.quotedFieldName)
+            }
+        }
     }
 
     fun WHERE(filter: ExprBoolean?): Sql {

@@ -16,7 +16,7 @@ interface Query {
 
 }
 
-internal abstract class QueryImpl {
+internal open class QueryImpl {
     private val alias2table = LinkedHashMap<String, TableInQuery<*>>()
 
     fun isTableAliasTaken(tableAlias: String): Boolean {

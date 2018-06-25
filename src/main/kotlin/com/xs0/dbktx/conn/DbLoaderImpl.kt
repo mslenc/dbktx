@@ -1,11 +1,9 @@
 package com.xs0.dbktx.conn
 
-import com.xs0.dbktx.crud.EntityQuery
-import com.xs0.dbktx.crud.EntityQueryImpl
+import com.xs0.dbktx.crud.*
 import com.xs0.dbktx.schema.Column
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.schema.*
-import com.xs0.dbktx.crud.EntityValues
 import com.xs0.dbktx.util.*
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.sql.ResultSet
@@ -21,6 +19,43 @@ import java.util.*
 
 import kotlin.collections.LinkedHashMap
 import kotlin.coroutines.experimental.suspendCoroutine
+
+internal fun <E : DbEntity<E, ID>, ID: Any>
+buildSelectQuery(query: EntityQueryImpl<E, ID>): Sql {
+
+    return Sql().apply {
+        SELECT(query.table.defaultColumnNames)
+        FROM(query.baseTable)
+        WHERE(query.filters)
+
+        if (!query.orderBy.isEmpty()) {
+            +" ORDER BY "
+            tuple(query.orderBy) {
+                +it.expr
+                if (!it.isAscending)
+                    +" DESC"
+            }
+        }
+
+        if (query.offset != null || query.maxRowCount != null) {
+            +" LIMIT "
+            this(query.maxRowCount ?: Integer.MAX_VALUE)
+            +" OFFSET "
+            this(query.offset ?: 0)
+        }
+    }
+}
+
+internal fun <E : DbEntity<E, ID>, ID: Any>
+buildCountQuery(query: EntityQueryImpl<E, ID>): Sql {
+
+    return Sql().apply {
+        SELECT("COUNT(*)")
+        FROM(query.baseTable)
+        WHERE(query.filters)
+    }
+}
+
 
 internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLConnection, private val delayedExecScheduler: DelayedExecScheduler) {
     private val masterIndex = MasterIndex()
@@ -105,7 +140,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
 
         val result: List<E>
         try {
-            result = queryNow(table, idField oneOf ids)
+            result = queryNow(table) { idField oneOf ids }
         } catch (e : Exception) {
             logger.error("Failed to query by IDs", e)
             index.reportError(ids, e)
@@ -130,12 +165,11 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
         val rel = index.relation
 
         val manyTable = rel.targetTable
-        val condition = rel.createCondition(fromIds)
 
         logger.debug { "Querying toMany ${rel.sourceTable.dbName} -> ${rel.targetTable.dbName} for source ids $fromIds" }
 
         val result = try {
-            queryNow(manyTable, condition)
+            queryNow(manyTable) { rel.createCondition(fromIds, currentTable()) }
         } catch (e: Throwable) {
             index.reportError(fromIds, e)
             return true
@@ -192,13 +226,18 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
     }
 
     private suspend fun <E : DbEntity<E, ID>, ID: Any>
-    queryNow(table: DbTable<E, ID>, filter: ExprBoolean<E>): List<E> {
+    queryNow(table: DbTable<E, ID>, filter: FilterBuilder<E>.() -> ExprBoolean): List<E> {
         val entities = masterIndex[table]
+
+        val query = QueryImpl()
+        val boundTable = BaseTableInQuery(query, table)
+        val filterBuilder = TableInQueryBoundFilterBuilder(boundTable)
+        val filterExpr = filterBuilder.filter()
 
         val sb = Sql().apply {
             SELECT(table.defaultColumnNames)
-            FROM(table)
-            WHERE(filter)
+            FROM(boundTable)
+            WHERE(filterExpr)
         }
 
         return queryNow(entities, sb)
@@ -397,10 +436,10 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
     private fun <E : DbEntity<E, ID>, ID: Any> createInsertQuery(table: DbTable<E, ID>, values: EntityValues<E>): Sql {
         return Sql().apply {
             +"INSERT INTO "
-            +table
+            raw(table.quotedDbName)
             paren {
                 tuple(values) {
-                    column -> +column
+                    column -> raw(column.quotedFieldName)
                 }
             }
             +" VALUES "
@@ -479,7 +518,7 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
 
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    count(table: DbTable<E, ID>, filter: ExprBoolean<E>?): Long {
+    count(table: DbTable<E, ID>, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
         val sb = Sql().SELECT("COUNT(*)").FROM(table).WHERE(filter)
 
         return query(sb).results[0].getLong(0)
@@ -513,29 +552,7 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         @Suppress("UNCHECKED_CAST")
         query as EntityQueryImpl<E, ID>
 
-        val sb = Sql().apply {
-            SELECT(query.table.defaultColumnNames)
-            FROM(query.table)
-            WHERE(query.filter)
-
-            if (!query.orderBy.isEmpty()) {
-                +" ORDER BY "
-                tuple(query.orderBy) {
-                    +it.expr
-                    if (!it.isAscending)
-                        +" DESC"
-                }
-            }
-
-            if (query.offset != null || query.maxRowCount != null) {
-                +" LIMIT "
-                this(query.maxRowCount ?: Integer.MAX_VALUE)
-                +" OFFSET "
-                this(query.offset ?: 0)
-            }
-        }
-
-        return db.enqueueQuery(query.table, sb)
+        return db.enqueueQuery(query.table, buildQuery(query))
     }
 
     override suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
