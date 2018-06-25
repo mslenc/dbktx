@@ -28,19 +28,9 @@ interface DbConn {
     suspend fun <E: DbEntity<E, ID>, ID: Any>
     query(query: EntityQuery<E>): List<E>
 
-    fun <E: DbEntity<E, ID>, ID: Any>
-    queryAsync(query: EntityQuery<E>): Deferred<List<E>> {
-        return defer { query(query) }
-    }
+    suspend fun <E: DbEntity<E, ID>, ID: Any>
+    count(query: EntityQuery<E>): Long
 
-
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    query(table: DbTable<E, ID>, filter: ExprBoolean<E>): List<E>
-
-    fun <E : DbEntity<E, ID>, ID: Any>
-    queryAsync(table: DbTable<E, ID>, filter: ExprBoolean<E>): Deferred<List<E>> {
-        return defer { query(table, filter) }
-    }
 
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
@@ -52,18 +42,15 @@ interface DbConn {
     }
 
 
-    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.count(filter: FilterBuilder<E>.() -> ExprBoolean): Long {
-        val query = newQuery(this@DbConn)
-        query.filter { filter() }
+    suspend fun <E : DbEntity<E, ID>, ID: Any>
+    count(table: DbTable<E, ID>, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
+        val query = table.newQuery(this)
+        query.filter(filter)
         return query.countAll()
     }
 
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    count(table: DbTable<E, ID>, filter: ExprBoolean<E>?): Long
-
     fun <E : DbEntity<E, ID>, ID: Any>
-    countAsync(table: DbTable<E, ID>, filter: ExprBoolean<E>?): Deferred<Long> {
+    countAsync(table: DbTable<E, ID>, filter: FilterBuilder<E>.() -> ExprBoolean): Deferred<Long> {
         return defer { count(table, filter) }
     }
 
@@ -138,10 +125,10 @@ interface DbConn {
 
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeInsert(table: DbTable<E, ID>, values: EntityValues<E>): ID
+    executeInsert(table: TableInQuery<E>, values: EntityValues<E>): ID
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeUpdate(table: DbTable<E, ID>, filter: ExprBoolean<E>?, values: EntityValues<E>, specificIds: Set<ID>?): Long
+    executeUpdate(table: TableInQuery<E>, filters: ExprBoolean?, values: EntityValues<E>, specificIds: Set<ID>?): Long
 
     suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
     loadForAll(ref: RelToOne<FROM, TO>, sources: Collection<FROM>?): Map<FROM, TO?>
@@ -168,24 +155,44 @@ interface DbConn {
     }
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    delete(entity: E): Boolean
+    delete(entity: E): Boolean {
+        return delete(entity.metainfo, setOf(entity.id)) > 0
+    }
 
     fun <E : DbEntity<E, ID>, ID: Any>
     deleteAsync(entity: E): Deferred<Boolean> {
         return defer { delete(entity) }
     }
 
+    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    delete(table: Z, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
+        val query = table.newDeleteQuery(this)
+        query.filter(filter)
+        return query.deleteAllMatchingRows()
+    }
+
+    fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    deleteAsync(table: Z, filter: FilterBuilder<E>.() -> ExprBoolean): Deferred<Long> {
+        return defer { delete(table, filter) }
+    }
 
     suspend fun <E : DbEntity<E, ID>, ID: Any>
     delete(deleteQuery: DeleteQuery<E>): Long
 
-    fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+    fun <E : DbEntity<E, ID>, ID: Any>
     deleteAsync(deleteQuery: DeleteQuery<E>): Deferred<Long> {
         return defer { delete(deleteQuery) }
     }
 
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    delete(table: Z, ids: Set<ID>): Long
+    delete(table: Z, ids: Set<ID>): Long {
+        if (ids.isEmpty())
+            return 0L
+
+        val query = table.newDeleteQuery(this)
+        query.filter { table.idField oneOf ids }
+        return query.deleteAllMatchingRows()
+    }
 
     fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
     deleteAsync(table: Z, ids: Set<ID>): Deferred<Long> {
@@ -194,7 +201,9 @@ interface DbConn {
 
 
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.delete(id: ID): Boolean
+    Z.delete(id: ID): Boolean {
+        return delete(this, setOf(id)) > 0
+    }
 
     fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
     Z.deleteAsync(id: ID): Deferred<Boolean> {
@@ -211,18 +220,20 @@ interface DbConn {
     }
 
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-            Z.get(id: ID): E? {
+    Z.get(id: ID): E? {
         return find(this, id)
     }
 
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.query(filter: Z.() -> ExprBoolean<E>): List<E> {
-        return query(this, filter())
+    Z.query(filter: FilterBuilder<E>.() -> ExprBoolean): List<E> {
+        val query = newQuery(this)
+        query.filter(filter)
+        return query.run()
     }
 
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.queryAsync(filter: Z.() -> ExprBoolean<E>): Deferred<List<E>> {
-        return queryAsync(this, filter())
+    Z.queryAsync(filter: FilterBuilder<E>.() -> ExprBoolean): Deferred<List<E>> {
+        return defer { query(filter) }
     }
 
     suspend fun <E: DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>

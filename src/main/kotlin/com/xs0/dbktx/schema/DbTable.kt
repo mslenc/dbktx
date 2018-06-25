@@ -112,10 +112,10 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
     }
 
     fun updateAll(db: DbConn): DbUpdate<E> {
-        return DbUpdateImpl(db, BaseTableInUpdateQuery(this, null, null, null)
+        return DbUpdateImpl(db, BaseTableInUpdateQuery(this), null, null, null)
     }
 
-    fun update(db: DbConn, filter: ExprBoolean<E>): DbUpdate<E> {
+    fun update(db: DbConn, filter: ExprBoolean): DbUpdate<E> {
         return DbUpdateImpl(db, this, filter, null, null)
     }
 
