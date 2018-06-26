@@ -148,17 +148,19 @@ interface DbConn {
         return loadById(this, id)
     }
 
-    /**
-     * Shortcut for [findById]. Use like this:
-     * ```
-     * val id = 1536
-     * val competitionMaybe = with(db) { COMPETITIONS[id] }
-     * ```
-     */
-    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.get(id: ID): E? {
-        return findById(this, id)
-    }
+//    suspend operator get() is not supported (yet).. when it becomes supported, uncomment this..
+//
+//    /**
+//     * Shortcut for [findById]. Use like this:
+//     * ```
+//     * val id = 1536
+//     * val competitionMaybe = with(db) { COMPETITIONS[id] }
+//     * ```
+//     */
+//    suspend operator fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+//    Z.get(id: ID): E? {
+//        return findById(this, id)
+//    }
 
 
     // ease-of-use functions

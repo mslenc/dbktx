@@ -126,6 +126,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return bind(this).notBetween(makeLiteral(minimum), makeLiteral(maximum))
     }
 
+
     infix fun ExprString<E>.contains(value: String): ExprBoolean {
         return like("%" + escapeSqlLikePattern(value, '|') + "%", '|')
     }
@@ -153,6 +154,36 @@ interface FilterBuilder<E: DbEntity<E, *>> {
     fun ExprString<E>.like(pattern: Expr<in E, String>, escapeChar: Char): ExprBoolean {
         return ExprLike(this, pattern, escapeChar)
     }
+
+
+    infix fun StringColumn<E>.contains(value: String): ExprBoolean {
+        return like("%" + escapeSqlLikePattern(value, '|') + "%", '|')
+    }
+
+    infix fun StringColumn<E>.startsWith(value: String): ExprBoolean {
+        return like(escapeSqlLikePattern(value, '|') + "%", '|')
+    }
+
+    infix fun StringColumn<E>.endsWith(value: String): ExprBoolean {
+        return like("%" + escapeSqlLikePattern(value, '|'), '|')
+    }
+
+    infix fun StringColumn<E>.like(pattern: String): ExprBoolean {
+        return like(pattern, '|')
+    }
+
+    infix fun StringColumn<E>.like(pattern: Expr<in E, String>): ExprBoolean {
+        return like(pattern, '|')
+    }
+
+    fun StringColumn<E>.like(pattern: String, escapeChar: Char): ExprBoolean {
+        return like(SqlTypeVarchar.makeLiteral(pattern), escapeChar)
+    }
+
+    fun StringColumn<E>.like(pattern: Expr<in E, String>, escapeChar: Char): ExprBoolean {
+        return ExprLike(bind(this), pattern, escapeChar)
+    }
+
 
     infix fun <T> Expr<E, T>.oneOf(values: List<Expr<E, T>>): ExprBoolean {
         if (values.isEmpty())
@@ -222,5 +253,10 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         val relImpl = this as RelToManyImpl<E, *, TO, *>
 
         return ExprFilterContainsChild(currentTable(), relImpl.info, setFilter, dstTable)
+    }
+
+    fun <T> combineWithOR(values: Iterable<T>, map: FilterBuilder<E>.(T)->ExprBoolean): ExprBoolean {
+        var parts = values.map { map(it) }
+        return ExprBools.create(ExprBools.Op.OR, parts)
     }
 }
