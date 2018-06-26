@@ -108,23 +108,31 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
     }
 
     fun insertion(db: DbConn): DbInsert<E, ID> {
-        return DbInsertImpl(db, this)
+        val query = InsertQueryImpl()
+        val boundTable = BaseTableInUpdateQuery(query, this)
+        return DbInsertImpl(db, boundTable)
     }
 
     fun updateAll(db: DbConn): DbUpdate<E> {
-        return DbUpdateImpl(db, BaseTableInUpdateQuery(this), null, null, null)
+        return DbUpdateImpl(db, this, null, null)
     }
 
-    fun update(db: DbConn, filter: ExprBoolean): DbUpdate<E> {
-        return DbUpdateImpl(db, this, filter, null, null)
+    fun update(db: DbConn, filter: FilterBuilder<E>.()->ExprBoolean): DbUpdate<E> {
+        val update = DbUpdateImpl(db, this, null, null)
+        update.filter(filter)
+        return update
     }
 
     fun update(db: DbConn, entity: E): DbUpdate<E> {
-        return DbUpdateImpl(db, this, idField eq entity.id, setOf(entity.id), entity)
+        val update = DbUpdateImpl(db, this, setOf(entity.id), entity)
+        update.filter { idField eq entity.id }
+        return update
     }
 
     fun updateById(db: DbConn, id: ID): DbUpdate<E> {
-        return DbUpdateImpl(db, this, idField eq id, setOf(id), null)
+        val update = DbUpdateImpl(db, this, setOf(id), null)
+        update.filter { idField eq id }
+        return update
     }
 
     fun update(db: DbConn, vararg entities: E): DbUpdate<E> {
@@ -133,8 +141,9 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
 
     fun updateByIds(db: DbConn, vararg ids: ID): DbUpdate<E> {
         val idsSet = setOf(*ids)
-        val filter = idField oneOf idsSet
-        return DbUpdateImpl(db, this, filter, idsSet, null)
+        val update = DbUpdateImpl(db, this, idsSet, null)
+        update.filter { idField oneOf idsSet }
+        return update
     }
 
     fun update(db: DbConn, entities: Collection<E>): DbUpdate<E> {
@@ -145,14 +154,16 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         for (entity in entities)
             idsSet.add(entity.id)
 
-        val filter = idField oneOf idsSet
-        return DbUpdateImpl(db, this, filter, idsSet, null)
+        val update = DbUpdateImpl(db, this, idsSet, null)
+        update.filter { idField oneOf idsSet }
+        return update
     }
 
     fun updateByIds(db: DbConn, ids: Collection<ID>): DbUpdate<E> {
         val idsSet = HashSet(ids)
-        val filter = idField oneOf idsSet
-        return DbUpdateImpl(db, this, filter, idsSet, null)
+        val update = DbUpdateImpl(db, this, idsSet, null)
+        update.filter { idField oneOf idsSet }
+        return update
     }
 }
 

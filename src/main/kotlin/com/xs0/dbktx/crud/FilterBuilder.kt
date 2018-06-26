@@ -5,6 +5,10 @@ import com.xs0.dbktx.schema.*
 import com.xs0.dbktx.sqltypes.SqlTypeVarchar
 import com.xs0.dbktx.util.escapeSqlLikePattern
 
+@DslMarker
+annotation class SqlExprBuilder
+
+@SqlExprBuilder
 interface FilterBuilder<E: DbEntity<E, *>> {
     fun currentTable(): TableInQuery<E>
     fun <T: Any> bind(prop: RowProp<E, T>): Expr<E, T>
@@ -32,11 +36,11 @@ interface FilterBuilder<E: DbEntity<E, *>> {
             values.size == 1 ->
                 this.eq(values.first())
             else ->
-                oneOf(values.map { makeLiteral(it) })
+                this.bindForSelect(currentTable()).oneOf(values.map { makeLiteral(it) })
         }
     }
 
-    infix fun <T> oneOf(values: Iterable<T>): ExprBoolean {
+    infix fun <T: Any> RowProp<E, T>.oneOf(values: Iterable<T>): ExprBoolean {
         return if (values is Set) {
             oneOf(values)
         } else {
@@ -155,10 +159,6 @@ interface FilterBuilder<E: DbEntity<E, *>> {
             throw IllegalArgumentException("No possibilities specified")
 
         return ExprOneOf.oneOf(this, values)
-    }
-
-    operator fun ExprBoolean.not(): ExprBoolean {
-        return ExprNegate(this)
     }
 
     infix fun ExprBoolean.and(other: ExprBoolean): ExprBoolean {

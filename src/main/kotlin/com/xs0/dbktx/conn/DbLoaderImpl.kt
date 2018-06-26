@@ -1,5 +1,6 @@
 package com.xs0.dbktx.conn
 
+import com.mysql.cj.x.protobuf.MysqlxCrud
 import com.xs0.dbktx.crud.*
 import com.xs0.dbktx.schema.Column
 import com.xs0.dbktx.expr.ExprBoolean
@@ -53,6 +54,63 @@ buildCountQuery(query: EntityQueryImpl<E, ID>): Sql {
         SELECT("COUNT(*)")
         FROM(query.baseTable)
         WHERE(query.filters)
+    }
+}
+
+internal fun <E : DbEntity<E, ID>, ID: Any>
+buildDeleteQuery(query: DeleteQueryImpl<E, ID>): Sql {
+
+    return Sql().apply {
+        raw("DELETE")
+        FROM(query.baseTable)
+        WHERE(query.filters ?: throw RuntimeException("Missing filters"))
+    }
+}
+
+
+private fun <E : DbEntity<E, ID>, ID: Any>
+createUpdateQuery(table: TableInQuery<E>, values: EntityValues<E>, filter: ExprBoolean?): Sql? {
+    if (values.isEmpty())
+        return null
+
+    return Sql().apply {
+        +"UPDATE "
+        raw(table.table.quotedDbName)
+        +" SET "
+        tuple(values) { column ->
+            raw(column.quotedFieldName)
+            +"="
+            emitValue(column, values, this)
+        }
+        WHERE(filter)
+    }
+}
+
+private fun <E : DbEntity<E, ID>, ID: Any> createInsertQuery(table: DbTable<E, ID>, values: EntityValues<E>): Sql {
+    return Sql().apply {
+        +"INSERT INTO "
+        raw(table.quotedDbName)
+        paren {
+            tuple(values) {
+                column -> raw(column.quotedFieldName)
+            }
+        }
+        +" VALUES "
+        paren {
+            tuple(values) {
+                emitValue(it, values, this)
+            }
+        }
+    }
+}
+
+
+private fun <E : DbEntity<E, *>, T: Any> emitValue(column: Column<E, T>, values: EntityValues<E>, sb: Sql) {
+    val value = values.getExpr(column)
+    if (value == null) {
+        sb.raw("NULL")
+    } else {
+        value.toSql(sb, true)
     }
 }
 
@@ -319,7 +377,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
                 try {
                     val updateResult = vx<UpdateResult> { conn.updateWithParams(sql, params, it) }
 
-                    // TODO: use specificIdx to not destroy so much cache
+                    // TODO: use specificIds to not destroy so much cache
                     masterIndex.flushRelated(table)
 
                     continuation.resume(updateResult.updated.toLong())
@@ -436,32 +494,8 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         return db.enqueueInsert(dbTable, sqlBuilder, explicitId)
     }
 
-    private fun <E : DbEntity<E, ID>, ID: Any> createInsertQuery(table: DbTable<E, ID>, values: EntityValues<E>): Sql {
-        return Sql().apply {
-            +"INSERT INTO "
-            raw(table.quotedDbName)
-            paren {
-                tuple(values) {
-                    column -> raw(column.quotedFieldName)
-                }
-            }
-            +" VALUES "
-            paren {
-                tuple(values) {
-                    emitValue(it, values, this)
-                }
-            }
-        }
-    }
 
-    private fun <E : DbEntity<E, *>, T: Any> emitValue(column: Column<E, T>, values: EntityValues<E>, sb: Sql) {
-        val value = values.getExpr(column)
-        if (value == null) {
-            sb.raw("NULL")
-        } else {
-            value.toSql(sb, true)
-        }
-    }
+
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
     executeUpdate(table: TableInQuery<E>, filters: ExprBoolean?, values: EntityValues<E>, specificIds: Set<ID>?): Long {
@@ -471,26 +505,15 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         return db.enqueueUpdateQuery(table.table as DbTable<E, ID>, sqlBuilder, specificIds)
     }
 
-    private fun <E : DbEntity<E, ID>, ID: Any>
-    createUpdateQuery(table: TableInQuery<E>, values: EntityValues<E>, filter: ExprBoolean?): Sql? {
-        if (values.isEmpty())
-            return null
+    override suspend fun <E : DbEntity<E, ID>, ID : Any> executeDelete(deleteQuery: DeleteQuery<E>): Long {
+        @Suppress("UNCHECKED_CAST")
+        val sql = buildDeleteQuery(deleteQuery as DeleteQueryImpl<E, ID>)
 
-        return Sql().apply {
-            +"UPDATE "
-            raw(table.table.quotedDbName)
-            +" SET "
-            tuple(values) { column ->
-                raw(column.quotedFieldName)
-                +"="
-                emitValue(column, values, this)
-            }
-            WHERE(filter)
-        }
+        return db.enqueueDeleteQuery(deleteQuery.table, sql, null)
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID : Any>
-    find(table: DbTable<E, ID>, id: ID?): E? {
+    findById(table: DbTable<E, ID>, id: ID?): E? {
         if (id == null)
             return null
 
@@ -498,13 +521,13 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID : Any>
-    load(table: DbTable<E, ID>, id: ID): E {
-        return find(table, id) ?: throw NoSuchEntity("No ${table.dbName} with id $id")
+    loadById(table: DbTable<E, ID>, id: ID): E {
+        return findById(table, id) ?: throw NoSuchEntity("No ${table.dbName} with id $id")
     }
 
     override suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    loadForAll(ref: RelToOne<FROM, TO>, sources: Collection<FROM>?): Map<FROM, TO?> {
-        if (sources == null || sources.isEmpty())
+    loadForAll(ref: RelToOne<FROM, TO>, sources: Collection<FROM>): Map<FROM, TO?> {
+        if (sources.isEmpty())
             return emptyMap()
 
         @Suppress("UNCHECKED_CAST")
@@ -512,7 +535,7 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
 
         val futures = LinkedHashMap<FROM, Deferred<TO?>>()
         for (source in sources)
-            futures.put(source, findAsync(source, rel))
+            futures[source] = defer { find(source, rel) }
 
         val result = LinkedHashMap<FROM, TO?>()
         for ((source, future) in futures)
@@ -530,22 +553,8 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         return query(buildCountQuery(entityQuery)).results[0].getLong(0)
     }
 
-    override suspend fun <E : DbEntity<E, ID>, ID : Any>
-    countAll(table: DbTable<E, ID>): Long {
-        val entityQuery = EntityQueryImpl(table, this)
-
-        return query(buildCountQuery(entityQuery)).results[0].getLong(0)
-    }
-
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    queryAll(table: DbTable<E, ID>): List<E> {
-        val sb = Sql().SELECT(table.defaultColumnNames).FROM(table, table.aliasPrefix)
-
-        return db.enqueueQuery(table, sb)
-    }
-
-    override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    query(query: EntityQuery<E>): List<E> {
+    executeSelect(query: EntityQuery<E>): List<E> {
         @Suppress("UNCHECKED_CAST")
         query as EntityQueryImpl<E, ID>
 
@@ -553,7 +562,7 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    count(query: EntityQuery<E>): Long {
+    executeCount(query: EntityQuery<E>): Long {
         @Suppress("UNCHECKED_CAST")
         query as EntityQueryImpl<E, ID>
 
@@ -567,7 +576,7 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
 
         val toId: TOID? = relation.mapId(from)
         return if (toId != null) {
-            load(relation.targetTable, toId)
+            loadById(relation.targetTable, toId)
         } else {
             null
         }
@@ -581,7 +590,7 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         val toId: TOID = relation.mapId(from)
                 ?: throw NoSuchEntity("${from.metainfo.dbName} ${from.id} has no reference to ${relation.targetTable.dbName}")
 
-        return load(relation.targetTable, toId)
+        return loadById(relation.targetTable, toId)
     }
 
     override suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
@@ -590,7 +599,7 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
     }
 
     override suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBoolean): List<TO> {
+    load(from: FROM, relation: RelToMany<FROM, TO>, filter: FilterBuilder<TO>.()->ExprBoolean): List<TO> {
         val fromIds = setOf(from.id)
 
         @Suppress("UNCHECKED_CAST")
@@ -600,7 +609,7 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         val query = manyTable.newQuery(this)
 
         query.filter { rel.createCondition(fromIds, query.baseTable) }
-        query.filter { filter }
+        query.filter(filter)
 
         return query.run()
     }
@@ -658,9 +667,9 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    findMany(table: DbTable<E, ID>, ids: Iterable<ID>): Map<ID, E?> {
+    findByIds(table: DbTable<E, ID>, ids: Iterable<ID>): Map<ID, E?> {
         @Suppress("NAME_SHADOWING")
-        val ids = ids.toMutableSet()
+        val ids = ids.toSet()
 
         if (ids.isEmpty())
             return emptyMap()
@@ -669,18 +678,18 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         val futures = ArrayList<Deferred<E?>>(ids.size)
 
         for (id in ids) {
-            result.put(id, null)
-            futures.add(findAsync(table, id))
+            result[id] = null
+            futures.add(defer { findById(table, id) })
         }
 
         futures.mapNotNull { it.await() }
-               .forEach { result.put(it.id, it) }
+               .forEach { result[it.id] = it }
 
         return result
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    loadMany(table: DbTable<E, ID>, ids: Iterable<ID>): Map<ID, E> {
+    loadByIds(table: DbTable<E, ID>, ids: Iterable<ID>): Map<ID, E> {
         @Suppress("NAME_SHADOWING")
         val ids = ids.toMutableSet()
 
@@ -691,26 +700,20 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         val futures = ArrayList<Deferred<E>>(ids.size)
 
         for (id in ids)
-            futures.add(loadAsync(table, id))
+            futures.add( defer { loadById(table, id) })
 
         futures.map { it.await() }
-               .forEach { result.put(it.id, it) }
+               .forEach { result[it.id] = it }
 
         return result
     }
 
 
-    override suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    delete(table: Z, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
-        val query = table.newDeleteQuery(this)
-        query.filter(filter)
-        return query.deleteAllMatchingRows()
-    }
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.delete(id: ID): Boolean {
+    Z.deleteById(id: ID): Boolean {
         val table: Z = this // we're extension
-        return delete(table, setOf(id)) > 0
+        return deleteByIds(table, setOf(id)) > 0
     }
 
 
@@ -729,7 +732,8 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         }
     }
 
-    override fun <E : DbEntity<E, ID>, ID : Any> importJson(table: DbTable<E, ID>, json: JsonObject) {
+    override fun <E : DbEntity<E, ID>, ID : Any>
+    importJson(table: DbTable<E, ID>, json: JsonObject) {
         val list: List<Any?> = table.importFromJson(json)
         for (column in table.columns) {
             val value = list[column.indexInRow]

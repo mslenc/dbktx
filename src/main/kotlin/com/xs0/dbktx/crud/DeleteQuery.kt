@@ -21,7 +21,7 @@ internal class DeleteQueryImpl<E : DbEntity<E, ID>, ID: Any>(
         checkModifiable()
 
         executed = true
-        return loader.delete(this)
+        return loader.executeDelete(this)
     }
 
     override fun checkModifiable() {

@@ -30,6 +30,7 @@ internal abstract class QueryImpl {
 
 internal class SimpleSelectQueryImpl : QueryImpl()
 internal class UpdateQueryImpl : QueryImpl()
+internal class InsertQueryImpl : QueryImpl()
 
 interface FilterableQuery<E : DbEntity<E, *>>: Query {
     val baseTable : TableInQuery<E>
@@ -164,7 +165,7 @@ internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
         return when (queryState.state) {
             LOADED  -> queryState.value
             LOADING -> suspendCoroutine(queryState::addReceiver)
-            INITIAL -> queryState.startLoading({ loader.query(this) })
+            INITIAL -> queryState.startLoading({ loader.executeSelect(this) })
         }
     }
 
@@ -172,7 +173,7 @@ internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
         return when (countState.state) {
             LOADED  -> countState.value
             LOADING -> suspendCoroutine(countState::addReceiver)
-            INITIAL -> countState.startLoading({ loader.count(this) })
+            INITIAL -> countState.startLoading({ loader.executeCount(this) })
         }
     }
 

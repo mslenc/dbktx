@@ -49,7 +49,7 @@ internal fun generateAliasTo(query: QueryImpl, table: DbTable<*, *>): String {
     }
 }
 
-sealed class TableInQuery<E : DbEntity<E, *>>(val query: QueryImpl, val tableAlias: String, val table: DbTable<E, *>) {
+sealed class TableInQuery<E : DbEntity<E, *>>(val query: QueryImpl, val tableAlias: String, val table: DbTable<E, *>, open val incomingJoin: Join?) {
     internal val joins = LinkedList<JoinedTableInQuery<*>>()
 
     fun <R: DbEntity<R, *>> forcedSubQuery(rel: RelToMany<E, R>): TableInQuery<R> {
@@ -74,11 +74,11 @@ sealed class TableInQuery<E : DbEntity<E, *>>(val query: QueryImpl, val tableAli
 
     private fun <R: DbEntity<R, *>> join(joinType: JoinType, rel: RelToOne<E, R>): TableInQuery<R> {
 
-        val existing = joins.firstOrNull { it.join.relToOne === rel }
+        val existing = joins.firstOrNull { it.incomingJoin.relToOne === rel }
 
         @Suppress("UNCHECKED_CAST")
         if (existing != null) {
-            existing.join.combineWithJoinType(joinType)
+            existing.incomingJoin.combineWithJoinType(joinType)
             return existing as TableInQuery<R>
         }
 
@@ -86,22 +86,25 @@ sealed class TableInQuery<E : DbEntity<E, *>>(val query: QueryImpl, val tableAli
         val alias = generateAliasTo(query, rel.targetTable)
         val joinedTable = JoinedTableInQuery(query, alias, rel.targetTable, this, join)
         query.registerTableInQuery(joinedTable)
+        joins.add(joinedTable)
         return joinedTable
     }
 }
 
 internal class JoinedTableInQuery<E: DbEntity<E, *>>(query: QueryImpl, tableAlias: String, table: DbTable<E, *>,
-                                                     val prevTable: TableInQuery<*>, val join: Join)
-    : TableInQuery<E>(query, tableAlias, table)
+                                                     val prevTable: TableInQuery<*>, incomingJoin: Join)
+    : TableInQuery<E>(query, tableAlias, table, incomingJoin) {
+    override val incomingJoin: Join get() = super.incomingJoin!!
+}
 
 internal class BaseTableInQuery<E: DbEntity<E, *>>(query: QueryImpl, table: DbTable<E, *>)
-    : TableInQuery<E>(query, table.aliasPrefix, table)
+    : TableInQuery<E>(query, table.aliasPrefix, table, null)
 
 internal class SubTableInQuery<E: DbEntity<E, *>>(query: QueryImpl, tableAlias: String, table: DbTable<E, *>, val prevTable: TableInQuery<*>)
-    : TableInQuery<E>(query, tableAlias, table)
+    : TableInQuery<E>(query, tableAlias, table, null)
 
 internal class BaseTableInUpdateQuery<E: DbEntity<E, *>>(query: QueryImpl, table: DbTable<E, *>)
-    : TableInQuery<E>(query, "", table)
+    : TableInQuery<E>(query, "", table, null)
 
 
 

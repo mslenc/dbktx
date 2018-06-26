@@ -1,5 +1,6 @@
 package com.xs0.dbktx.schema
 
+import com.xs0.dbktx.crud.EntityQuery
 import com.xs0.dbktx.crud.FilterBuilder
 import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.expr.ExprBoolean
@@ -37,10 +38,10 @@ class RelToManyImpl<FROM : DbEntity<FROM, FID>, FID: Any, TO : DbEntity<TO, TID>
     }
 
     override suspend fun invoke(from: FROM, block: FilterBuilder<TO>.() -> ExprBoolean): List<TO> {
-        val query = info.manyTable.newQuery(from.db)
+        val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
 
-        query.filter { oppositeRel.has { block() } }
         query.filter { createCondition(setOf(from.id), query.baseTable) }
+        query.filter(block)
 
         return query.run()
     }

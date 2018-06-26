@@ -1,5 +1,6 @@
 package com.xs0.dbktx.expr
 
+import com.xs0.dbktx.crud.JoinType
 import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.ManyToOneInfo
@@ -16,20 +17,26 @@ class ExprFilterHasParent<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         val mappings = info.columnMappings
         val n = mappings.size
 
-        sql.expr(topLevel) {
-            paren(n > 1) {
-                tuple(info.columnMappings) {
-                    columnForSelect(srcTable, it.columnFrom)
+        if (dstTable.incomingJoin?.joinType == JoinType.SUB_QUERY) {
+            sql.expr(topLevel) {
+                paren(n > 1) {
+                    tuple(info.columnMappings) {
+                        columnForSelect(srcTable, it.columnFrom)
+                    }
                 }
+                +(if (negated) " NOT IN " else " IN ")
+                +"(SELECT "
+                tuple(info.columnMappings) {
+                    columnForSelect(dstTable, it.columnTo)
+                }
+                FROM(dstTable)
+                WHERE(filter)
+                +")"
             }
-            +(if (negated) " NOT IN " else " IN ")
-            +"(SELECT "
-            tuple(info.columnMappings) {
-                columnForSelect(dstTable, it.columnTo)
+        } else {
+            sql.expr(topLevel) {
+                +filter
             }
-            FROM(dstTable)
-            WHERE(filter)
-            +")"
         }
     }
 

@@ -26,7 +26,7 @@ fun main(args: Array<String>) {
 
     val dbConnector = DbConnectorImpl(mySqlClient)
 
-    server.requestHandler({ request ->
+    server.requestHandler { request ->
         launch(Unconfined) {
             val start = System.currentTimeMillis()
             var response = "!!!"
@@ -35,8 +35,8 @@ fun main(args: Array<String>) {
                 dbConnector.connect { db: DbConn ->
                     val sb = StringBuilder()
 
-                    val mitja = db.load(TestSchema.PEOPLE, 1)
-                    val irena = db.load(TestSchema.PEOPLE, 2)
+                    val mitja = db.loadById(TestSchema.PEOPLE, 1)
+                    val irena = db.loadById(TestSchema.PEOPLE, 2)
 
                     for (person in arrayOf(mitja, irena)) {
                         sb.append(person.firstName + " " + person.lastName + "\n")
@@ -55,7 +55,7 @@ fun main(args: Array<String>) {
 
             println("Finished in ${System.currentTimeMillis() - start}ms")
         }
-    })
+    }
 
     server.listen(8888)
 }

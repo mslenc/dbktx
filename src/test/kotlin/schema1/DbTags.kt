@@ -24,9 +24,5 @@ class DbTags(db: DbConn, id: Int, private val row: List<Any?>)
         init {
             b.build(::DbTags)
         }
-
-        fun filter(builder: TABLE.() -> ExprBoolean<DbTags>): ExprBoolean<DbTags> {
-            return this.builder()
-        }
     }
 }

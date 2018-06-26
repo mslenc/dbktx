@@ -1,6 +1,7 @@
 package schema1
 
 import com.xs0.dbktx.conn.DbConn
+import com.xs0.dbktx.crud.FilterBuilder
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.DbTable
@@ -17,8 +18,8 @@ class DbPeople(db: DbConn, id: Int, private val row: List<Any?>)
 
     suspend fun tags(): List<DbTags> = TAGS_SET(this)
 
-    suspend fun tags(filterBuilder: DbTags.TABLE.() -> ExprBoolean<DbTags>): List<DbTags> {
-        return db.load(this, TAGS_SET, DbTags.TABLE.filterBuilder())
+    suspend fun tags(filterBuilder: FilterBuilder<DbTags>.() -> ExprBoolean): List<DbTags> {
+        return db.load(this, TAGS_SET, filterBuilder)
     }
 
     companion object TABLE : DbTable<DbPeople, Int>(TestSchema, "people", DbPeople::class, Int::class) {

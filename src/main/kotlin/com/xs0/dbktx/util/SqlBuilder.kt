@@ -163,15 +163,15 @@ class Sql {
     }
 
     private fun buildJoins(tiq: TableInQuery<*>) {
-        for (join in tiq.joins) {
-            val joinType = join.join.joinType
+        for (joinedTable in tiq.joins) {
+            val joinType = joinedTable.incomingJoin.joinType
             if (joinType == JoinType.SUB_QUERY)
                 continue
 
-            val rel = join.join.relToOne as RelToOneImpl<*,*,*,*>
-            val sourceAlias = join.prevTable.tableAlias
+            val rel = joinedTable.incomingJoin.relToOne as RelToOneImpl<*,*,*,*>
+            val sourceAlias = joinedTable.prevTable.tableAlias
             val targetTable = rel.targetTable
-            val targetAlias = join.tableAlias
+            val targetAlias = joinedTable.tableAlias
 
             if (joinType == JoinType.INNER_JOIN) {
                 raw(" INNER JOIN ")
@@ -179,7 +179,7 @@ class Sql {
                 raw(" LEFT JOIN ")
             }
 
-            raw(targetTable.quotedDbName).raw(" AS ").raw(join.tableAlias).raw(" ON ")
+            raw(targetTable.quotedDbName).raw(" AS ").raw(joinedTable.tableAlias).raw(" ON ")
 
             tuple(rel.info.columnMappings, separator = " AND ") { colMap ->
                 raw(sourceAlias).raw(".").raw(colMap.columnFrom.quotedFieldName)
@@ -243,15 +243,11 @@ class Sql {
             throw IllegalArgumentException("Empty tuple")
     }
 
-    inline operator fun String.unaryPlus() {
+    operator fun String.unaryPlus() {
         raw(this)
     }
 
-    inline operator fun SqlEmitter.unaryPlus() {
+    operator fun SqlEmitter.unaryPlus() {
         invoke(this, false)
-    }
-
-    inline operator fun DbTable<*,*>.unaryPlus() {
-        invoke(this)
     }
 }

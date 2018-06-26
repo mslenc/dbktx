@@ -10,6 +10,7 @@ import com.xs0.dbktx.schemas.test1.TestSchema1.ITEM
 //import com.xs0.dbktx.schemas.test1.TestSchema1.tablesByDbName
 import com.xs0.dbktx.util.DelayedExec
 import com.xs0.dbktx.util.MockSQLConnection
+import com.xs0.dbktx.util.defer
 import io.vertx.core.AsyncResult
 import io.vertx.core.Future
 import io.vertx.core.Handler
@@ -91,18 +92,18 @@ class DbLoaderTest {
 
 
         val deferred = arrayOf(
-            loader.findAsync(ITEM, id2),
-            loader.findAsync(ITEM, id0),
-            loader.findAsync(ITEM, id1),
-            loader.findAsync(ITEM, id3)
+            defer { loader.findById(ITEM, id2) },
+            defer { loader.findById(ITEM, id0) },
+            defer { loader.findById(ITEM, id1) },
+            defer { loader.findById(ITEM, id3) }
         )
 
         assertFalse(called)
         delayedExec.executePending()
         assertTrue(called)
 
-        assertEquals("SELECT company_id, sku, brand_key, name, price, t_created, t_updated " +
-                     "FROM items WHERE (company_id, sku) IN ((234, ?), (123, ?), (123, ?), (234, ?))", theSql)
+        assertEquals("SELECT I.company_id, I.sku, I.brand_key, I.name, I.price, I.t_created, I.t_updated " +
+                     "FROM items AS I WHERE (I.company_id, I.sku) IN ((234, ?), (123, ?), (123, ?), (234, ?))", theSql)
 
         checkParams(theParams, id0.sku, id1.sku, id2.sku, id3.sku)
 
@@ -157,16 +158,16 @@ class DbLoaderTest {
         val com2 = Company(db, comId2, listOf<Any?>(comId2, "organization", "2017-06-03", "2017-06-11"))
 
         val futures = arrayOf (
-            db.loadAsync(com2, Company.BRANDS_SET),
-            db.loadAsync(com0, Company.BRANDS_SET),
-            db.loadAsync(com1, Company.BRANDS_SET)
+            defer { db.load(com2, Company.BRANDS_SET) },
+            defer { db.load(com0, Company.BRANDS_SET) },
+            defer { db.load(com1, Company.BRANDS_SET) }
         )
 
         assertFalse(called)
         delayedExec.executePending()
         assertTrue(called)
 
-        assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B WHERE company_id IN ($comId2, $comId0, $comId1)", theSql)
+        assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B WHERE B.company_id IN ($comId2, $comId0, $comId1)", theSql)
 
         assertEquals("C.id, C.name, C.t_created, C.t_updated", TestSchema1.COMPANY.defaultColumnNames)
 
@@ -233,16 +234,16 @@ class DbLoaderTest {
         val idxof1 = 0
         val idxof2 = 1
         val futures: Array<Deferred<List<Item>>> = arrayOf(
-            db.loadAsync(brand1, Brand.ITEMS_SET),
-            db.loadAsync(brand2, Brand.ITEMS_SET),
-            db.loadAsync(brand0, Brand.ITEMS_SET)
+            defer { db.load(brand1, Brand.ITEMS_SET) },
+            defer { db.load(brand2, Brand.ITEMS_SET) },
+            defer { db.load(brand0, Brand.ITEMS_SET) }
         )
 
         assertFalse(called)
         delayedExec.executePending()
         assertTrue(called)
 
-        assertEquals("SELECT company_id, sku, brand_key, name, price, t_created, t_updated FROM items WHERE (brand_key, company_id) IN ((?, 256), (?, 16), (?, 1024))", theSql!!)
+        assertEquals("SELECT I.company_id, I.sku, I.brand_key, I.name, I.price, I.t_created, I.t_updated FROM items AS I WHERE (I.brand_key, I.company_id) IN ((?, 256), (?, 16), (?, 1024))", theSql!!)
 
         checkParams(theParams!!, id0.key, id1.key, id2.key)
 
