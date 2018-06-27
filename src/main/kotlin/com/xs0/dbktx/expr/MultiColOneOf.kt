@@ -1,6 +1,7 @@
 package com.xs0.dbktx.expr
 
 import com.xs0.dbktx.crud.TableInQuery
+import com.xs0.dbktx.crud.TableRemapper
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.ManyToOneInfo
 import com.xs0.dbktx.schema.NonNullColumn
@@ -50,6 +51,10 @@ class MultiColOneOf<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     private fun <T: Any>
     writeLiteral(column: NonNullColumn<TO, T>, ref: TO, sql: Sql) {
         column.sqlType.toSql(column(ref), sql)
+    }
+
+    override fun remap(remapper: TableRemapper): ExprBoolean {
+        return MultiColOneOf(remapper.remap(tableInQuery), info, refs, negated)
     }
 }
 

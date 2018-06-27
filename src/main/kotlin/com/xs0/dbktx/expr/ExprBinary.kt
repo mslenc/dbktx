@@ -1,5 +1,6 @@
 package com.xs0.dbktx.expr
 
+import com.xs0.dbktx.crud.TableRemapper
 import com.xs0.dbktx.util.Sql
 
 internal class ExprBinary<E, T>(private val left: Expr<in E, T>, private val op: Op, private val right: Expr<in E, T>) : ExprBoolean {
@@ -9,6 +10,10 @@ internal class ExprBinary<E, T>(private val left: Expr<in E, T>, private val op:
             +op.sql
             +right
         }
+    }
+
+    override fun remap(remapper: TableRemapper): ExprBoolean {
+        return ExprBinary(left.remap(remapper), op, right.remap(remapper))
     }
 
     internal enum class Op(val sql: String) {

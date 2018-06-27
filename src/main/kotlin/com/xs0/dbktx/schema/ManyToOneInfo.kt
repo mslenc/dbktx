@@ -5,9 +5,7 @@ import com.xs0.dbktx.expr.Expr
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.expr.ExprFields
 import com.xs0.dbktx.expr.ExprOneOf
-import java.util.*
 import kotlin.collections.ArrayList
-import kotlin.collections.LinkedHashSet
 
 class ManyToOneInfo<FROM : DbEntity<FROM, FID>, FID : Any, TO : DbEntity<TO, TID>, TID : Any>(
         val manyTable: DbTable<FROM, FID>,
@@ -38,18 +36,8 @@ class ManyToOneInfo<FROM : DbEntity<FROM, FID>, FID : Any, TO : DbEntity<TO, TID
             // one in TIDs
 
             return { idSet, tableInQuery ->
-                val sb = StringBuilder()
-                var i = 0
-                val n = columnMappings.size
-                while (i < n) {
-                    sb.append(if (i == 0) "(" else ", ")
-                    sb.append(tableInQuery.tableAlias).append('.')
-                    sb.append(columnMappings[i].columnFrom.quotedFieldName)
-                    i++
-                }
-                sb.append(")")
-
-                val fields = ExprFields<FROM, TID>(sb.toString())
+                @Suppress("UNCHECKED_CAST")
+                val fields = ExprFields<FROM, TID>(columnMappings as Array<ColumnMapping<*, *, *>>, tableInQuery)
 
                 if (idSet.isEmpty())
                     throw IllegalArgumentException()

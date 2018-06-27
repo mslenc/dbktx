@@ -1,5 +1,6 @@
 package com.xs0.dbktx.composite
 
+import com.xs0.dbktx.crud.TableRemapper
 import com.xs0.dbktx.expr.CompositeExpr
 import com.xs0.dbktx.expr.Expr
 import com.xs0.dbktx.schema.DbEntity
@@ -27,5 +28,9 @@ abstract class CompositeId<E : DbEntity<E, ID>, ID : CompositeId<E, ID>> : Compo
 
     private fun <T: Any> doGetPart(column: NonNullColumn<E, T>): Expr<E, T> {
         return column.makeLiteral(get(column))
+    }
+
+    override fun remap(remapper: TableRemapper): Expr<E, ID> {
+        return this
     }
 }

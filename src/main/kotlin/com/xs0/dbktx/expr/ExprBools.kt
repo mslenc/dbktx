@@ -1,5 +1,6 @@
 package com.xs0.dbktx.expr
 
+import com.xs0.dbktx.crud.TableRemapper
 import com.xs0.dbktx.util.Sql
 
 internal class ExprBools internal constructor(private val parts: List<ExprBoolean>, private val op: Op) : ExprBoolean {
@@ -23,6 +24,10 @@ internal class ExprBools internal constructor(private val parts: List<ExprBoolea
         val otherOp = if (op == Op.AND) Op.OR else Op.AND
 
         return ExprBools(parts.map { it.not() }, otherOp)
+    }
+
+    override fun remap(remapper: TableRemapper): ExprBoolean {
+        return ExprBools(parts.map { it.remap(remapper) }, op)
     }
 
     companion object {

@@ -1,6 +1,7 @@
 package com.xs0.dbktx.expr
 
 import com.xs0.dbktx.crud.TableInQuery
+import com.xs0.dbktx.crud.TableRemapper
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.ManyToOneInfo
 import com.xs0.dbktx.util.Sql
@@ -35,5 +36,9 @@ class ExprFilterContainsChild<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
 
     override fun not(): ExprBoolean {
         return ExprFilterContainsChild(parentTable, info, filter, childTable, !negated)
+    }
+
+    override fun remap(remapper: TableRemapper): ExprBoolean {
+        return ExprFilterContainsChild(remapper.remap(parentTable), info, filter.remap(remapper), remapper.remap(childTable), negated)
     }
 }

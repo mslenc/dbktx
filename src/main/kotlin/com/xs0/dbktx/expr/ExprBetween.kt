@@ -1,5 +1,6 @@
 package com.xs0.dbktx.expr
 
+import com.xs0.dbktx.crud.TableRemapper
 import com.xs0.dbktx.util.Sql
 
 class ExprBetween<E, T>(
@@ -20,5 +21,9 @@ class ExprBetween<E, T>(
 
     override operator fun not(): ExprBoolean {
         return ExprBetween(value, minimum, maximum, !between)
+    }
+
+    override fun remap(remapper: TableRemapper): ExprBoolean {
+        return ExprBetween(value.remap(remapper), minimum.remap(remapper), maximum.remap(remapper), between)
     }
 }

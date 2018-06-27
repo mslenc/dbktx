@@ -1,5 +1,6 @@
 package com.xs0.dbktx.expr
 
+import com.xs0.dbktx.crud.TableRemapper
 import com.xs0.dbktx.util.Sql
 
 class ExprOneOf<TABLE, T>(private val needle: Expr<TABLE, T>, private val haystack: List<Expr<TABLE, T>>, private val negated: Boolean = false) : ExprBoolean {
@@ -18,6 +19,10 @@ class ExprOneOf<TABLE, T>(private val needle: Expr<TABLE, T>, private val haysta
 
     override fun not(): ExprBoolean {
         return ExprOneOf(needle, haystack, !negated)
+    }
+
+    override fun remap(remapper: TableRemapper): ExprBoolean {
+        return ExprOneOf(needle.remap(remapper), haystack.map { it.remap(remapper) }, negated)
     }
 
     companion object {

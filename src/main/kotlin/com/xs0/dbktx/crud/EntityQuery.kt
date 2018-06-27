@@ -16,7 +16,7 @@ interface Query {
 
 }
 
-internal abstract class QueryImpl {
+abstract class QueryImpl {
     private val alias2table = LinkedHashMap<String, TableInQuery<*>>()
 
     fun isTableAliasTaken(tableAlias: String): Boolean {
@@ -114,8 +114,6 @@ interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E> {
     suspend fun run(): List<E>
     suspend fun countAll(): Long
 
-
-
     fun orderBy(order: Expr<in E, *>, ascending: Boolean = true): EntityQuery<E>
     fun <R: DbEntity<R, *>>
         orderBy(ref: RelToOne<E, R>, order: Expr<in R, *>, ascending: Boolean = true): EntityQuery<E>
@@ -130,6 +128,8 @@ interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E> {
 
     fun offset(offset: Long): EntityQuery<E>
     fun maxRowCount(maxRowCount: Int): EntityQuery<E>
+
+    fun copy(includeOffsetAndLimit: Boolean = false): EntityQuery<E>
 }
 
 class TableInQueryBoundFilterBuilder<E: DbEntity<E, *>>(val table: TableInQuery<E>) : FilterBuilder<E> {
@@ -146,8 +146,6 @@ internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
         table: DbTable<E, ID>,
         loader: DbConn)
     : FilterableQueryImpl<E, ID>(table, loader), EntityQuery<E> {
-
-
 
     private var  _orderBy: ArrayList<OrderSpec<*>>? = null
     internal val orderBy: List<OrderSpec<*>>
@@ -260,5 +258,25 @@ internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
         this.maxRowCount = maxRowCount
 
         return this
+    }
+
+    override fun copy(includeOffsetAndLimit: Boolean): EntityQuery<E> {
+        val newQuery = EntityQueryImpl(table, loader)
+        val remapper = TableRemapper(newQuery.baseTable.query)
+        remapper.addExplicitMapping(baseTable, newQuery.baseTable)
+
+        newQuery.filters = filters?.remap(remapper)
+        _orderBy?.let { orderBy ->
+            val newOrder = ArrayList<OrderSpec<*>>()
+            orderBy.forEach { newOrder.add(it.remap(remapper)) }
+            newQuery._orderBy = newOrder
+        }
+
+        if (includeOffsetAndLimit) {
+            newQuery.offset = offset
+            newQuery.maxRowCount = maxRowCount
+        }
+
+        return newQuery
     }
 }

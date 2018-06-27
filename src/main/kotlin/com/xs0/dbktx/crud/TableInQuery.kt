@@ -89,11 +89,17 @@ sealed class TableInQuery<E : DbEntity<E, *>>(val query: QueryImpl, val tableAli
         joins.add(joinedTable)
         return joinedTable
     }
+
+    // this guy is here just because of type inference failure
+    internal fun remap(tableRemapper: TableRemapper): TableInQuery<E> {
+        return tableRemapper.remap(this)
+    }
 }
 
 internal class JoinedTableInQuery<E: DbEntity<E, *>>(query: QueryImpl, tableAlias: String, table: DbTable<E, *>,
                                                      val prevTable: TableInQuery<*>, incomingJoin: Join)
     : TableInQuery<E>(query, tableAlias, table, incomingJoin) {
+
     override val incomingJoin: Join get() = super.incomingJoin!!
 }
 
@@ -116,6 +122,10 @@ class BoundColumnForSelect<E: DbEntity<E, *>, T : Any>(val column: Column<E, T>,
         }
         sql.raw(column.quotedFieldName)
     }
+
+    override fun remap(remapper: TableRemapper): Expr<E, T> {
+        return BoundColumnForSelect(column, remapper.remap(tableInQuery))
+    }
 }
 
 class BoundMultiColumnForSelect<E : DbEntity<E, ID>, ID : CompositeId<E, ID>>(val multiColumn: MultiColumn<E, ID>, val tableInQuery: TableInQuery<E>) : CompositeExpr<E, ID> {
@@ -136,5 +146,9 @@ class BoundMultiColumnForSelect<E : DbEntity<E, ID>, ID : CompositeId<E, ID>>(va
 
     override fun getPart(index: Int): Expr<E, *> {
         return BoundColumnForSelect(multiColumn.getPart(index), tableInQuery)
+    }
+
+    override fun remap(remapper: TableRemapper): Expr<E, ID> {
+        return BoundMultiColumnForSelect(multiColumn, remapper.remap(tableInQuery))
     }
 }
