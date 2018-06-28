@@ -6,6 +6,8 @@ import com.xs0.dbktx.expr.Literal
 import com.xs0.dbktx.sqltypes.SqlType
 import com.xs0.dbktx.crud.EntityValues
 import com.xs0.dbktx.crud.TableInQuery
+import com.xs0.dbktx.expr.ExprBoolean
+import com.xs0.dbktx.expr.ExprIsNull
 import com.xs0.dbktx.util.Sql
 
 interface Column<E: DbEntity<E, *>, T : Any> : RowProp<E, T> {
@@ -108,6 +110,10 @@ class NullableColumnImpl<E : DbEntity<E, *>, T: Any>(
         NullableColumn<E, T> {
 
     override val nonNull: Boolean = false
+
+    override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): ExprBoolean {
+        return ExprIsNull(bindForSelect(currentTable), isNull)
+    }
 }
 
 
@@ -159,6 +165,10 @@ class NullableOrderedColumnImpl<E : DbEntity<E, *>, T: Comparable<T>>(
         NullableOrderedColumn<E, T> {
 
     override val nonNull = false
+
+    override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): ExprBoolean {
+        return ExprIsNull(bindForSelect(currentTable), isNull)
+    }
 }
 
 
@@ -211,5 +221,9 @@ class NullableStringColumnImpl<E : DbEntity<E, *>>(
         NullableStringColumn<E> {
 
     override val nonNull = false
+
+    override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): ExprBoolean {
+        return ExprIsNull(bindForSelect(currentTable), isNull)
+    }
 }
 

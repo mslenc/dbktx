@@ -1,6 +1,5 @@
 package com.xs0.dbktx.conn
 
-import com.mysql.cj.x.protobuf.MysqlxCrud
 import com.xs0.dbktx.crud.*
 import com.xs0.dbktx.schema.Column
 import com.xs0.dbktx.expr.ExprBoolean

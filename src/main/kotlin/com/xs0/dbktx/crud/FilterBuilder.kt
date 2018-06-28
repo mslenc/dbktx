@@ -1,5 +1,6 @@
 package com.xs0.dbktx.crud
 
+import com.sun.corba.se.impl.oa.toa.TOA
 import com.xs0.dbktx.expr.*
 import com.xs0.dbktx.schema.*
 import com.xs0.dbktx.sqltypes.SqlTypeVarchar
@@ -211,6 +212,52 @@ interface FilterBuilder<E: DbEntity<E, *>> {
 
         return ExprFilterHasParent((this as RelToOneImpl<E, *, TO, *>).info, parentFilter, currentTable(), dstTable)
     }
+
+    infix fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.oneOf(parentFilter: EntityQuery<TO>): ExprBoolean {
+        parentFilter as EntityQueryImpl<TO, *>
+
+        if (parentFilter.filters == null)
+            return this.isNotNull
+
+        val dstTable = currentTable().subQueryOrJoin(this)
+        val remappedFilter = parentFilter.copyAndRemapFilters(dstTable)
+
+        return ExprFilterHasParent((this as RelToOneImpl<E, *, TO, *>).info, remappedFilter!!, currentTable(), dstTable)
+    }
+
+    val NullableRowProp<E, *>.isNull: ExprBoolean
+        get() {
+            return this.makeIsNullExpr(currentTable(), isNull = true)
+        }
+
+    val NullableRowProp<E, *>.isNotNull: ExprBoolean
+        get() {
+            return this.makeIsNullExpr(currentTable(), isNull = false)
+        }
+
+    val <TO : DbEntity<TO, *>> RelToOne<E, TO>.isNull: ExprBoolean
+        get() {
+            // a multi-column reference is null if any of its parts are null, because we only allow references to primary keys..
+
+            val rel = this as RelToOneImpl<E, *, TO, *>
+            val parts = ArrayList<ExprBoolean>()
+
+            rel.info.columnMappings.forEach { colMap ->
+                (colMap.columnFrom as? NullableColumn)?.let { column ->
+                    parts.add(column.makeIsNullExpr(currentTable(), isNull = true))
+                }
+            }
+
+            if (parts.isEmpty())
+                throw IllegalStateException("isNull used on a reference where nothing can be null")
+
+            return ExprBoolean.createOR(parts)
+        }
+
+    val <TO : DbEntity<TO, *>> RelToOne<E, TO>.isNotNull: ExprBoolean
+        get() {
+            return !isNull
+        }
 
     infix fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.eq(ref: TO): ExprBoolean {
         this as RelToOneImpl<E, *, TO, *>

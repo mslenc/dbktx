@@ -14,7 +14,9 @@ interface RowProp<E : DbEntity<E, *>, T> {
     fun bindForSelect(tableInQuery: TableInQuery<E>): Expr<E, T>
 }
 
-interface NullableRowProp<E: DbEntity<E, *>, T> : RowProp<E, T>
+interface NullableRowProp<E: DbEntity<E, *>, T> : RowProp<E, T> {
+    fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): ExprBoolean
+}
 
 interface NonNullRowProp<E: DbEntity<E, *>, T> : RowProp<E, T> {
     override operator fun invoke(row: List<Any?>): T

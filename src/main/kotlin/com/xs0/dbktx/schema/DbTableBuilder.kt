@@ -559,6 +559,7 @@ internal constructor(
         val result = RelToOneImpl<E, ID, TARGET, TID>()
         table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
             val targetTable = table.schema.getTableFor(targetClass)
+
             @Suppress("UNCHECKED_CAST")
             val targetIdColumns = targetTable.idField as MultiColumn<TARGET, TID>
             val targetId = targetIdColumns(dummyRow(targetTable.columns))

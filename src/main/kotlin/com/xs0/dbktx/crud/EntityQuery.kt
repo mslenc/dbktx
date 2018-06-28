@@ -130,6 +130,7 @@ interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E> {
     fun maxRowCount(maxRowCount: Int): EntityQuery<E>
 
     fun copy(includeOffsetAndLimit: Boolean = false): EntityQuery<E>
+    fun copyAndRemapFilters(dstTable: TableInQuery<E>): ExprBoolean?
 }
 
 class TableInQueryBoundFilterBuilder<E: DbEntity<E, *>>(val table: TableInQuery<E>) : FilterBuilder<E> {
@@ -278,5 +279,13 @@ internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
         }
 
         return newQuery
+    }
+
+    override fun copyAndRemapFilters(dstTable: TableInQuery<E>): ExprBoolean? {
+        return filters?.let {
+            val remapper = TableRemapper(dstTable.query)
+            remapper.addExplicitMapping(baseTable, dstTable)
+            return it.remap(remapper)
+        }
     }
 }
