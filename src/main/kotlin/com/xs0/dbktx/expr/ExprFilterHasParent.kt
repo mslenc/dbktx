@@ -8,7 +8,7 @@ import com.xs0.dbktx.schema.ManyToOneInfo
 import com.xs0.dbktx.util.Sql
 
 class ExprFilterHasParent<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
-        private val info: ManyToOneInfo<FROM, *, TO, *>,
+        private val info: ManyToOneInfo<FROM, TO, *>,
         private val filter: ExprBoolean,
         private val srcTable: TableInQuery<FROM>,
         private val dstTable: TableInQuery<TO>,

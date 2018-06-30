@@ -10,12 +10,12 @@ import com.xs0.dbktx.util.Sql
 class MultiColOneOf<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     : ExprBoolean {
 
-    private val info: ManyToOneInfo<FROM, *, TO, *>
+    private val info: ManyToOneInfo<FROM, TO, *>
     private val refs: List<TO>
     private val negated: Boolean
     private val tableInQuery: TableInQuery<FROM>
 
-    constructor(tableInQuery: TableInQuery<FROM>, info: ManyToOneInfo<FROM, *, TO, *>, refs: List<TO>, negated: Boolean = false) {
+    constructor(tableInQuery: TableInQuery<FROM>, info: ManyToOneInfo<FROM, TO, *>, refs: List<TO>, negated: Boolean = false) {
         this.tableInQuery = tableInQuery
         this.info = info
         this.refs = refs

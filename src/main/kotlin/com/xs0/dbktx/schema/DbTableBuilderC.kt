@@ -4,15 +4,15 @@ import com.xs0.dbktx.composite.CompositeId
 import kotlin.reflect.KClass
 
 class DbTableBuilderC<E : DbEntity<E, ID>, ID : CompositeId<E, ID>> internal constructor(table: DbTable<E, ID>) : DbTableBuilder<E, ID>(table) {
-    fun compositeId(constructor: (List<Any?>)->ID): MultiColumn<E, ID> {
+    fun primaryKey(constructor: (List<Any?>)->ID): MultiColumnKeyDef<E, ID> {
         val id = constructor(dummyRow())
 
         checkColumns(id)
 
-        val result: MultiColumn<E, ID> = MultiColumn(constructor, id)
+        val result: MultiColumnKeyDef<E, ID> = MultiColumnKeyDef(table, 0, constructor, DbEntity<E, ID>::id, id, true)
         val idClass: KClass<out ID> = id::class
 
-        setIdField(result, idClass)
+        setPrimaryKey(result, idClass)
 
         return result
     }

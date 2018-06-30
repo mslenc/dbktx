@@ -90,19 +90,19 @@ interface DbConn {
     /**
      * Follows a relation-to-one and returns null if the target entity was not found.
      */
-    suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
+    suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     find(from: FROM, relation: RelToOne<FROM, TO>): TO?
 
     /**
      * Follows a relation-to-many
      */
-    suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID : Any, TO : DbEntity<TO, TOID>, TOID : Any>
+    suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     load(from: FROM, relation: RelToMany<FROM, TO>): List<TO>
 
     /**
      * Follows a relation-to-many and applies additional filter to the result.
      */
-    suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
+    suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     load(from: FROM, relation: RelToMany<FROM, TO>, filter: FilterBuilder<TO>.()->ExprBoolean): List<TO>
 
     /**
@@ -228,7 +228,7 @@ interface DbConn {
             return 0L
 
         val query = table.newDeleteQuery(this)
-        query.filter { table.idField oneOf ids }
+        query.filter { table.primaryKey oneOf ids }
         return query.deleteAllMatchingRows()
     }
 

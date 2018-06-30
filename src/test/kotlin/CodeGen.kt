@@ -76,7 +76,7 @@ object CodeGen {
         val conn: Connection = DriverManager.getConnection(conf.jdbcUrl, conf.username, conf.password)
         val codeGen = CodeGenerator(conn, conf)
 
-        println(codeGen.handleTable("comp_results"))
+        println(codeGen.handleTable("comp_contest_events_denormalised"))
     }
 
     fun findConfFile(): CodeGenConf {

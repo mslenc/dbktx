@@ -7,7 +7,7 @@ import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.DbTable
 import com.xs0.dbktx.schema.NonNullColumn
 
-abstract class CompositeId<E : DbEntity<E, ID>, ID : CompositeId<E, ID>> : CompositeExpr<E, ID> {
+abstract class CompositeId<E : DbEntity<E, *>, ID : CompositeId<E, ID>> : CompositeExpr<E, ID> {
     abstract override fun equals(other: Any?): Boolean
 
     abstract override fun hashCode(): Int
@@ -17,7 +17,7 @@ abstract class CompositeId<E : DbEntity<E, ID>, ID : CompositeId<E, ID>> : Compo
     abstract val numColumns: Int
     abstract fun getColumn(index: Int): NonNullColumn<E, *>
 
-    abstract val tableMetainfo: DbTable<E, ID>
+    abstract val tableMetainfo: DbTable<E, *>
 
     override fun getPart(index: Int): Expr<E, *> {
         return doGetPart(getColumn(index))

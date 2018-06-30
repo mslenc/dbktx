@@ -1,49 +1,61 @@
 package com.xs0.dbktx.util
 
-import com.xs0.dbktx.conn.DbLoaderImpl
+import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.conn.DbLoaderInternal
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.DbTable
 import com.xs0.dbktx.schema.RelToManyImpl
-import kotlinx.coroutines.experimental.sync.Mutex
+import com.xs0.dbktx.schema.UniqueKeyDef
 import mu.KLogging
 
 import java.util.*
-import kotlin.collections.HashSet
+import kotlin.collections.HashMap
+import kotlin.collections.LinkedHashSet
 
-internal class EntityIndex<E : DbEntity<E, ID>, ID: Any>(
-        val metainfo: DbTable<E, ID>) {
 
-    internal val mutex = Mutex()
-    private var index: HashMap<ID, DelayedLoadStateNullable<E>> = HashMap()
-    private var idsToLoad = LinkedHashSet<ID>()
+internal class IndexAndKeys<E: DbEntity<E, *>, KEY: Any>(
+    val index: SingleKeyIndex<E, KEY>,
+    val keys: MutableSet<KEY>
+)
 
-    operator fun get(id: ID): DelayedLoadStateNullable<E> {
-        return index.computeIfAbsent(id) { _ -> DelayedLoadStateNullable() }
+
+internal class SingleKeyIndex<E: DbEntity<E, *>, KEY: Any>(
+    val table: DbTable<E, *>,
+    val keyDef: UniqueKeyDef<E, KEY>
+) {
+    private var index = HashMap<KEY, DelayedLoadStateNullable<E>>()
+    private var keysToLoad = LinkedHashSet<KEY>()
+
+    operator fun get(key: KEY): DelayedLoadStateNullable<E> {
+        return index.computeIfAbsent(key) { _ -> DelayedLoadStateNullable() }
     }
 
-    fun addIdToLoad(id: ID) {
-        idsToLoad.add(id)
+    fun addKeyToLoad(key: KEY) {
+        keysToLoad.add(key)
     }
 
-    fun getAndClearIdsToLoad(): MutableSet<ID>? {
-        if (idsToLoad.isEmpty())
+    fun removeIdToLoad(key: KEY): Boolean {
+        return keysToLoad.remove(key)
+    }
+
+    fun getAndClearKeysToLoad(): IndexAndKeys<E, KEY>? {
+        if (keysToLoad.isEmpty())
             return null
 
-        val res = idsToLoad
-        idsToLoad = LinkedHashSet()
+        val keys = keysToLoad
+        keysToLoad = LinkedHashSet()
 
-        return res
+        return IndexAndKeys(this, keys)
     }
 
-    fun reportNull(ids: Set<ID>) {
-        for (id in ids)
-            index[id]?.handleResult(null)
+    fun reportNull(keys: Set<KEY>) {
+        for (key in keys)
+            index[key]?.handleResult(null)
     }
 
-    fun reportError(ids: Set<ID>, error: Throwable) {
-        for (id in ids) {
-            index[id]?.handleError(error)
+    fun reportError(keys: Set<KEY>, error: Throwable) {
+        for (key in keys) {
+            index[key]?.handleError(error)
         }
     }
 
@@ -55,24 +67,51 @@ internal class EntityIndex<E : DbEntity<E, ID>, ID: Any>(
         val index = this.index
         this.index = HashMap()
 
-        val idsToLoad = this.idsToLoad
-        this.idsToLoad = LinkedHashSet()
+        val keysToLoad = this.keysToLoad
+        this.keysToLoad = LinkedHashSet()
 
-        if (idsToLoad.isEmpty())
+        if (keysToLoad.isEmpty())
             return
 
-        cleanUp.add({
+        cleanUp.add {
             val error = IllegalStateException("The cache has been flushed")
-            for (id in idsToLoad) {
+            for (key in keysToLoad) {
                 try {
-                    index[id]?.handleError(error)
+                    index[key]?.handleError(error)
                 } catch (e: Exception) {
                     logger.error("Handler error when flushing cache", e)
                     // but continue anyway..
                 }
 
             }
-        })
+        }
+    }
+
+    companion object : KLogging()
+}
+
+internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>) {
+
+    val indexes = Array<SingleKeyIndex<E, *>>(metainfo.uniqueKeys.size) { SingleKeyIndex(metainfo, metainfo.uniqueKeys[it]) }
+
+    @Suppress("UNCHECKED_CAST")
+    fun <T: Any> getSingleKeyIndex(keyDef: UniqueKeyDef<E, T>): SingleKeyIndex<E, T> {
+        return indexes[keyDef.indexInTable] as SingleKeyIndex<E, T>
+    }
+
+    fun getAndClearKeysToLoad(): IndexAndKeys<E, *>? {
+        for (index in indexes) {
+            val res = index.getAndClearKeysToLoad()
+            if (res != null) {
+                return res
+            }
+        }
+
+        return null
+    }
+
+    fun flushAll(cleanUp: ArrayList<()->Unit>) {
+        indexes.forEach { it.flushAll(cleanUp) }
     }
 
     companion object : KLogging()
@@ -81,72 +120,112 @@ internal class EntityIndex<E : DbEntity<E, ID>, ID: Any>(
         return dbLoaderImpl.loadDelayedTable(this)
     }
 
-    fun removeIdToLoad(id: ID): Boolean {
-        return idsToLoad.remove(id)
+    fun rowLoaded(db: DbConn, row: List<Any?>): E {
+        // first, we create/reuse the entity; then we go through all indexes and insert the entity in them..
+
+        val entity: E = metainfo.callInsertAndResolveEntityInIndex(this, db, row)
+
+        for (i in 1 until indexes.size) {
+            val index = indexes[i]
+            insertEntityInIndex(index, entity)
+        }
+
+        return entity
+    }
+
+    internal fun <Z: DbEntity<Z, T>, T: Any>
+    insertAndResolveEntityInIndex(db: DbConn, metainfo: DbTable<Z, T>, row: List<Any?>): Z {
+        @Suppress("UNCHECKED_CAST")
+        val primaryIndex = indexes[0] as SingleKeyIndex<Z, T>
+        val primaryId: T = primaryIndex.keyDef.invoke(row)
+        val primaryInfo = primaryIndex[primaryId]
+
+        val entity: Z
+        if (primaryInfo.state == EntityState.LOADED) {
+            val entityMaybe = primaryInfo.value
+            if (entityMaybe != null) {
+                entity = entityMaybe
+            } else {
+                entity = metainfo.create(db, primaryId, row)
+                primaryInfo.replaceResult(entity)
+            }
+        } else {
+            entity = metainfo.create(db, primaryId, row)
+            primaryInfo.handleResult(entity)
+            primaryIndex.removeIdToLoad(primaryId)
+        }
+
+        return entity
+    }
+
+    private fun <T: Any>
+    insertEntityInIndex(index: SingleKeyIndex<E, T>, entity: E) {
+        val key = index.keyDef.invoke(entity)
+        index.removeIdToLoad(key)
+        index[key].handleResult(entity)
     }
 }
 
-internal class ToManyIndex<FROM: DbEntity<FROM, FROMID>, FROMID: Any, TO: DbEntity<TO, TOID>, TOID: Any>(
-        val relation: RelToManyImpl<FROM, FROMID, TO, TOID>) {
+internal class ToManyIndex<FROM: DbEntity<FROM, *>, FROM_KEY: Any, TO: DbEntity<TO, *>>(
+        val relation: RelToManyImpl<FROM, FROM_KEY, TO>) {
 
-    private var index: HashMap<FROMID, DelayedLoadState<List<TO>>> = HashMap()
-    private var idsToLoad = LinkedHashSet<FROMID>()
+    private var index: HashMap<FROM_KEY, DelayedLoadState<List<TO>>> = HashMap()
+    private var keysToLoad = LinkedHashSet<FROM_KEY>()
 
-    operator fun get(id: FROMID): DelayedLoadState<List<TO>> {
-        return index.computeIfAbsent(id) { _ -> DelayedLoadState() }
+    operator fun get(key: FROM_KEY): DelayedLoadState<List<TO>> {
+        return index.computeIfAbsent(key) { _ -> DelayedLoadState() }
     }
 
-    fun addIdToLoad(id: FROMID) {
-        idsToLoad.add(id)
+    fun addKeyToLoad(key: FROM_KEY) {
+        keysToLoad.add(key)
     }
 
-    fun getAndClearIdsToLoad(): MutableSet<FROMID>? {
-        if (idsToLoad.isEmpty())
-            return null;
+    fun getAndClearKeysToLoad(): MutableSet<FROM_KEY>? {
+        if (keysToLoad.isEmpty())
+            return null
 
-        val res = idsToLoad
-        idsToLoad = LinkedHashSet()
+        val res = keysToLoad
+        keysToLoad = LinkedHashSet()
         return res
     }
 
-    fun reportNull(ids: Set<FROMID>) {
+    fun reportNull(ids: Set<FROM_KEY>) {
         for (id in ids) {
             index[id]?.handleResult(emptyList())
         }
     }
 
-    fun reportError(ids: Set<FROMID>, error: Throwable) {
+    fun reportError(ids: Set<FROM_KEY>, error: Throwable) {
         for (id in ids) {
             index[id]?.handleError(error)
         }
     }
 
     fun flushAll(cleanUp: ArrayList<()->Unit>) {
-        // if there are any outstanding IDs to load, we will fail them - obviously,
+        // if there are any outstanding keys to load, we will fail them - obviously,
         // they either got confused about timing of stuff, or decided that there's no
         // point in waiting for something..
 
         val index = this.index
         this.index = HashMap()
 
-        val idsToLoad = this.idsToLoad
-        this.idsToLoad = LinkedHashSet()
-
-        if (idsToLoad.isEmpty())
+        val keysToLoad = this.keysToLoad
+        if (keysToLoad.isEmpty())
             return
 
-        cleanUp.add({
+        this.keysToLoad = LinkedHashSet()
+
+        cleanUp.add {
             val error = IllegalStateException("The cache has been flushed")
-            for (id in idsToLoad) {
+            for (key in keysToLoad) {
                 try {
-                    index[id]?.handleError(error)
+                    index[key]?.handleError(error)
                 } catch (e: Exception) {
                     logger.error("Handler error when flushing cache", e)
                     // but continue anyway..
                 }
-
             }
-        })
+        }
     }
 
     companion object : KLogging()

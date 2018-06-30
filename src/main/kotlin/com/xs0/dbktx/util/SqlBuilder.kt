@@ -16,20 +16,6 @@ import java.util.*
 class Sql {
     private val sql = StringBuilder()
     val params = JsonArray()
-    private val tableContextStack = Stack<TableInQuery<*>>()
-
-    fun withTable(table: TableInQuery<*>, block: Sql.()->Unit) {
-        tableContextStack.push(table)
-        try {
-            this.block()
-        } finally {
-            tableContextStack.pop()
-        }
-    }
-
-    fun currentTable(): TableInQuery<*> {
-        return tableContextStack.peek() ?: throw IllegalStateException("No table in context stack")
-    }
 
     fun getSql(): String {
         return sql.toString()
@@ -168,7 +154,7 @@ class Sql {
             if (joinType == JoinType.SUB_QUERY)
                 continue
 
-            val rel = joinedTable.incomingJoin.relToOne as RelToOneImpl<*,*,*,*>
+            val rel = joinedTable.incomingJoin.relToOne as RelToOneImpl<*,*,*>
             val sourceAlias = joinedTable.prevTable.tableAlias
             val targetTable = rel.targetTable
             val targetAlias = joinedTable.tableAlias

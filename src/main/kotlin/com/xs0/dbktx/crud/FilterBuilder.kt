@@ -1,6 +1,5 @@
 package com.xs0.dbktx.crud
 
-import com.sun.corba.se.impl.oa.toa.TOA
 import com.xs0.dbktx.expr.*
 import com.xs0.dbktx.schema.*
 import com.xs0.dbktx.sqltypes.SqlTypeVarchar
@@ -185,6 +184,9 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return ExprLike(bind(this), pattern, escapeChar)
     }
 
+    infix fun StringSetColumn<E>.contains(value: String): ExprBoolean {
+        return ExprFindInSet(SqlTypeVarchar.makeLiteral(value), bindForSelect(currentTable()))
+    }
 
     infix fun <T> Expr<E, T>.oneOf(values: List<Expr<E, T>>): ExprBoolean {
         if (values.isEmpty())
@@ -210,7 +212,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         val dstFilter = TableInQueryBoundFilterBuilder(dstTable)
         val parentFilter = dstFilter.block()
 
-        return ExprFilterHasParent((this as RelToOneImpl<E, *, TO, *>).info, parentFilter, currentTable(), dstTable)
+        return ExprFilterHasParent((this as RelToOneImpl<E, TO, *>).info, parentFilter, currentTable(), dstTable)
     }
 
     infix fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.oneOf(parentFilter: EntityQuery<TO>): ExprBoolean {
@@ -222,7 +224,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         val dstTable = currentTable().subQueryOrJoin(this)
         val remappedFilter = parentFilter.copyAndRemapFilters(dstTable)
 
-        return ExprFilterHasParent((this as RelToOneImpl<E, *, TO, *>).info, remappedFilter!!, currentTable(), dstTable)
+        return ExprFilterHasParent((this as RelToOneImpl<E, TO, *>).info, remappedFilter!!, currentTable(), dstTable)
     }
 
     val NullableRowProp<E, *>.isNull: ExprBoolean
@@ -239,7 +241,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         get() {
             // a multi-column reference is null if any of its parts are null, because we only allow references to primary keys..
 
-            val rel = this as RelToOneImpl<E, *, TO, *>
+            val rel = this as RelToOneImpl<E, TO, *>
             val parts = ArrayList<ExprBoolean>()
 
             rel.info.columnMappings.forEach { colMap ->
@@ -260,7 +262,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         }
 
     infix fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.eq(ref: TO): ExprBoolean {
-        this as RelToOneImpl<E, *, TO, *>
+        this as RelToOneImpl<E, TO, *>
 
         val colMappings = this.info.columnMappings
 
@@ -272,7 +274,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
     }
 
     infix fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.oneOf(refs: Iterable<TO>): ExprBoolean {
-        this as RelToOneImpl<E, *, TO, *>
+        this as RelToOneImpl<E, TO, *>
 
         val colMappings = this.info.columnMappings
         val refList = refs as? List ?: refs.toList()
@@ -297,7 +299,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         val dstTable = currentTable().forcedSubQuery(this)
         val dstFilter = TableInQueryBoundFilterBuilder(dstTable)
         val setFilter = dstFilter.block()
-        val relImpl = this as RelToManyImpl<E, *, TO, *>
+        val relImpl = this as RelToManyImpl<E, *, TO>
 
         return ExprFilterContainsChild(currentTable(), relImpl.info, setFilter, dstTable)
     }

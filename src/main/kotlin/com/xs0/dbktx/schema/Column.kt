@@ -9,6 +9,7 @@ import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.expr.ExprIsNull
 import com.xs0.dbktx.util.Sql
+import com.xs0.dbktx.util.StringSet
 
 interface Column<E: DbEntity<E, *>, T : Any> : RowProp<E, T> {
     val table: DbTable<E, *>
@@ -62,6 +63,11 @@ interface NonNullStringColumn<E: DbEntity<E, *>> : NonNullOrderedColumn<E, Strin
 interface NullableStringColumn<E: DbEntity<E, *>> : NullableOrderedColumn<E, String>, StringColumn<E>
 
 
+interface StringSetColumn<E: DbEntity<E, *>> : Column<E, StringSet>
+interface NonNullStringSetColumn<E: DbEntity<E, *>> : StringSetColumn<E>, NonNullColumn<E, StringSet>
+interface NullableStringSetColumn<E: DbEntity<E, *>> : StringSetColumn<E>, NullableColumn<E, StringSet>
+
+
 abstract class ColumnImpl<E : DbEntity<E, *>, T: Any>(
         final override val table: DbTable<E, *>,
         private val getter: (E) -> T?,
@@ -99,7 +105,7 @@ class NonNullColumnImpl<E : DbEntity<E, *>, T: Any>(
     }
 }
 
-class NullableColumnImpl<E : DbEntity<E, *>, T: Any>(
+open class NullableColumnImpl<E : DbEntity<E, *>, T: Any>(
         table: DbTable<E, *>,
         getter: (E) -> T?,
         fieldName: String,
@@ -227,3 +233,57 @@ class NullableStringColumnImpl<E : DbEntity<E, *>>(
     }
 }
 
+
+
+sealed class StringSetColumnImpl<E : DbEntity<E, *>>(
+        override val table: DbTable<E, *>,
+        private val getter: (E) -> StringSet?,
+        final override val fieldName: String,
+        override val sqlType: SqlType<StringSet>,
+        override val indexInRow: Int)
+
+    : StringSetColumn<E> {
+
+    override val quotedFieldName: String = Sql.quoteIdentifier(fieldName)
+
+    override fun invoke(entity: E): StringSet? {
+        return getter(entity)
+    }
+
+    override fun bindForSelect(tableInQuery: TableInQuery<E>): Expr<E, StringSet> {
+        return BoundColumnForSelect(this, tableInQuery)
+    }
+}
+
+class NonNullStringSetColumnImpl<E : DbEntity<E, *>>(
+        table: DbTable<E, *>,
+        private val getter: (E) -> StringSet,
+        fieldName: String,
+        sqlType: SqlType<StringSet>,
+        indexInRow: Int)
+
+    : StringSetColumnImpl<E>(table, getter, fieldName, sqlType, indexInRow),
+        NonNullStringSetColumn<E>
+{
+    override val nonNull = true
+
+    override fun invoke(entity: E): StringSet {
+        return getter(entity)
+    }
+}
+
+class NullableStringSetColumnImpl<E : DbEntity<E, *>>(
+        table: DbTable<E, *>,
+        getter: (E) -> StringSet?,
+        fieldName: String,
+        sqlType: SqlType<StringSet>,
+        indexInRow: Int)
+    : StringSetColumnImpl<E>(table, getter, fieldName, sqlType, indexInRow),
+        NullableStringSetColumn<E> {
+
+    override val nonNull = false
+
+    override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): ExprBoolean {
+        return ExprIsNull(bindForSelect(currentTable), isNull)
+    }
+}

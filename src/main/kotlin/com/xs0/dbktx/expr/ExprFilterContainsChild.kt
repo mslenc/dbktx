@@ -8,7 +8,7 @@ import com.xs0.dbktx.util.Sql
 
 class ExprFilterContainsChild<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         private val parentTable: TableInQuery<FROM>,
-        private val info: ManyToOneInfo<TO, *, FROM, *>,
+        private val info: ManyToOneInfo<TO, FROM, *>,
         private val filter: ExprBoolean,
         private val childTable: TableInQuery<TO>,
         private val negated: Boolean = false) : ExprBoolean {

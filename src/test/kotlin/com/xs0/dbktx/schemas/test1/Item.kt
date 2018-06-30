@@ -39,7 +39,7 @@ class Item(db: DbConn, id: Item.Id, private val row: List<Any?>)
     }
 
     companion object TABLE: DbTableC<Item, Id>(TestSchema1, "items", Item::class, Id::class) {
-        val COMPANY_ID = b.nonNullLong("company_id", BIGINT(), Item::companyId, references = Company::class)
+        val COMPANY_ID = b.nonNullLong("company_id", BIGINT(), Item::companyId)
         val SKU = b.nonNullString("sku", VARCHAR(255), Item::sku)
         val BRAND_KEY = b.nonNullString("brand_key", VARCHAR(255), Item::brandKey)
         val NAME = b.nonNullString("name", VARCHAR(255), Item::name)
@@ -47,7 +47,7 @@ class Item(db: DbConn, id: Item.Id, private val row: List<Any?>)
         val T_CREATED = b.nonNullDateTime("t_created", DATETIME(), Item::timeCreated)
         val T_UPDATED = b.nonNullDateTime("t_updated", DATETIME(), Item::timeUpdated)
 
-        val ID = b.compositeId(::Id)
+        val ID = b.primaryKey(::Id)
 
         val BRAND_REF = b.relToOne(BRAND_KEY, COMPANY_ID, Brand::class)
         val COMPANY_REF = b.relToOne(COMPANY_ID, Company::class)

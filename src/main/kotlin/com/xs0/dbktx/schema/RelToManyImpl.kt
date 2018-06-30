@@ -5,31 +5,31 @@ import com.xs0.dbktx.crud.FilterBuilder
 import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.expr.ExprBoolean
 
-class RelToManyImpl<FROM : DbEntity<FROM, FID>, FID: Any, TO : DbEntity<TO, TID>, TID: Any> : RelToMany<FROM, TO> {
+class RelToManyImpl<FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *>> : RelToMany<FROM, TO> {
 
-    internal lateinit var info: ManyToOneInfo<TO, TID, FROM, FID>
-    private lateinit var reverseIdMapper: (TO)->FID?
-    private lateinit var queryExprBuilder: (Set<FID>, TableInQuery<TO>)-> ExprBoolean
-    private lateinit var oppositeRel: RelToOneImpl<TO, TID, FROM, FID>
+    internal lateinit var info: ManyToOneInfo<TO, FROM, FROM_KEY>
+    private lateinit var reverseKeyMapper: (TO)->FROM_KEY?
+    private lateinit var queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)-> ExprBoolean
+    private lateinit var oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>
 
-    internal fun init(oppositeRel: RelToOneImpl<TO, TID, FROM, FID>, info: ManyToOneInfo<TO, TID, FROM, FID>, reverseIdMapper: (TO)->FID?, queryExprBuilder: (Set<FID>, TableInQuery<TO>)-> ExprBoolean) {
+    internal fun init(oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>, info: ManyToOneInfo<TO, FROM, FROM_KEY>, reverseKeyMapper: (TO)->FROM_KEY?, queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)-> ExprBoolean) {
         this.oppositeRel = oppositeRel
         this.info = info
-        this.reverseIdMapper = reverseIdMapper
+        this.reverseKeyMapper = reverseKeyMapper
         this.queryExprBuilder = queryExprBuilder
     }
 
-    fun reverseMap(to: TO): FID? {
-        return reverseIdMapper(to)
+    fun reverseMap(to: TO): FROM_KEY? {
+        return reverseKeyMapper(to)
     }
 
-    val sourceTable: DbTable<FROM, FID>
+    val sourceTable: DbTable<FROM, *>
         get() = info.oneTable
 
-    override val targetTable: DbTable<TO, TID>
+    override val targetTable: DbTable<TO, *>
         get() = info.manyTable
 
-    fun createCondition(fromIds: Set<FID>, tableInQuery: TableInQuery<TO>): ExprBoolean {
+    fun createCondition(fromIds: Set<FROM_KEY>, tableInQuery: TableInQuery<TO>): ExprBoolean {
         return queryExprBuilder(fromIds, tableInQuery)
     }
 
@@ -40,7 +40,7 @@ class RelToManyImpl<FROM : DbEntity<FROM, FID>, FID: Any, TO : DbEntity<TO, TID>
     override suspend fun invoke(from: FROM, block: FilterBuilder<TO>.() -> ExprBoolean): List<TO> {
         val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
 
-        query.filter { createCondition(setOf(from.id), query.baseTable) }
+        query.filter { createCondition(setOf(info.oneKey(from)), query.baseTable) }
         query.filter(block)
 
         return query.run()

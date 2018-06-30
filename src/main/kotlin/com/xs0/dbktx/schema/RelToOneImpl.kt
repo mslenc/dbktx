@@ -3,20 +3,20 @@ package com.xs0.dbktx.schema
 import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.expr.*
 
-class RelToOneImpl<FROM : DbEntity<FROM, FROMID>, FROMID : Any, TO : DbEntity<TO, TOID>, TOID : Any> : RelToOne<FROM, TO> {
-    internal lateinit var info: ManyToOneInfo<FROM, FROMID, TO, TOID>
-    internal lateinit var idMapper: (FROM)->TOID?
+class RelToOneImpl<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, KEY : Any> : RelToOne<FROM, TO> {
+    internal lateinit var info: ManyToOneInfo<FROM, TO, KEY>
+    internal lateinit var keyMapper: (FROM)->KEY?
 
-    fun init(info: ManyToOneInfo<FROM, FROMID, TO, TOID>, idMapper: (FROM)->TOID?) {
+    fun init(info: ManyToOneInfo<FROM, TO, KEY>, keyMapper: (FROM)->KEY?) {
         this.info = info
-        this.idMapper = idMapper
+        this.keyMapper = keyMapper
     }
 
-    fun mapId(from: FROM): TOID? {
-        return idMapper(from)
+    fun mapKey(from: FROM): KEY? {
+        return keyMapper(from)
     }
 
-    override val targetTable: DbTable<TO, TOID>
+    override val targetTable: DbTable<TO, *>
         get() = info.oneTable
 
     override suspend fun invoke(from: FROM): TO? {

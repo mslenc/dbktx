@@ -14,6 +14,7 @@ import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.Unconfined
 import kotlinx.coroutines.experimental.launch
 import mu.KLogging
+import java.security.cert.CertPathValidatorException
 
 import java.util.*
 
@@ -185,37 +186,55 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
     }
 
     internal suspend fun <E : DbEntity<E, ID>, ID: Any>
-    loadDelayedTable(index: EntityIndex<E, ID>): Boolean {
-        val ids = index.getAndClearIdsToLoad() ?: return false
-
-        // TODO: split large lists into chunks
-
-        val table = index.metainfo
-        val idField = table.idField
-
-        logger.debug("Querying {} for ids {}", table.dbName, ids)
-
-        val result: List<E>
-        try {
-            result = queryNow(table) { idField oneOf ids }
-        } catch (e : Exception) {
-            logger.error("Failed to query by IDs", e)
-            index.reportError(ids, e)
-            return true
-        }
-
-        for (entity: E in result)
-            ids.remove(entity.id)
-
-        if (!ids.isEmpty())
-            index.reportNull(ids)
-
+    loadDelayedTable(mainIndex: EntityIndex<E>): Boolean {
+        val indexAndKeys = mainIndex.getAndClearKeysToLoad() ?: return false
+        loadDelayedTableInIndex(mainIndex, indexAndKeys)
         return true
     }
 
-    internal suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    loadDelayedToManyRel(index: ToManyIndex<FROM, FROMID, TO, TOID>): Boolean {
-        val fromIds = index.getAndClearIdsToLoad() ?: return false
+    private suspend fun <T: Any, E: DbEntity<E, *>>
+    loadDelayedTableInIndex(mainIndex: EntityIndex<E>, indexAndKeys: IndexAndKeys<E, T>) {
+        // TODO: split large lists into chunks
+
+        val index = indexAndKeys.index
+        val keys: MutableSet<T> = indexAndKeys.keys
+        val table: DbTable<E, *> = index.table
+        val keyDef: UniqueKeyDef<E, T> = index.keyDef
+
+        logger.debug("Querying {} for keys {}", table.dbName, indexAndKeys.keys)
+
+        val result: List<E>
+        try {
+            result = queryNow(table) { keyDef oneOf keys }
+        } catch (e : Exception) {
+            logger.error("Failed to query by IDs", e)
+            index.reportError(keys, e)
+            return
+        }
+
+        for (entity: E in result)
+            keys.remove(keyDef(entity))
+
+        if (!keys.isEmpty())
+            index.reportNull(keys)
+    }
+
+    private suspend fun <E : DbEntity<E, *>>
+    queryNow(entities: EntityIndex<E>, sb: Sql): List<E> {
+        val res = ArrayList<E>()
+
+        for (json in queryNow(sb).results) {
+            val row = json.list
+            val entity: E = entities.rowLoaded(publicDb, row)
+            res.add(entity)
+        }
+
+        return res
+    }
+
+    internal suspend fun <FROM : DbEntity<FROM, ID>, ID: Any, FROM_KEY: Any, TO : DbEntity<TO, *>>
+    loadDelayedToManyRel(index: ToManyIndex<FROM, FROM_KEY, TO>): Boolean {
+        val fromKeys = index.getAndClearKeysToLoad() ?: return false
 
         // TODO: split large lists into chunks
 
@@ -223,67 +242,34 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
 
         val manyTable = rel.targetTable
 
-        logger.debug { "Querying toMany ${rel.sourceTable.dbName} -> ${rel.targetTable.dbName} for source ids $fromIds" }
+        logger.debug { "Querying toMany ${rel.sourceTable.dbName} -> ${rel.targetTable.dbName} for source keys $fromKeys" }
 
         val result = try {
-            queryNow(manyTable) { rel.createCondition(fromIds, currentTable()) }
+            queryNow(manyTable) { rel.createCondition(fromKeys, currentTable()) }
         } catch (e: Throwable) {
-            index.reportError(fromIds, e)
+            index.reportError(fromKeys, e)
             return true
         }
 
-        val mapped = LinkedHashMap<FROMID, ArrayList<TO>>()
+        val mapped = LinkedHashMap<FROM_KEY, ArrayList<TO>>()
         for (to in result) {
             val fromId = rel.reverseMap(to)!!
-            mapped.computeIfAbsent(fromId, { _ -> ArrayList() }).add(to)
+            mapped.computeIfAbsent(fromId) { _ -> ArrayList() }.add(to)
         }
 
         for ((key, value) in mapped) {
             index[key].handleResult(value)
         }
 
-        fromIds.removeAll(mapped.keys)
-        for (id in fromIds)
-            index[id].handleResult(emptyList())
+        fromKeys.removeAll(mapped.keys)
+        for (key in fromKeys)
+            index[key].handleResult(emptyList())
 
         return true
     }
 
-    private suspend fun <E : DbEntity<E, ID>, ID: Any>
-    queryNow(entities: EntityIndex<E, ID>, sb: Sql): List<E> {
-        val table = entities.metainfo
-
-        val res = ArrayList<E>()
-        for (json in queryNow(sb).results) {
-            val row = json.list
-
-            val id = table.createId(row)
-            val info = entities[id]
-
-            val entity: E
-            if (info.state == EntityState.LOADED) {
-                val entityMaybe = info.value
-                if (entityMaybe != null) {
-                    entity = entityMaybe
-                } else {
-                    entity = table.create(publicDb, id, row)
-                    info.replaceResult(entity)
-                }
-            } else {
-                entity = table.create(publicDb, id, row)
-                logger.trace { "Added entity with $id to ${table.dbName}" }
-                info.handleResult(entity)
-                if (entities.removeIdToLoad(id))
-                    logger.trace { "Removed id to load $id" }
-            }
-
-            res.add(entity)
-        }
-        return res
-    }
-
-    private suspend fun <E : DbEntity<E, ID>, ID: Any>
-    queryNow(table: DbTable<E, ID>, filter: FilterBuilder<E>.() -> ExprBoolean): List<E> {
+    private suspend fun <E : DbEntity<E, *>>
+    queryNow(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> ExprBoolean): List<E> {
         val entities = masterIndex[table]
 
         val query = SimpleSelectQueryImpl()
@@ -327,7 +313,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
                     val keys = updateResult.keys
                     if (keys != null && !keys.isEmpty && table.keyIsAutogenerated) {
                         @Suppress("UNCHECKED_CAST")
-                        val idColumn = table.idField as Column<E, ID>
+                        val idColumn = table.primaryKey.getColumn(0) as Column<E, ID>
 
                         id = idColumn.sqlType.fromJson(keys.getValue(0))
                     } else {
@@ -389,12 +375,18 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
 
     internal suspend fun <E : DbEntity<E, ID>, ID : Any>
     find(table: DbTable<E, ID>, id: ID): E? {
+        return find(table, table.primaryKey, id)
+    }
+
+    internal suspend fun <E : DbEntity<E, *>, KEY : Any>
+    find(table: DbTable<E, *>, keyDef: UniqueKeyDef<E, KEY>, key: KEY): E? {
         val entities = masterIndex[table]
-        val entityInfo = entities[id]
+        val index = entities.getSingleKeyIndex(keyDef)
+        val entityInfo = index[key]
 
         when (entityInfo.state) {
             EntityState.LOADED -> {
-                logger.trace("Id {} of table {} was already loaded", id, entities.metainfo.dbName)
+                logger.trace("Key {} of table {} was already loaded", key, table.dbName)
                 return entityInfo.value
             }
 
@@ -404,9 +396,9 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
             }
 
             EntityState.INITIAL -> {
-                logger.trace("Adding id {} of table {} to list for loading and initiating load", id, entities.metainfo.dbName)
+                logger.trace("Adding key {} of table {} to list for loading and initiating load", key, table.dbName)
                 scheduleDelayedExec()
-                entities.addIdToLoad(id)
+                index.addKeyToLoad(key)
                 return suspendCoroutine(entityInfo::startedLoading)
             }
         }
@@ -415,7 +407,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
     internal suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
     load(from: FROM, relation: RelToMany<FROM, TO>): List<TO> {
         val relInfo = masterIndex[relation]
-        val loadState = relInfo[from.id]
+        val loadState = relInfo[from]
 
         return when (loadState.state) {
             EntityState.LOADED -> {
@@ -428,7 +420,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
 
             EntityState.INITIAL -> {
                 scheduleDelayedExec()
-                relInfo.addIdToLoad(from.id)
+                relInfo.addEntityToLoad(from)
                 suspendCoroutine(loadState::startedLoading)
             }
         }
@@ -568,14 +560,14 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         return query(buildCountQuery(query)).results[0].getLong(0)
     }
 
-    override suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
+    override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, KEY: Any>
     find(from: FROM, relation: RelToOne<FROM, TO>): TO? {
         @Suppress("UNCHECKED_CAST")
-        relation as RelToOneImpl<FROM, FROMID, TO, TOID>
+        relation as RelToOneImpl<FROM, TO, KEY>
 
-        val toId: TOID? = relation.mapId(from)
-        return if (toId != null) {
-            loadById(relation.targetTable, toId)
+        val toKey: KEY? = relation.mapKey(from)
+        return if (toKey != null) {
+            loadByKey(relation.targetTable, relation.info.oneKey, toKey)
         } else {
             null
         }

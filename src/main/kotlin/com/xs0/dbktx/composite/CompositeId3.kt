@@ -4,7 +4,7 @@ import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.NonNullColumn
 import com.xs0.dbktx.util.Sql
 
-abstract class CompositeId3<E : DbEntity<E, ID>, T1: Any, T2: Any, T3: Any, ID : CompositeId3<E, T1, T2, T3, ID>>
+abstract class CompositeId3<E : DbEntity<E, *>, T1: Any, T2: Any, T3: Any, ID : CompositeId3<E, T1, T2, T3, ID>>
     private constructor()
     : CompositeId<E, ID>() {
     abstract val column1: NonNullColumn<E, T1>

@@ -8,8 +8,8 @@ import mu.KLogging
 
 internal class MasterIndex {
 
-    private val tableIndex = LinkedHashMap<DbTable<*, *>, EntityIndex<*, *>>()
-    private val relToManyIndex = LinkedHashMap<RelToManyImpl<*, *, *, *>, ToManyIndex<*, *, *, *>>()
+    private val tableIndex = LinkedHashMap<DbTable<*, *>, EntityIndex<*>>()
+    private val relToManyIndex = LinkedHashMap<RelToManyImpl<*, *, *>, ToManyIndex<*, *, *>>()
 
     fun flushAll() {
         // (When we flush, we fail any outstanding request. However, handlers for those failures
@@ -54,27 +54,25 @@ internal class MasterIndex {
     }
 
     @Suppress("UNCHECKED_CAST")
-    operator fun <E : DbEntity<E, ID>, ID: Any>
-    get(table: DbTable<E, ID>): EntityIndex<E, ID> {
-        return tableIndex.computeIfAbsent(table,
-                { _ -> EntityIndex(table) })
-                as EntityIndex<E, ID>
+    operator fun <E : DbEntity<E, *>>
+    get(table: DbTable<E, *>): EntityIndex<E> {
+        return tableIndex.computeIfAbsent(table) { _ -> EntityIndex(table) } as EntityIndex<E>
     }
 
     @Suppress("UNCHECKED_CAST")
-    operator fun <FROM: DbEntity<FROM, FROMID>, FROMID: Any, TO: DbEntity<TO, TOID>, TOID: Any>
-    get(rel: RelToMany<FROM, TO>): ToManyIndex<FROM, FROMID, TO, TOID> {
-        rel as RelToManyImpl<FROM, FROMID, TO, TOID>
+    operator fun <FROM: DbEntity<FROM, *>, FROM_KEY: Any, TO: DbEntity<TO, *>>
+    get(rel: RelToMany<FROM, TO>): ToManyIndex<FROM, FROM_KEY, TO> {
+        rel as RelToManyImpl<FROM, FROM_KEY, TO>
 
-        return relToManyIndex.computeIfAbsent(rel,
-                { _ -> ToManyIndex(rel) })
-                as ToManyIndex<FROM, FROMID, TO, TOID>
+        return relToManyIndex.computeIfAbsent(rel)
+               { _ -> ToManyIndex(rel) }
+               as ToManyIndex<FROM, FROM_KEY, TO>
     }
 
-    val allCachedTables: Collection<EntityIndex<*, *>>
+    val allCachedTables: Collection<EntityIndex<*>>
         get() = tableIndex.values
 
-    val allCachedToManyRels: Collection<ToManyIndex<*, *, *, *>>
+    val allCachedToManyRels: Collection<ToManyIndex<*, *, *>>
         get() = relToManyIndex.values
 
     companion object : KLogging()

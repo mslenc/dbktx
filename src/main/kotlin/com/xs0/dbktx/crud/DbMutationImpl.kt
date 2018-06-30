@@ -33,7 +33,7 @@ internal abstract class DbMutationImpl<E : DbEntity<E, ID>, ID: Any> protected c
     override fun <TARGET : DbEntity<TARGET, TID>, TID: Any>
     set(relation: RelToOne<E, TARGET>, target: TARGET): DbMutation<E> {
         @Suppress("UNCHECKED_CAST")
-        relation as RelToOneImpl<E, ID, TARGET, TID>
+        relation as RelToOneImpl<E, TARGET, TID>
 
         for (colMap in relation.info.columnMappings) {
             doColMap(colMap, target)

@@ -128,7 +128,7 @@ class BoundColumnForSelect<E: DbEntity<E, *>, T : Any>(val column: Column<E, T>,
     }
 }
 
-class BoundMultiColumnForSelect<E : DbEntity<E, ID>, ID : CompositeId<E, ID>>(val multiColumn: MultiColumn<E, ID>, val tableInQuery: TableInQuery<E>) : CompositeExpr<E, ID> {
+class BoundMultiColumnForSelect<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(val multiColumn: MultiColumnKeyDef<E, ID>, val tableInQuery: TableInQuery<E>) : CompositeExpr<E, ID> {
     override val numParts: Int
         get() = multiColumn.numColumns
 
@@ -139,13 +139,13 @@ class BoundMultiColumnForSelect<E : DbEntity<E, ID>, ID : CompositeId<E, ID>>(va
                     sql.raw(tableInQuery.tableAlias)
                     sql.raw(".")
                 }
-                sql.raw(multiColumn.getPart(colIdx).quotedFieldName)
+                sql.raw(multiColumn.getColumn(colIdx).quotedFieldName)
             }
         }
     }
 
     override fun getPart(index: Int): Expr<E, *> {
-        return BoundColumnForSelect(multiColumn.getPart(index), tableInQuery)
+        return BoundColumnForSelect(multiColumn.getColumn(index), tableInQuery)
     }
 
     override fun remap(remapper: TableRemapper): Expr<E, ID> {
