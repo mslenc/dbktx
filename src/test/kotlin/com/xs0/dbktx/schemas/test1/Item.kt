@@ -14,7 +14,7 @@ import java.time.LocalDateTime
 class Item(db: DbConn, id: Item.Id, private val row: List<Any?>)
     : DbEntity<Item, Item.Id>(db, id) {
 
-    override val metainfo get() = TABLE
+    override val metainfo get() = Item
 
     val sku get() = id.sku
     val companyId get() = id.company_id
@@ -35,10 +35,10 @@ class Item(db: DbConn, id: Item.Id, private val row: List<Any?>)
         constructor(companyId: Long, sku: String) : super(companyId, sku)
         constructor(row: List<Any?>) : super(row)
 
-        override val tableMetainfo get() = TABLE
+        override val tableMetainfo get() = Item
     }
 
-    companion object TABLE: DbTableC<Item, Id>(TestSchema1, "items", Item::class, Id::class) {
+    companion object : DbTableC<Item, Id>(TestSchema1, "items", Item::class, Id::class) {
         val COMPANY_ID = b.nonNullLong("company_id", BIGINT(), Item::companyId)
         val SKU = b.nonNullString("sku", VARCHAR(255), Item::sku)
         val BRAND_KEY = b.nonNullString("brand_key", VARCHAR(255), Item::brandKey)

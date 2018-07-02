@@ -2,6 +2,7 @@ package com.xs0.dbktx.schema
 
 import com.xs0.dbktx.composite.CompositeId
 import com.xs0.dbktx.conn.DbConn
+import com.xs0.dbktx.conn.DbLoaderInternal
 import com.xs0.dbktx.crud.*
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.util.EntityIndex

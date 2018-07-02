@@ -1,5 +1,7 @@
 package com.xs0.dbktx.schema
 
+import com.xs0.dbktx.conn.DbLoaderImpl
+import com.xs0.dbktx.conn.DbLoaderInternal
 import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.expr.*
 
@@ -21,6 +23,10 @@ class RelToOneImpl<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, KEY : Any> : 
 
     override suspend fun invoke(from: FROM): TO? {
         return from.db.find(from, this)
+    }
+
+    internal suspend fun callFindByRelation(db: DbLoaderImpl, from: FROM): TO? {
+        return db.findByRelation(from, this)
     }
 
     companion object {

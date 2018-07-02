@@ -84,7 +84,7 @@ interface DbConn {
     /**
      * Follows a relation-to-one and throws if the target entity was not found.
      */
-    suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
+    suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     load(from: FROM, relation: RelToOne<FROM, TO>): TO
 
     /**
@@ -108,7 +108,7 @@ interface DbConn {
     /**
      * Follows a relation-to-one for multiple source entities.
      */
-    suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
+    suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     loadForAll(ref: RelToOne<FROM, TO>, sources: Collection<FROM>): Map<FROM, TO?>
 
 

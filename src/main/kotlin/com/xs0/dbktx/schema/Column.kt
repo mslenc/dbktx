@@ -42,7 +42,8 @@ interface Column<E: DbEntity<E, *>, T : Any> : RowProp<E, T> {
 
 interface NonNullColumn<E: DbEntity<E, *>, T: Any>: Column<E, T>, NonNullRowProp<E, T> {
     override fun invoke(row: List<Any?>): T {
-        val value = row[indexInRow] ?: throw IllegalStateException("Null value for NOT NULL column $fieldName")
+        val value = row[indexInRow] ?:
+            throw IllegalStateException("Null value for NOT NULL column $fieldName")
 
         return sqlType.fromJson(value)
     }

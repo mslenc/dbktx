@@ -19,7 +19,6 @@ class ManyToOneInfo<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TO_KEY : Any
     private val mappingToOneId = HashMap<Int, (FROM)->Any?>()
 
     init {
-        val mappingToOneId = HashMap<Int, (FROM)->Any?>()
         for (mapping in columnMappings) {
             mappingToOneId[mapping.columnTo.indexInRow] = { entity ->
                 doMapping(mapping, entity)

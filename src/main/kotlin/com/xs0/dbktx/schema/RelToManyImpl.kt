@@ -1,5 +1,7 @@
 package com.xs0.dbktx.schema
 
+import com.xs0.dbktx.conn.DbLoaderImpl
+import com.xs0.dbktx.conn.DbLoaderInternal
 import com.xs0.dbktx.crud.EntityQuery
 import com.xs0.dbktx.crud.FilterBuilder
 import com.xs0.dbktx.crud.TableInQuery
@@ -44,5 +46,13 @@ class RelToManyImpl<FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *
         query.filter(block)
 
         return query.run()
+    }
+
+    internal suspend fun callLoad(db: DbLoaderInternal, from: FROM): List<TO> {
+        return db.load(from, this)
+    }
+
+    internal suspend fun callLoadToManyWithFilter(db: DbLoaderImpl, from: FROM, filter: FilterBuilder<TO>.() -> ExprBoolean): List<TO> {
+        return db.loadToManyWithFilter(from, this, filter)
     }
 }

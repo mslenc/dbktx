@@ -12,13 +12,13 @@ import java.time.LocalDateTime
 class Company(db: DbConn, id: Long, private val row: List<Any?>)
     : DbEntity<Company, Long>(db, id) {
 
-    override val metainfo get() = TABLE
+    override val metainfo get() = Company
 
     val name: String get() = NAME(row)
     val timeCreated: LocalDateTime get() = T_CREATED(row)
     val timeUpdated: LocalDateTime get() = T_UPDATED(row)
 
-    companion object TABLE: DbTable<Company, Long>(TestSchema1, "companies", Company::class, Long::class) {
+    companion object : DbTable<Company, Long>(TestSchema1, "companies", Company::class, Long::class) {
         val ID = b.nonNullLong("id", BIGINT(), Company::id, primaryKey = true, autoIncrement = true)
         val NAME = b.nonNullString("name", VARCHAR(255), Company::name)
         val T_CREATED = b.nonNullDateTime("t_created", DATETIME(), Company::timeCreated)
