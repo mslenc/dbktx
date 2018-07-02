@@ -48,4 +48,8 @@ class ExprFilterHasParent<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
     override fun remap(remapper: TableRemapper): ExprBoolean {
         return ExprFilterHasParent(info, filter.remap(remapper), remapper.remap(srcTable), remapper.remap(dstTable), negated)
     }
+
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
 }

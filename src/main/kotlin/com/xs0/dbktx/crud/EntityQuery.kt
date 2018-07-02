@@ -1,6 +1,7 @@
 package com.xs0.dbktx.crud
 
 import com.xs0.dbktx.conn.DbConn
+import com.xs0.dbktx.conn.buildSelectQuery
 import com.xs0.dbktx.util.EntityState.*
 import com.xs0.dbktx.expr.CompositeExpr
 import com.xs0.dbktx.expr.Expr
@@ -105,11 +106,10 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, ID>, ID: Any>(
         doFilter(baseTable.innerJoin(ref1).innerJoin(ref2), true, block)
         return this
     }
-
-
 }
 
 interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E> {
+    val db: DbConn
 
     suspend fun run(): List<E>
     suspend fun countAll(): Long
@@ -147,6 +147,9 @@ internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
         table: DbTable<E, ID>,
         loader: DbConn)
     : FilterableQueryImpl<E, ID>(table, loader), EntityQuery<E> {
+
+    override val db: DbConn
+        get() = loader
 
     private var  _orderBy: ArrayList<OrderSpec<*>>? = null
     internal val orderBy: List<OrderSpec<*>>
@@ -287,5 +290,9 @@ internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
             remapper.addExplicitMapping(baseTable, dstTable)
             return it.remap(remapper)
         }
+    }
+
+    override fun toString(): String {
+        return buildSelectQuery(this).getSql()
     }
 }

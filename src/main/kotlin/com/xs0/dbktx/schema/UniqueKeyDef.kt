@@ -21,13 +21,13 @@ interface UniqueKeyDef<E: DbEntity<E, *>, T: Any>: NonNullRowProp<E, T> {
 }
 
 interface SingleColumnKeyDef<E: DbEntity<E, *>, T: Any>: UniqueKeyDef<E, T> {
-
+    val column: NonNullColumn<E, T>
 }
 
 internal class SingleColumnKeyDefImpl<E: DbEntity<E, *>, T: Any>(
     override val table: DbTable<E, *>,
     override val indexInTable: Int,
-    val column: NonNullColumn<E, T>,
+    override val column: NonNullColumn<E, T>,
     override val isPrimaryKey: Boolean)
     : SingleColumnKeyDef<E, T> {
 

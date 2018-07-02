@@ -56,6 +56,10 @@ class MultiColOneOf<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     override fun remap(remapper: TableRemapper): ExprBoolean {
         return MultiColOneOf(remapper.remap(tableInQuery), info, refs, negated)
     }
+
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
 }
 
 

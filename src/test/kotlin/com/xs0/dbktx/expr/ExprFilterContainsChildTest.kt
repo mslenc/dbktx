@@ -1,7 +1,7 @@
 package com.xs0.dbktx.expr
 
 import com.xs0.dbktx.conn.DbLoaderImpl
-import com.xs0.dbktx.schemas.test1.Brand.TABLE.ITEMS_SET
+import com.xs0.dbktx.schemas.test1.Brand.Companion.ITEMS_SET
 import com.xs0.dbktx.schemas.test1.Item
 import com.xs0.dbktx.schemas.test1.TestSchema1
 import com.xs0.dbktx.util.DelayedExec
@@ -12,8 +12,6 @@ import io.vertx.core.Future
 import io.vertx.core.Handler
 import io.vertx.core.json.JsonArray
 import io.vertx.ext.sql.*
-import kotlinx.coroutines.experimental.Unconfined
-import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
 import org.junit.Test
 

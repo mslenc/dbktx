@@ -5,6 +5,12 @@ import com.xs0.dbktx.util.Sql
 
 interface SqlEmitter {
     fun toSql(sql: Sql, topLevel: Boolean = false)
+
+    fun toSqlStringForDebugging(): String {
+        val sql = Sql()
+        toSql(sql, true)
+        return sql.getSql()
+    }
 }
 
 class SqlRange<E, T>(val minumum: Expr<in E, T>,

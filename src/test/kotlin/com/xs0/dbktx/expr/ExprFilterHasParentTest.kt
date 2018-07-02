@@ -1,7 +1,7 @@
 package com.xs0.dbktx.expr
 
 import com.xs0.dbktx.conn.DbLoaderImpl
-import com.xs0.dbktx.schemas.test1.Brand.TABLE.COMPANY_REF
+import com.xs0.dbktx.schemas.test1.Brand.Companion.COMPANY_REF
 import com.xs0.dbktx.schemas.test1.Company
 import com.xs0.dbktx.schemas.test1.TestSchema1
 import com.xs0.dbktx.util.DelayedExec

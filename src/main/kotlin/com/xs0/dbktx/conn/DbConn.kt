@@ -2,10 +2,7 @@ package com.xs0.dbktx.conn
 
 import com.xs0.dbktx.crud.*
 import com.xs0.dbktx.expr.ExprBoolean
-import com.xs0.dbktx.schema.DbEntity
-import com.xs0.dbktx.schema.DbTable
-import com.xs0.dbktx.schema.RelToMany
-import com.xs0.dbktx.schema.RelToOne
+import com.xs0.dbktx.schema.*
 import com.xs0.dbktx.util.Sql
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.sql.ResultSet
@@ -123,6 +120,9 @@ interface DbConn {
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
     findById(table: DbTable<E, ID>, id: ID?): E?
+
+    suspend fun <E: DbEntity<E, *>, KEY: Any>
+    findByKey(table: DbTable<E, *>, keyDef: UniqueKeyDef<E, KEY>, key: KEY): E?
 
     /**
      * Loads multiple rows from the table by IDs and throws if all IDs are not actually found.

@@ -624,12 +624,39 @@ internal constructor(
         return result
     }
 
+    fun <TARGET : DbEntity<TARGET, *>, KEY : Any>
+    relToOne(column: Column<E, KEY>, targetKeyGetter: ()->SingleColumnKeyDef<TARGET, KEY>): RelToOne<E, TARGET> {
+        val result = RelToOneImpl<E, TARGET, KEY>()
+        table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
+            val targetKey = targetKeyGetter()
+            val targetTable = targetKey.table
+
+            val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
+                ColumnMapping(column, targetKey.column)
+            )
+
+            val info = ManyToOneInfo(table, targetTable, targetKey, fields)
+
+            val idCons: (E)->KEY? = info.makeForwardMapper()
+
+            result.init(info, idCons)
+        }
+        return result
+    }
+
     fun <T: CompositeId<E, T>>
     uniqueKey(keyBuilder: (List<Any?>)->T, keyExtractor: (E)->T): MultiColumnKeyDef<E, T> {
         if (!primaryKeyInitialized)
             throw IllegalStateException("Must first set primary key, before other keys in table " + table.dbName)
 
         val keyDef = MultiColumnKeyDef(table, table.uniqueKeys.size, keyBuilder, keyExtractor, keyBuilder(dummyRow()), isPrimaryKey = false)
+        table.uniqueKeys.add(keyDef)
+        return keyDef
+    }
+
+    fun <T: Any>
+    uniqueKey(column: NonNullColumn<E, T>): SingleColumnKeyDef<E, T> {
+        val keyDef = SingleColumnKeyDefImpl(table, table.uniqueKeys.size, column, isPrimaryKey = false)
         table.uniqueKeys.add(keyDef)
         return keyDef
     }

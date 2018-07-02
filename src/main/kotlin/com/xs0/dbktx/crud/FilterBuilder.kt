@@ -308,4 +308,12 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         var parts = values.map { map(it) }
         return ExprBools.create(ExprBools.Op.OR, parts)
     }
+
+    infix fun Column<E, Int>.hasAnyOfBits(bits: Int): ExprBoolean {
+        return ExprBitwise(this.bindForSelect(currentTable()), ExprBitwise.Op.HAS_ANY_BITS, makeLiteral(bits))
+    }
+
+    infix fun Column<E, Long>.hasAnyOfBits(bits: Long): ExprBoolean {
+        return ExprBitwise(this.bindForSelect(currentTable()), ExprBitwise.Op.HAS_ANY_BITS, makeLiteral(bits))
+    }
 }

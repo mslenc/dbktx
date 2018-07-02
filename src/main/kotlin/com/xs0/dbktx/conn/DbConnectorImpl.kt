@@ -20,11 +20,12 @@ object VertxScheduler: DelayedExecScheduler {
  */
 class DbConnectorImpl(
         private val sqlClient: AsyncSQLClient,
-        private val delayedExecScheduler: DelayedExecScheduler = VertxScheduler)
+        private val delayedExecScheduler: DelayedExecScheduler = VertxScheduler,
+        private val connectionWrapper: (SQLConnection)->SQLConnection = { it })
     : DbConnector
 
 {
-    suspend override fun connect(block: suspend (DbConn) -> Unit) {
+    override suspend fun connect(block: suspend (DbConn) -> Unit) {
         val rawConn: SQLConnection = try {
             vx { handler -> sqlClient.getConnection(handler) }
         } catch (e: Exception) {
@@ -32,7 +33,7 @@ class DbConnectorImpl(
             throw e
         }
 
-        DbLoaderImpl(rawConn, delayedExecScheduler).use {
+        DbLoaderImpl(connectionWrapper(rawConn), delayedExecScheduler).use {
             block(it)
         }
     }

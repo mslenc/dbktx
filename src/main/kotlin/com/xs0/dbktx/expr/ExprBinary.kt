@@ -35,4 +35,8 @@ internal class ExprBinary<E, T>(private val left: Expr<in E, T>, private val op:
             ExprBinary.Op.NEQ -> ExprBinary(left, Op.EQ, right)
         }
     }
+
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
 }

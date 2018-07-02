@@ -41,4 +41,8 @@ class ExprFilterContainsChild<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
     override fun remap(remapper: TableRemapper): ExprBoolean {
         return ExprFilterContainsChild(remapper.remap(parentTable), info, filter.remap(remapper), remapper.remap(childTable), negated)
     }
+
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
 }

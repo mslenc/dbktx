@@ -13,6 +13,10 @@ class ExprNull<ENTITY, T> : Expr<ENTITY, T> {
         return this
     }
 
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
+
     companion object {
         fun <E : DbEntity<E, *>, T> create(): ExprNull<E, T> {
             return ExprNull()

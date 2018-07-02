@@ -18,4 +18,8 @@ class ExprNow<ENTITY, T> : Expr<ENTITY, T> {
     override fun remap(remapper: TableRemapper): Expr<ENTITY, T> {
         return this
     }
+
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
 }

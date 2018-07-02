@@ -25,6 +25,10 @@ class ExprOneOf<TABLE, T>(private val needle: Expr<TABLE, T>, private val haysta
         return ExprOneOf(needle.remap(remapper), haystack.map { it.remap(remapper) }, negated)
     }
 
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
+
     companion object {
         fun <TABLE, T> oneOf(needle: Expr<TABLE, T>, haystack: List<Expr<TABLE, T>>): ExprBoolean {
             if (haystack.isEmpty())

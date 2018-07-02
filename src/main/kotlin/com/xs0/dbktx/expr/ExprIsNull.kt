@@ -22,4 +22,8 @@ class ExprIsNull<ENTITY>(private val inner: Expr<ENTITY, *>, private val isNull:
     override fun remap(remapper: TableRemapper): ExprBoolean {
         return ExprIsNull(inner.remap(remapper), isNull)
     }
+
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
 }

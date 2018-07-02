@@ -26,4 +26,8 @@ class ExprBetween<E, T>(
     override fun remap(remapper: TableRemapper): ExprBoolean {
         return ExprBetween(value.remap(remapper), minimum.remap(remapper), maximum.remap(remapper), between)
     }
+
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
 }

@@ -33,4 +33,8 @@ abstract class CompositeId<E : DbEntity<E, *>, ID : CompositeId<E, ID>> : Compos
     override fun remap(remapper: TableRemapper): Expr<E, ID> {
         return this
     }
+
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
 }

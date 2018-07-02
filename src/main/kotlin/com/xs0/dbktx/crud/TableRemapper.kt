@@ -20,25 +20,27 @@ class TableRemapper(val newQuery: QueryImpl) {
         }
 
         val remapped: TableInQuery<T> = when (original) {
-            is BaseTableInQuery -> BaseTableInQuery(newQuery, original.table)
+            is BaseTableInQuery,
+            is BaseTableInUpdateQuery -> {
+                throw IllegalStateException("Base table should have a pre-existing explicit mapping")
+            }
 
             is JoinedTableInQuery -> {
+                val newPrevTable = original.prevTable.remap(this)
                 val newJoin = Join(original.incomingJoin.joinType, original.incomingJoin.relToOne)
                 val newAlias = generateAliasTo(newQuery, original.table)
-                val newPrevTable = original.prevTable.remap(this)
-
-                JoinedTableInQuery(newQuery, newAlias, original.table, newPrevTable, newJoin)
+                val newJoinedTable = JoinedTableInQuery(newQuery, newAlias, original.table, newPrevTable, newJoin)
+                newPrevTable.addRemappedJoin(newJoinedTable)
+                newJoinedTable
             }
 
             is SubTableInQuery -> {
                 val newAlias = generateAliasTo(newQuery, original.table)
-
                 SubTableInQuery(newQuery, newAlias, original.table, original.prevTable.remap(this))
             }
-
-            is BaseTableInUpdateQuery -> BaseTableInUpdateQuery(newQuery, original.table)
         }
 
+        newQuery.registerTableInQuery(remapped)
         mappings[original] = remapped
         return remapped
     }

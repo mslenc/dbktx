@@ -12,4 +12,8 @@ class Literal<E, T: Any>(private val value: T, private val sqlType: SqlType<T>) 
     override fun remap(remapper: TableRemapper): Expr<E, T> {
         return this
     }
+
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
 }

@@ -30,6 +30,10 @@ internal class ExprBools internal constructor(private val parts: List<ExprBoolea
         return ExprBools(parts.map { it.remap(remapper) }, op)
     }
 
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
+
     companion object {
         internal fun create(left: ExprBoolean, op: Op, right: ExprBoolean): ExprBools {
             val parts = ArrayList<ExprBoolean>()

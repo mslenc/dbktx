@@ -19,4 +19,8 @@ class ExprNegate(private val inner: ExprBoolean) : ExprBoolean {
     override fun remap(remapper: TableRemapper): ExprBoolean {
         return ExprNegate(inner.remap(remapper))
     }
+
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
 }

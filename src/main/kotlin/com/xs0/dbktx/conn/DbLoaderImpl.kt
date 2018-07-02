@@ -511,6 +511,11 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         return db.find(table, id)
     }
 
+    override suspend fun <E: DbEntity<E, *>, KEY: Any>
+    findByKey(table: DbTable<E, *>, keyDef: UniqueKeyDef<E, KEY>, key: KEY): E? {
+        return db.find(table, keyDef, key)
+    }
+
     override suspend fun <E : DbEntity<E, ID>, ID : Any>
     loadById(table: DbTable<E, ID>, id: ID): E {
         return findById(table, id) ?: throw NoSuchEntity("No ${table.dbName} with id $id")

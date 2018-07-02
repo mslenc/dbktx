@@ -22,4 +22,8 @@ class ExprFindInSet<E>(private val value: Expr<E, String>,
     override fun remap(remapper: TableRemapper): ExprBoolean {
         return ExprFindInSet(value.remap(remapper), set.remap(remapper))
     }
+
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
 }

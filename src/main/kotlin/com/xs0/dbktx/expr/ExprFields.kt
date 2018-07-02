@@ -18,4 +18,8 @@ internal class ExprFields<E : DbEntity<E, *>, TYPE>(val columnMappings: Array<Co
     override fun remap(remapper: TableRemapper): Expr<E, TYPE> {
         return ExprFields(columnMappings, remapper.remap(tableInQuery))
     }
+
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
 }

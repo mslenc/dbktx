@@ -32,4 +32,8 @@ class ExprLike<E> (
     override fun remap(remapper: TableRemapper): ExprBoolean {
         return ExprLike(value.remap(remapper), pattern.remap(remapper), escapeChar, negated)
     }
+
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
 }

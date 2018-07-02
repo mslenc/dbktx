@@ -94,6 +94,25 @@ sealed class TableInQuery<E : DbEntity<E, *>>(val query: QueryImpl, val tableAli
     internal fun remap(tableRemapper: TableRemapper): TableInQuery<E> {
         return tableRemapper.remap(this)
     }
+
+    internal fun toString(level: Int, sb: StringBuilder) {
+        for (i in 0 until level)
+            sb.append("    ")
+        sb.append(table.dbName).append(" AS ").append(tableAlias).append(" (").append(incomingJoin?.joinType ?: "").append(")\n")
+        for (join in joins) {
+            join.toString(level + 1, sb)
+        }
+    }
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        toString(0, sb)
+        return sb.toString()
+    }
+
+    internal fun addRemappedJoin(newJoinedTable: JoinedTableInQuery<*>) {
+        joins.add(newJoinedTable)
+    }
 }
 
 internal class JoinedTableInQuery<E: DbEntity<E, *>>(query: QueryImpl, tableAlias: String, table: DbTable<E, *>,
@@ -126,6 +145,10 @@ class BoundColumnForSelect<E: DbEntity<E, *>, T : Any>(val column: Column<E, T>,
     override fun remap(remapper: TableRemapper): Expr<E, T> {
         return BoundColumnForSelect(column, remapper.remap(tableInQuery))
     }
+
+    override fun toString(): String {
+        return toSqlStringForDebugging()
+    }
 }
 
 class BoundMultiColumnForSelect<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(val multiColumn: MultiColumnKeyDef<E, ID>, val tableInQuery: TableInQuery<E>) : CompositeExpr<E, ID> {
@@ -150,5 +173,9 @@ class BoundMultiColumnForSelect<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(val
 
     override fun remap(remapper: TableRemapper): Expr<E, ID> {
         return BoundMultiColumnForSelect(multiColumn, remapper.remap(tableInQuery))
+    }
+
+    override fun toString(): String {
+        return toSqlStringForDebugging()
     }
 }
