@@ -304,6 +304,14 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return ExprFilterContainsChild(currentTable(), relImpl.info, setFilter, dstTable)
     }
 
+    infix fun <TO: DbEntity<TO, *>> RelToMany<E, TO>.contains(childQuery: EntityQuery<TO>): ExprBoolean {
+        val relImpl = this as RelToManyImpl<E, *, TO>
+        val dstTable = currentTable().forcedSubQuery(this)
+        val dstFilter = childQuery.copyAndRemapFilters(dstTable) ?: ExprDummy(true)
+
+        return ExprFilterContainsChild(currentTable(), relImpl.info, dstFilter, dstTable)
+    }
+
     fun <T> combineWithOR(values: Iterable<T>, map: FilterBuilder<E>.(T)->ExprBoolean): ExprBoolean {
         var parts = values.map { map(it) }
         return ExprBools.create(ExprBools.Op.OR, parts)
