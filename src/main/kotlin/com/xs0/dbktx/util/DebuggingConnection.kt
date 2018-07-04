@@ -7,6 +7,14 @@ import io.vertx.ext.sql.*
 import mu.KLogging
 
 class DebuggingConnection(private val conn: SQLConnection) : SQLConnection {
+    fun <T> wrapForTiming(handler: Handler<AsyncResult<T>>): Handler<AsyncResult<T>> {
+        val started = System.currentTimeMillis()
+        return Handler { result: AsyncResult<T> ->
+            val ended = System.currentTimeMillis()
+            logger.debug { "(${ended - started} ms)\n\n" }
+            handler.handle(result)
+        }
+    }
 
     override fun setOptions(options: SQLOptions): SQLConnection {
         return conn.setOptions(options)
@@ -22,7 +30,7 @@ class DebuggingConnection(private val conn: SQLConnection) : SQLConnection {
 
     override fun query(sql: String, resultHandler: Handler<AsyncResult<ResultSet>>): SQLConnection {
         logger.debug { "Querying with no params:\n$sql" }
-        return conn.query(sql, resultHandler)
+        return conn.query(sql, wrapForTiming(resultHandler))
     }
 
     override fun queryStream(sql: String, handler: Handler<AsyncResult<SQLRowStream>>): SQLConnection {
@@ -31,7 +39,7 @@ class DebuggingConnection(private val conn: SQLConnection) : SQLConnection {
 
     override fun queryWithParams(sql: String, params: JsonArray, resultHandler: Handler<AsyncResult<ResultSet>>): SQLConnection {
         logger.debug { "Querying with params $params:\n$sql" }
-        return conn.queryWithParams(sql, params, resultHandler)
+        return conn.queryWithParams(sql, params, wrapForTiming(resultHandler))
     }
 
     override fun queryStreamWithParams(sql: String, params: JsonArray, handler: Handler<AsyncResult<SQLRowStream>>): SQLConnection {
