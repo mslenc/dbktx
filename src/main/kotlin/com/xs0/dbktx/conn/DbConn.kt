@@ -50,13 +50,13 @@ interface DbConn {
     /**
      * INTERNAL FUNCTION, use [EntityQuery.run] instead.
      */
-    suspend fun <E: DbEntity<E, ID>, ID: Any>
+    suspend fun <E: DbEntity<E, *>>
     executeSelect(query: EntityQuery<E>): List<E>
 
     /**
      * INTERNAL FUNCTION, use [EntityQuery.countAll] instead.
      */
-    suspend fun <E: DbEntity<E, ID>, ID: Any>
+    suspend fun <E: DbEntity<E, *>>
     executeCount(query: EntityQuery<E>): Long
 
     /**
@@ -74,7 +74,7 @@ interface DbConn {
     /**
      * INTERNAL FUNCTION, use [delete] instead.
      */
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
+    suspend fun <E : DbEntity<E, *>>
     executeDelete(deleteQuery: DeleteQuery<E>): Long
 
 
@@ -188,8 +188,8 @@ interface DbConn {
      * }
      * ```
      */
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    count(table: DbTable<E, ID>, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
+    suspend fun <E : DbEntity<E, *>>
+    count(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
         val query = table.newQuery(this)
         query.filter(filter)
         return query.countAll()
@@ -212,8 +212,8 @@ interface DbConn {
      * }
      * ```
      */
-    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    deleteMany(table: Z, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
+    suspend fun <E : DbEntity<E, *>>
+    deleteMany(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
         val query = table.newDeleteQuery(this)
         query.filter(filter)
         return query.deleteAllMatchingRows()

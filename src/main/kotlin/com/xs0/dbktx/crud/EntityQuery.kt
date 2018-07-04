@@ -50,8 +50,8 @@ interface FilterableQuery<E : DbEntity<E, *>>: Query {
         exclude(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> ExprBoolean): FilterableQuery<E>
 }
 
-internal abstract class FilterableQueryImpl<E: DbEntity<E, ID>, ID: Any>(
-        internal val table: DbTable<E, ID>,
+internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
+        internal val table: DbTable<E, *>,
         internal val loader: DbConn) : QueryImpl(), FilterableQuery<E> {
 
     override val baseTable = BaseTableInQuery(this, table) as TableInQuery<E>
@@ -143,10 +143,10 @@ class TableInQueryBoundFilterBuilder<E: DbEntity<E, *>>(val table: TableInQuery<
     }
 }
 
-internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
-        table: DbTable<E, ID>,
+internal class EntityQueryImpl<E : DbEntity<E, *>>(
+        table: DbTable<E, *>,
         loader: DbConn)
-    : FilterableQueryImpl<E, ID>(table, loader), EntityQuery<E> {
+    : FilterableQueryImpl<E>(table, loader), EntityQuery<E> {
 
     override val db: DbConn
         get() = loader
@@ -185,7 +185,7 @@ internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
     }
 
     override fun
-    orderBy(order: Expr<in E, *>, ascending: Boolean): EntityQueryImpl<E, ID> {
+    orderBy(order: Expr<in E, *>, ascending: Boolean): EntityQueryImpl<E> {
         addOrder(baseTable, order, ascending)
         return this
     }
@@ -203,7 +203,7 @@ internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
     }
 
     override fun
-    orderBy(order: RowProp<E, *>, ascending: Boolean): EntityQueryImpl<E, ID> {
+    orderBy(order: RowProp<E, *>, ascending: Boolean): EntityQuery<E> {
         addOrder(baseTable, order, ascending)
         return this
     }
@@ -242,7 +242,7 @@ internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
         addOrder(table, order.bindForSelect(table), ascending)
     }
 
-    override fun offset(offset: Long): EntityQueryImpl<E, ID> {
+    override fun offset(offset: Long): EntityQuery<E> {
         checkModifiable()
 
         if (offset < 0)
@@ -253,7 +253,7 @@ internal class EntityQueryImpl<E : DbEntity<E, ID>, ID: Any>(
         return this
     }
 
-    override fun maxRowCount(maxRowCount: Int): EntityQueryImpl<E, ID> {
+    override fun maxRowCount(maxRowCount: Int): EntityQuery<E> {
         checkModifiable()
 
         if (maxRowCount < 0)

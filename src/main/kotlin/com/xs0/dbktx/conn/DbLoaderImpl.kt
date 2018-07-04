@@ -20,8 +20,8 @@ import java.util.*
 import kotlin.collections.LinkedHashMap
 import kotlin.coroutines.experimental.suspendCoroutine
 
-internal fun <E : DbEntity<E, ID>, ID: Any>
-buildSelectQuery(query: EntityQueryImpl<E, ID>): Sql {
+internal fun <E : DbEntity<E, *>>
+buildSelectQuery(query: EntityQueryImpl<E>): Sql {
 
     return Sql().apply {
         SELECT(query.table.defaultColumnNames)
@@ -46,8 +46,8 @@ buildSelectQuery(query: EntityQueryImpl<E, ID>): Sql {
     }
 }
 
-internal fun <E : DbEntity<E, ID>, ID: Any>
-buildCountQuery(query: EntityQueryImpl<E, ID>): Sql {
+internal fun <E : DbEntity<E, *>>
+buildCountQuery(query: EntityQueryImpl<E>): Sql {
 
     return Sql().apply {
         SELECT("COUNT(*)")
@@ -56,8 +56,8 @@ buildCountQuery(query: EntityQueryImpl<E, ID>): Sql {
     }
 }
 
-internal fun <E : DbEntity<E, ID>, ID: Any>
-buildDeleteQuery(query: DeleteQueryImpl<E, ID>): Sql {
+internal fun <E : DbEntity<E, *>>
+buildDeleteQuery(query: DeleteQueryImpl<E>): Sql {
 
     return Sql().apply {
         raw("DELETE")
@@ -426,8 +426,8 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
         }
     }
 
-    internal suspend fun <E : DbEntity<E, ID>, ID: Any>
-    enqueueQuery(table: DbTable<E, ID>, sb: Sql): List<E> {
+    internal suspend fun <E : DbEntity<E, *>>
+    enqueueQuery(table: DbTable<E, *>, sb: Sql): List<E> {
         val entities = masterIndex[table]
 
         return suspendCoroutine { continuation ->
@@ -496,11 +496,12 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         return db.enqueueUpdateQuery(table.table as DbTable<E, ID>, sqlBuilder, specificIds)
     }
 
-    override suspend fun <E : DbEntity<E, ID>, ID : Any> executeDelete(deleteQuery: DeleteQuery<E>): Long {
-        @Suppress("UNCHECKED_CAST")
-        val sql = buildDeleteQuery(deleteQuery as DeleteQueryImpl<E, ID>)
+    override suspend fun <E : DbEntity<E, *>>
+    executeDelete(deleteQuery: DeleteQuery<E>): Long {
+        deleteQuery as DeleteQueryImpl<E>
+        val sql = buildDeleteQuery(deleteQuery)
 
-        return db.enqueueDeleteQuery(deleteQuery.table, sql, null)
+        return deleteQuery.table.callEnqueueDeleteQuery(db, sql, null)
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID : Any>
@@ -538,26 +539,24 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
     }
 
 
-    override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    count(table: DbTable<E, ID>, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
+    override suspend fun <E : DbEntity<E, *>>
+    count(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
         val entityQuery = EntityQueryImpl(table, this)
         entityQuery.filter(filter)
 
         return query(buildCountQuery(entityQuery)).results[0].getLong(0)
     }
 
-    override suspend fun <E : DbEntity<E, ID>, ID: Any>
+    override suspend fun <E : DbEntity<E,*>>
     executeSelect(query: EntityQuery<E>): List<E> {
-        @Suppress("UNCHECKED_CAST")
-        query as EntityQueryImpl<E, ID>
+        query as EntityQueryImpl<E>
 
         return db.enqueueQuery(query.table, buildSelectQuery(query))
     }
 
-    override suspend fun <E : DbEntity<E, ID>, ID: Any>
+    override suspend fun <E : DbEntity<E, *>>
     executeCount(query: EntityQuery<E>): Long {
-        @Suppress("UNCHECKED_CAST")
-        query as EntityQueryImpl<E, ID>
+        query as EntityQueryImpl<E>
 
         return query(buildCountQuery(query)).results[0].getLong(0)
     }

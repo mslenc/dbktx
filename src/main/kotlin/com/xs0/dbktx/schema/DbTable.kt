@@ -120,7 +120,7 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return DbUpdateImpl(db, this, null, null)
     }
 
-    fun update(db: DbConn, filter: FilterBuilder<E>.()->ExprBoolean): DbUpdate<E> {
+    fun updateMany(db: DbConn, filter: FilterBuilder<E>.()->ExprBoolean): DbUpdate<E> {
         val update = DbUpdateImpl(db, this, null, null)
         update.filter(filter)
         return update
@@ -171,6 +171,10 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
 
     internal fun callInsertAndResolveEntityInIndex(entityIndex: EntityIndex<E>, db: DbConn, row: List<Any?>): E {
         return entityIndex.insertAndResolveEntityInIndex(db, this, row)
+    }
+
+    internal suspend fun callEnqueueDeleteQuery(db: DbLoaderInternal, sql: Sql, specificIds: Set<ID>?): Long {
+        return db.enqueueDeleteQuery(this, sql, specificIds)
     }
 }
 

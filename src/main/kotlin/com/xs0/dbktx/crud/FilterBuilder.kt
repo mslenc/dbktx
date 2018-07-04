@@ -216,7 +216,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
     }
 
     infix fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.oneOf(parentFilter: EntityQuery<TO>): ExprBoolean {
-        parentFilter as EntityQueryImpl<TO, *>
+        parentFilter as EntityQueryImpl<TO>
 
         if (parentFilter.filters == null)
             return this.isNotNull

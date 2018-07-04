@@ -7,10 +7,10 @@ interface DeleteQuery<E : DbEntity<E, *>>: FilterableQuery<E> {
     suspend fun deleteAllMatchingRows(): Long
 }
 
-internal class DeleteQueryImpl<E : DbEntity<E, ID>, ID: Any>(
-        table: DbTable<E, ID>,
+internal class DeleteQueryImpl<E : DbEntity<E, *>>(
+        table: DbTable<E, *>,
         loader: DbConn)
-    : FilterableQueryImpl<E, ID>(table, loader), DeleteQuery<E> {
+    : FilterableQueryImpl<E>(table, loader), DeleteQuery<E> {
 
     var executed = false
 
