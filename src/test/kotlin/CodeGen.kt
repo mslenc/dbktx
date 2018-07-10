@@ -76,7 +76,7 @@ object CodeGen {
         val conn: Connection = DriverManager.getConnection(conf.jdbcUrl, conf.username, conf.password)
         val codeGen = CodeGenerator(conn, conf)
 
-        println(codeGen.handleTable("code_contest_events_tags_groups"))
+        println(codeGen.handleTable("vadbene_skupine_osebe"))
     }
 
     fun findConfFile(): CodeGenConf {
@@ -216,9 +216,8 @@ internal class CodeGenerator(private val conn: Connection, private val conf: Cod
     }
 
     private fun createTableClass(table: String): ClassRes {
-        conn.prepareStatement("select * from information_schema.columns where table_schema=? and table_name=?").use { stmt ->
-            stmt.setString(1, "judobase")
-            stmt.setString(2, table)
+        conn.prepareStatement("select * from information_schema.columns where table_schema=database() and table_name=?").use { stmt ->
+            stmt.setString(1, table)
             stmt.executeQuery().use { res ->
                 val cols = ArrayList<Col>()
                 while (res.next()) {

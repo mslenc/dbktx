@@ -217,3 +217,14 @@ inline fun <T> List<T>.indexOfFirstMatching(selector: (T)->Boolean): Int? {
     }
     return null
 }
+
+fun String?.trimToNull(): String? {
+    if (this == null)
+        return null
+
+    val trimmed = this.trim()
+    if (trimmed.isEmpty())
+        return null
+
+    return trimmed
+}
