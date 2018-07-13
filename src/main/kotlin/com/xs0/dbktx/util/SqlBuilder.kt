@@ -1,17 +1,18 @@
 package com.xs0.dbktx.util
 
+import com.xs0.dbktx.crud.BoundColumnForSelect
 import com.xs0.dbktx.crud.JoinType
 import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.expr.SqlEmitter
 import com.xs0.dbktx.schema.Column
+import com.xs0.dbktx.schema.ColumnInMappingKind
 import com.xs0.dbktx.schema.DbTable
 import com.xs0.dbktx.schema.RelToOneImpl
 import com.xs0.dbktx.sqltypes.toHexString
 import io.vertx.core.json.JsonArray
 import java.math.BigDecimal
 import java.time.*
-import java.util.*
 
 class Sql {
     private val sql = StringBuilder()
@@ -83,8 +84,14 @@ class Sql {
     }
 
     fun columnForSelect(table: TableInQuery<*>, column: Column<*, *>): Sql {
-        sql.append(table.tableAlias).append('.').append(column.quotedFieldName)
+        if (table.tableAlias.isNotEmpty())
+            sql.append(table.tableAlias).append('.')
+        sql.append(column.quotedFieldName)
         return this
+    }
+
+    fun columnForSelect(col: BoundColumnForSelect<*, *>): Sql {
+        return columnForSelect(col.tableInQuery, col.column)
     }
 
     fun columnForUpdate(column: Column<*, *>): Sql {
@@ -155,9 +162,8 @@ class Sql {
                 continue
 
             val rel = joinedTable.incomingJoin.relToOne as RelToOneImpl<*,*,*>
-            val sourceAlias = joinedTable.prevTable.tableAlias
+            val sourceTable = joinedTable.prevTable
             val targetTable = rel.targetTable
-            val targetAlias = joinedTable.tableAlias
 
             if (joinType == JoinType.INNER_JOIN) {
                 raw(" INNER JOIN ")
@@ -168,10 +174,23 @@ class Sql {
             raw(targetTable.quotedDbName).raw(" AS ").raw(joinedTable.tableAlias).raw(" ON ")
 
             tuple(rel.info.columnMappings, separator = " AND ") { colMap ->
-                raw(sourceAlias).raw(".").raw(colMap.columnFrom.quotedFieldName)
-                raw(" = ")
-                raw(targetAlias).raw(".").raw(colMap.columnTo.quotedFieldName)
+                when (colMap.columnFromKind) {
+                    ColumnInMappingKind.COLUMN -> {
+                        columnForSelect(SqlBuilderHelpers.forceBindColumnTo(colMap, joinedTable))
+                        raw(" = ")
+                        columnForSelect(SqlBuilderHelpers.forceBindColumnFrom(colMap, sourceTable))
+                    }
+
+                    ColumnInMappingKind.CONSTANT,
+                    ColumnInMappingKind.PARAMETER -> {
+                        columnForSelect(SqlBuilderHelpers.forceBindColumnTo(colMap, joinedTable))
+                        raw(" = ")
+                        colMap.columnFromLiteral.toSql(this)
+                    }
+                }
             }
+
+            buildJoins(joinedTable)
         }
     }
 

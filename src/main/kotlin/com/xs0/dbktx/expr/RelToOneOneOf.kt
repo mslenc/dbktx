@@ -7,7 +7,7 @@ import com.xs0.dbktx.schema.ManyToOneInfo
 import com.xs0.dbktx.schema.NonNullColumn
 import com.xs0.dbktx.util.Sql
 
-class MultiColOneOf<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
+class RelToOneOneOf<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     : ExprBoolean {
 
     private val info: ManyToOneInfo<FROM, TO, *>
@@ -23,14 +23,16 @@ class MultiColOneOf<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     }
 
     override fun not(): ExprBoolean {
-        return MultiColOneOf(tableInQuery, info, refs, !negated)
+        return RelToOneOneOf(tableInQuery, info, refs, !negated)
     }
 
     override fun toSql(sql: Sql, topLevel: Boolean) {
+        val multiColumn = info.columnMappings.size > 1
+
         sql.expr(topLevel) {
-            paren {
+            paren(showParens = multiColumn) {
                 tuple(info.columnMappings) {
-                    columnForSelect(tableInQuery, it.columnFrom)
+                    +it.bindFrom(tableInQuery)
                 }
             }
 
@@ -38,9 +40,9 @@ class MultiColOneOf<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
 
             paren {
                 tuple(refs) { ref ->
-                    paren {
+                    paren(showParens = multiColumn) {
                         tuple(info.columnMappings) { colMap ->
-                            writeLiteral(colMap.columnTo, ref, sql)
+                            writeLiteral(colMap.rawColumnTo, ref, sql)
                         }
                     }
                 }
@@ -54,7 +56,7 @@ class MultiColOneOf<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     }
 
     override fun remap(remapper: TableRemapper): ExprBoolean {
-        return MultiColOneOf(remapper.remap(tableInQuery), info, refs, negated)
+        return RelToOneOneOf(remapper.remap(tableInQuery), info, refs, negated)
     }
 
     override fun toString(): String {

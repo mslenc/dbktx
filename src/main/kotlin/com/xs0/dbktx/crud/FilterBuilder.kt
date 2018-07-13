@@ -4,6 +4,7 @@ import com.xs0.dbktx.expr.*
 import com.xs0.dbktx.schema.*
 import com.xs0.dbktx.sqltypes.SqlTypeVarchar
 import com.xs0.dbktx.util.escapeSqlLikePattern
+import sun.reflect.generics.scope.DummyScope
 
 @DslMarker
 annotation class SqlExprBuilder
@@ -239,13 +240,13 @@ interface FilterBuilder<E: DbEntity<E, *>> {
 
     val <TO : DbEntity<TO, *>> RelToOne<E, TO>.isNull: ExprBoolean
         get() {
-            // a multi-column reference is null if any of its parts are null, because we only allow references to primary keys..
+            // a multi-column reference is null if any of its parts are null, because we only allow references to non-null columns..
 
             val rel = this as RelToOneImpl<E, TO, *>
             val parts = ArrayList<ExprBoolean>()
 
             rel.info.columnMappings.forEach { colMap ->
-                (colMap.columnFrom as? NullableColumn)?.let { column ->
+                colMap.columnFromAsNullable?.let { column ->
                     parts.add(column.makeIsNullExpr(currentTable(), isNull = true))
                 }
             }
@@ -266,17 +267,39 @@ interface FilterBuilder<E: DbEntity<E, *>> {
 
         val colMappings = this.info.columnMappings
 
-        return if (colMappings.size == 1) {
-            RelToOneImpl.makeEq(colMappings[0], ref, currentTable())
-        } else {
-            ExprBools(colMappings.map { RelToOneImpl.makeEq(it, ref, currentTable()) }.toList(), ExprBools.Op.AND)
+        val parts = ArrayList<ExprBoolean>()
+
+        colMappings.forEach { colMap ->
+            when (colMap.columnFromKind) {
+                ColumnInMappingKind.COLUMN -> {
+                    // this is basically equivalent to col_from = value_of_col_to(ref)
+                    parts.add(colMap.makeEqRef(ref, currentTable()))
+                }
+
+                ColumnInMappingKind.CONSTANT,
+                ColumnInMappingKind.PARAMETER -> {
+                    // here, we have a constant on the from side, and also a constant on the to side..
+                    val fakeEqRef = colMap.makeEqRef(ref, currentTable())
+                    if (fakeEqRef is ExprDummy) {
+                        if (fakeEqRef.matchAll) {
+                            // well then, we can obviously ignore it
+                        } else {
+                            // well then, we will fail everything anyway
+                            return fakeEqRef // (it's already what we'd return, so no point in making a new one..)
+                        }
+                    } else {
+                        throw IllegalStateException("Expected an ExprDummy")
+                    }
+                }
+            }
         }
+
+        return ExprBools(parts, ExprBools.Op.AND)
     }
 
     infix fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.oneOf(refs: Iterable<TO>): ExprBoolean {
         this as RelToOneImpl<E, TO, *>
 
-        val colMappings = this.info.columnMappings
         val refList = refs as? List ?: refs.toList()
 
         return when {
@@ -286,11 +309,8 @@ interface FilterBuilder<E: DbEntity<E, *>> {
             refList.size == 1 ->
                 eq(refList.first())
 
-            colMappings.size == 1 ->
-                RelToOneImpl.makeOneOf(colMappings[0], refList, currentTable())
-
             else ->
-                MultiColOneOf(currentTable(), info, refList)
+                RelToOneOneOf(currentTable(), info, refList)
         }
     }
 

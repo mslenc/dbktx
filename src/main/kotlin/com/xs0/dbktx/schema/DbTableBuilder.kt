@@ -510,7 +510,7 @@ internal constructor(
             val targetColumn = targetPrimaryKey.getColumn(1) as NonNullColumn<TARGET, TID>
 
             val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
-                ColumnMapping(sourceColumn, targetColumn)
+                ColumnMappingActualColumn(sourceColumn, targetColumn)
             )
 
             val info = ManyToOneInfo(table, targetTable, targetPrimaryKey, fields)
@@ -542,8 +542,8 @@ internal constructor(
             val targetId = targetIdColumns(dummyRow(targetTable.columns))
 
             val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
-                    ColumnMapping(columnA, targetId.column1),
-                    ColumnMapping(columnB, targetId.column2)
+                    ColumnMappingActualColumn(columnA, targetId.column1),
+                    ColumnMappingActualColumn(columnB, targetId.column2)
             )
 
             val info = ManyToOneInfo(table, targetTable, targetIdColumns, fields)
@@ -575,9 +575,9 @@ internal constructor(
             val targetId = targetIdColumns(dummyRow(targetTable.columns))
 
             val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
-                    ColumnMapping(column1, targetId.column1),
-                    ColumnMapping(column2, targetId.column2),
-                    ColumnMapping(column3, targetId.column3)
+                    ColumnMappingActualColumn(column1, targetId.column1),
+                    ColumnMappingActualColumn(column2, targetId.column2),
+                    ColumnMappingActualColumn(column3, targetId.column3)
             )
 
             val info = ManyToOneInfo(table, targetTable, targetIdColumns, fields)
@@ -610,9 +610,9 @@ internal constructor(
             val targetId = targetIdColumns(dummyRow(targetTable.columns))
 
             val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
-                    ColumnMapping(column1, targetId.column1),
-                    ColumnMapping(column2, targetId.column2),
-                    ColumnMapping(column3, targetId.column3)
+                    ColumnMappingActualColumn(column1, targetId.column1),
+                    ColumnMappingActualColumn(column2, targetId.column2),
+                    ColumnMappingActualColumn(column3, targetId.column3)
             )
 
             val info = ManyToOneInfo(table, targetTable, targetKey, fields)
@@ -632,7 +632,7 @@ internal constructor(
             val targetTable = targetKey.table
 
             val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
-                ColumnMapping(column, targetKey.column)
+                ColumnMappingActualColumn(column, targetKey.column)
             )
 
             val info = ManyToOneInfo(table, targetTable, targetKey, fields)

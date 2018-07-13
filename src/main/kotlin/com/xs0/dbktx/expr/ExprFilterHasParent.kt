@@ -22,13 +22,13 @@ class ExprFilterHasParent<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
             sql.expr(topLevel) {
                 paren(n > 1) {
                     tuple(info.columnMappings) {
-                        columnForSelect(srcTable, it.columnFrom)
+                        +it.bindFrom(srcTable)
                     }
                 }
                 +(if (negated) " NOT IN " else " IN ")
                 +"(SELECT "
                 tuple(info.columnMappings) {
-                    columnForSelect(dstTable, it.columnTo)
+                    columnForSelect(it.bindColumnTo(dstTable))
                 }
                 FROM(dstTable)
                 WHERE(filter)
