@@ -115,7 +115,7 @@ private fun <E : DbEntity<E, *>, T: Any> emitValue(column: Column<E, T>, values:
 
 
 internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLConnection, private val delayedExecScheduler: DelayedExecScheduler) {
-    private val masterIndex = MasterIndex()
+    internal val masterIndex = MasterIndex()
     private var scheduled: Boolean = false // whether the delayed loading is already scheduled
     private val queue = LinkedList<suspend (SQLConnection)->Unit>()
     private val _dbConnection: SQLConnection
@@ -292,10 +292,6 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
         return vx { handler -> _dbConnection.queryWithParams(sql, params, handler) }
     }
 
-    fun close() {
-        _dbConnection.close()
-    }
-
     internal suspend fun <E : DbEntity<E, ID>, ID: Any>
     enqueueInsert(table: DbTable<E, ID>, sqlBuilder: Sql, explicitId: ID?): ID {
         val sql = sqlBuilder.getSql()
@@ -374,11 +370,12 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
 
     internal suspend fun <E : DbEntity<E, ID>, ID : Any>
     find(table: DbTable<E, ID>, id: ID): E? {
-        return find(table, table.primaryKey, id)
+        return find(table.primaryKey, id)
     }
 
     internal suspend fun <E : DbEntity<E, *>, KEY : Any>
-    find(table: DbTable<E, *>, keyDef: UniqueKeyDef<E, KEY>, key: KEY): E? {
+    find(keyDef: UniqueKeyDef<E, KEY>, key: KEY): E? {
+        val table = keyDef.table
         val entities = masterIndex[table]
         val index = entities.getSingleKeyIndex(keyDef)
         val entityInfo = index[key]
@@ -444,12 +441,8 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
     companion object : KLogging()
 }
 
-class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecScheduler) : DbConn, AutoCloseable {
+class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecScheduler, override val requestTime: RequestTime) : DbConn {
     private val db = DbLoaderInternal(this, conn, delayedExecScheduler)
-
-    override fun close() {
-        db.close()
-    }
 
     override suspend fun
     query(sqlBuilder: Sql): ResultSet {
@@ -513,8 +506,8 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
     }
 
     override suspend fun <E: DbEntity<E, *>, KEY: Any>
-    findByKey(table: DbTable<E, *>, keyDef: UniqueKeyDef<E, KEY>, key: KEY): E? {
-        return db.find(table, keyDef, key)
+    findByKey(keyDef: UniqueKeyDef<E, KEY>, key: KEY): E? {
+        return db.find(keyDef, key)
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID : Any>
@@ -576,7 +569,7 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
     findByRelation(from: FROM, relation: RelToOneImpl<FROM, TO, KEY>): TO? {
         val keyDef: UniqueKeyDef<TO, KEY> = relation.info.oneKey
         val key: KEY = relation.mapKey(from) ?: return null
-        return db.find(keyDef.table, keyDef, key)
+        return db.find(keyDef, key)
     }
 
     override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
@@ -723,17 +716,18 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
     }
 
     override fun <E : DbEntity<E, ID>, ID : Any>
-    importJson(table: DbTable<E, ID>, json: JsonObject) {
+    importJson(table: DbTable<E, ID>, json: JsonObject): E {
         val list: List<Any?> = table.importFromJson(json)
+
         for (column in table.columns) {
             val value = list[column.indexInRow]
-            if (value == null) {
-                if (column.nonNull)
-                    throw IllegalArgumentException("Missing value for column ${column.fieldName}")
-            } else {
+            if (value == null && column.nonNull)
+                throw IllegalArgumentException("Missing value for column ${column.fieldName}")
+            if (value != null)
                 column.sqlType.fromJson(value)
-            }
         }
+
+        return db.masterIndex[table].rowLoaded(this, list)
     }
 
     companion object : KLogging()

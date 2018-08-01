@@ -9,19 +9,20 @@ import mu.KLogging
 
 object VertxScheduler: DelayedExecScheduler {
     override fun schedule(runnable: () -> Unit) {
-        Vertx.currentContext().runOnContext({ runnable() })
+        Vertx.currentContext().runOnContext { runnable() }
     }
 }
 
 /**
  * Creates a connector that obtains connections from the provided sql client and
- * schedules delayed execution on the provided scheduler. Expected to be used
- * mostly for testing.
+ * schedules delayed execution on the provided scheduler.
  */
 class DbConnectorImpl(
         private val sqlClient: AsyncSQLClient,
         private val delayedExecScheduler: DelayedExecScheduler = VertxScheduler,
-        private val connectionWrapper: (SQLConnection)->SQLConnection = { it })
+        private val timeProvider: TimeProvider,
+        private val connectionWrapper: (SQLConnection)->SQLConnection = { it }
+        )
     : DbConnector
 
 {
@@ -33,8 +34,14 @@ class DbConnectorImpl(
             throw e
         }
 
-        DbLoaderImpl(connectionWrapper(rawConn), delayedExecScheduler).use {
-            block(it)
+        try {
+            val wrappedConn = connectionWrapper(rawConn)
+            val requestTime = timeProvider.getTime(wrappedConn)
+            val dbConn = DbLoaderImpl(wrappedConn, delayedExecScheduler, requestTime)
+
+            block(dbConn)
+        } finally {
+            vx<Void> { handler -> rawConn.close(handler) }
         }
     }
 

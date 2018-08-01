@@ -13,6 +13,8 @@ import io.vertx.ext.sql.TransactionIsolation
  * transaction management.
  */
 interface DbConn {
+    val requestTime: RequestTime
+
     /**
      * Sets the autocommit mode for this connection
      */
@@ -121,8 +123,14 @@ interface DbConn {
     suspend fun <E : DbEntity<E, ID>, ID: Any>
     findById(table: DbTable<E, ID>, id: ID?): E?
 
+    @Deprecated("Use the other findByKey", replaceWith = ReplaceWith("findByKey(keyDef, key)"))
     suspend fun <E: DbEntity<E, *>, KEY: Any>
-    findByKey(table: DbTable<E, *>, keyDef: UniqueKeyDef<E, KEY>, key: KEY): E?
+    findByKey(table: DbTable<E, *>, keyDef: UniqueKeyDef<E, KEY>, key: KEY): E? {
+        return findByKey(keyDef, key)
+    }
+
+    suspend fun <E: DbEntity<E, *>, KEY: Any>
+    findByKey(keyDef: UniqueKeyDef<E, KEY>, key: KEY): E?
 
     /**
      * Loads multiple rows from the table by IDs and throws if all IDs are not actually found.
@@ -244,7 +252,7 @@ interface DbConn {
      * Opposite of [DbTable.toJsonObject] - imports the serialized entity back into internal cache.
      */
     fun <E : DbEntity<E, ID>, ID: Any>
-    importJson(table: DbTable<E, ID>, json: JsonObject)
+    importJson(table: DbTable<E, ID>, json: JsonObject): E
 
     /**
      * Shortcut for creating and executing a query. Use like this:

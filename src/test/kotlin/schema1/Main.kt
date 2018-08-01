@@ -2,11 +2,13 @@ package schema1
 
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.conn.DbConnectorImpl
+import com.xs0.dbktx.conn.TimeProviderFromClock
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.asyncsql.MySQLClient
 import kotlinx.coroutines.experimental.Unconfined
 import kotlinx.coroutines.experimental.launch
+import java.time.Clock
 
 fun main(args: Array<String>) {
     val vertx = Vertx.vertx()
@@ -24,7 +26,7 @@ fun main(args: Array<String>) {
 
     val mySqlClient = MySQLClient.createShared(vertx, mySQLClientConfig, "test")
 
-    val dbConnector = DbConnectorImpl(mySqlClient)
+    val dbConnector = DbConnectorImpl(mySqlClient, timeProvider = TimeProviderFromClock(Clock.systemDefaultZone()))
 
     server.requestHandler { request ->
         launch(Unconfined) {
@@ -46,14 +48,14 @@ fun main(args: Array<String>) {
                 }
             } catch (t: Throwable) {
                 t.printStackTrace()
-                response = "Error: " + t
+                response = "Error: $t"
             }
 
             val res = request.response()
             res.putHeader("content-type", "text/plain; charset=UTF-8")
             res.end(response + "Hello World!")
 
-            println("Finished in ${System.currentTimeMillis() - start}ms")
+            println("Finished in ${System.currentTimeMillis() - start} ms")
         }
     }
 
