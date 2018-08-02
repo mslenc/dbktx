@@ -31,6 +31,10 @@ class SimpleRequestTime(override val instant: Instant, zoneId: ZoneId): RequestT
 
 class TimeProviderFromClock(val clock: Clock): TimeProvider {
     override suspend fun getTime(conn: SQLConnection): RequestTime {
+        return getTime()
+    }
+
+    fun getTime(): RequestTime {
         return SimpleRequestTime(clock.instant(), clock.zone)
     }
 }

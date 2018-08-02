@@ -531,6 +531,22 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         return result
     }
 
+    override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
+    loadForAll(ref: RelToMany<FROM, TO>, sources: Collection<FROM>): Map<FROM, List<TO>> {
+        if (sources.isEmpty())
+            return emptyMap()
+
+        val futures = LinkedHashMap<FROM, Deferred<List<TO>>>()
+        for (source in sources)
+            futures[source] = defer { load(source, ref) }
+
+        val result = LinkedHashMap<FROM, List<TO>>()
+        for ((source, future) in futures)
+            result[source] = future.await()
+
+        return result
+    }
+
 
     override suspend fun <E : DbEntity<E, *>>
     count(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
