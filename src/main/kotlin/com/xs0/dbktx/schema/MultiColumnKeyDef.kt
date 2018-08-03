@@ -5,7 +5,6 @@ import com.xs0.dbktx.crud.BoundMultiColumnForSelect
 import com.xs0.dbktx.expr.*
 import com.xs0.dbktx.crud.EntityValues
 import com.xs0.dbktx.crud.TableInQuery
-import com.xs0.dbktx.util.Sql
 
 class MultiColumnKeyDef<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(
         override val table: DbTable<E, *>,
@@ -50,10 +49,17 @@ class MultiColumnKeyDef<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(
 
         for (i in 1..numColumns) {
             val part = getColumn(i)
-            val value = part.extract(values) ?: return null
-            row[part.indexInRow] = value
+            if (!extractSingleColumnValue(part, values, row)) {
+                return null
+            }
         }
 
-        return invoke(row)
+        return constructor(row)
+    }
+
+    private fun <T: Any> extractSingleColumnValue(part: NonNullColumn<E, T>, values: EntityValues<E>, row: ArrayList<Any?>): Boolean {
+        val value = part.extract(values) ?: return false
+        row[part.indexInRow] = part.sqlType.toJson(value)
+        return true
     }
 }

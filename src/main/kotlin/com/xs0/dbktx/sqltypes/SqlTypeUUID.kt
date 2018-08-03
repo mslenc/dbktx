@@ -15,9 +15,13 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
 
     private class VarcharRawChars(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
         override fun fromJson(value: Any): UUID {
-            val str = (value as String).trimToNull() ?: return emptyUUID
+            value as String
+            if (value == "")
+                return emptyUUID
+            if (value.length != 16)
+                throw IllegalArgumentException("Expected a string of length 16")
 
-            return str.toByteArray(ISO_8859_1).toUUID()
+            return value.toByteArray(ISO_8859_1).toUUID()
         }
 
         override fun toJson(value: UUID): String {

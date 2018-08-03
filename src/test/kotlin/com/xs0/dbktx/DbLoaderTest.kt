@@ -22,10 +22,9 @@ import kotlinx.coroutines.experimental.runBlocking
 import org.junit.Before
 import org.junit.Test
 
-import java.util.LinkedHashMap
-
 import java.util.Arrays.asList
 import org.junit.Assert.*
+import java.util.*
 
 class DbLoaderTest {
     @Before
@@ -55,10 +54,13 @@ class DbLoaderTest {
     fun testBatchedLoadingEntities() = runBlocking {
         var called = false
 
-        val id0 = Item.Id(sku = "abc", companyId = 123L)
-        val id1 = Item.Id(sku = "def", companyId = 123L)
-        val id2 = Item.Id(sku = "ghi", companyId = 234L)
-        val id3 = Item.Id(sku = "jkl", companyId = 234L)
+        val companyId1 = UUID.randomUUID()
+        val companyId2 = UUID.randomUUID()
+
+        val id0 = Item.Id(sku = "abc", companyId = companyId1)
+        val id1 = Item.Id(sku = "def", companyId = companyId1)
+        val id2 = Item.Id(sku = "ghi", companyId = companyId2)
+        val id3 = Item.Id(sku = "jkl", companyId = companyId2)
 
         var theSql = ""
         var theParams = JsonArray()
@@ -73,9 +75,9 @@ class DbLoaderTest {
                 val result = ResultSet(
                         asList("company_id", "sku", "brand_key", "name", "price", "t_created", "t_updated"),
                         asList(
-                                array(123L, "abc", "bk1", "Item 1", "123.45", "2017-06-27", "2017-06-27"),
-                                array(123L, "def", "bk2", "Item 2", "432.45", "2017-06-26", "2017-06-27"),
-                                array(234L, "ghi", "bk3", "Item 3", "500.45", "2017-06-25", "2017-06-27")
+                                array(companyId1.toString(), "abc", "bk1", "Item 1", "123.45", "2017-06-27", "2017-06-27"),
+                                array(companyId1.toString(), "def", "bk2", "Item 2", "432.45", "2017-06-26", "2017-06-27"),
+                                array(companyId2.toString(), "ghi", "bk3", "Item 3", "500.45", "2017-06-25", "2017-06-27")
                         ), null
                 )
 
@@ -103,9 +105,12 @@ class DbLoaderTest {
         assertTrue(called)
 
         assertEquals("SELECT I.company_id, I.sku, I.brand_key, I.name, I.price, I.t_created, I.t_updated " +
-                     "FROM items AS I WHERE (I.company_id, I.sku) IN ((234, ?), (123, ?), (123, ?), (234, ?))", theSql)
+                     "FROM items AS I WHERE (I.company_id, I.sku) IN ((?, ?), (?, ?), (?, ?), (?, ?))", theSql)
 
-        checkParams(theParams, id0.sku, id1.sku, id2.sku, id3.sku)
+        checkParams(theParams, id0.company_id.toString(), id0.sku,
+                               id1.company_id.toString(), id1.sku,
+                               id2.company_id.toString(), id2.sku,
+                               id3.company_id.toString(), id3.sku)
 
         results[2] = deferred[0].await()
         results[0] = deferred[1].await()
@@ -126,24 +131,27 @@ class DbLoaderTest {
     @Test
     fun testBatchedLoadingToMany() = runBlocking {
         val delayedExec = DelayedExec()
-        var theSql = ""
         var called = false
-        val comId0 = 412L
-        val comId1 = 314L
-        val comId2 = 541515L
+        var theSql = ""
+        var theParams = JsonArray()
+
+        val comId0 = UUID.randomUUID()
+        val comId1 = UUID.randomUUID()
+        val comId2 = UUID.randomUUID()
 
 
         val conn = object: MockSQLConnection() {
-            override fun query(sql: String, resultHandler: Handler<AsyncResult<ResultSet>>): SQLConnection {
+            override fun queryWithParams(sql: String, params: JsonArray, resultHandler: Handler<AsyncResult<ResultSet>>): SQLConnection {
                 called = true
                 theSql = sql
+                theParams = params
 
                 resultHandler.handle(Future.succeededFuture(ResultSet(
                         asList("company_id", "key", "name", "tag_line", "t_created", "t_updated"),
                         asList(
-                                array(comId1, "abc", "Abc (tm)", "We a-b-c for you!", "2017-04-27", "2017-05-27"),
-                                array(comId2, "baa", "Sheeps Inc.", "Wool and stool!", "2017-02-25", "2017-03-27"),
-                                array(comId1, "goo", "Gooey Phooey", "Tee hee mee bee", "2017-03-26", "2017-04-27")
+                                array(comId1.toString(), "abc", "Abc (tm)", "We a-b-c for you!", "2017-04-27", "2017-05-27"),
+                                array(comId2.toString(), "baa", "Sheeps Inc.", "Wool and stool!", "2017-02-25", "2017-03-27"),
+                                array(comId1.toString(), "goo", "Gooey Phooey", "Tee hee mee bee", "2017-03-26", "2017-04-27")
                         ), null
                 )))
                 return this
@@ -153,9 +161,9 @@ class DbLoaderTest {
         val db = DbLoaderImpl(conn, delayedExec)
 
 
-        val com0 = Company(db, comId0, listOf<Any?>(comId0, "company", "2017-06-01", "2017-06-13"))
-        val com1 = Company(db, comId1, listOf<Any?>(comId1, "corporation", "2017-06-02", "2017-06-12"))
-        val com2 = Company(db, comId2, listOf<Any?>(comId2, "organization", "2017-06-03", "2017-06-11"))
+        val com0 = Company(db, comId0, listOf<Any?>(comId0.toString(), "company", "2017-06-01", "2017-06-13"))
+        val com1 = Company(db, comId1, listOf<Any?>(comId1.toString(), "corporation", "2017-06-02", "2017-06-12"))
+        val com2 = Company(db, comId2, listOf<Any?>(comId2.toString(), "organization", "2017-06-03", "2017-06-11"))
 
         val futures = arrayOf (
             defer { db.load(com2, Company.BRANDS_SET) },
@@ -167,7 +175,10 @@ class DbLoaderTest {
         delayedExec.executePending()
         assertTrue(called)
 
-        assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B WHERE B.company_id IN ($comId2, $comId0, $comId1)", theSql)
+        assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B WHERE B.company_id IN (?, ?, ?)", theSql)
+        assertEquals(comId2.toString(), theParams.getString(0))
+        assertEquals(comId0.toString(), theParams.getString(1))
+        assertEquals(comId1.toString(), theParams.getString(2))
 
         assertEquals("C.id, C.name, C.t_created, C.t_updated", TestSchema1.COMPANY.defaultColumnNames)
 
@@ -194,9 +205,9 @@ class DbLoaderTest {
 
         var called = false
 
-        val id0 = Brand.Id("abc", 1024L)
-        val id1 = Brand.Id("baa", 256L)
-        val id2 = Brand.Id("goo", 16L)
+        val id0 = Brand.Id("abc", UUID.randomUUID())
+        val id1 = Brand.Id("baa", UUID.randomUUID())
+        val id2 = Brand.Id("goo", UUID.randomUUID())
 
         var theSql: String? = null
         var theParams: JsonArray? = null
@@ -209,10 +220,10 @@ class DbLoaderTest {
                 val resultSet = ResultSet(
                         asList("company_id", "key", "name", "tag_line", "t_created", "t_updated"),
                         asList(
-                                array(id1.companyId, "SHP001", id1.key, "A white sheep", "412.50", "2017-04-27", "2017-05-27"),
-                                array(id1.companyId, "SHP010", id1.key, "A black sheep", "999.95", "2017-03-27", "2017-04-27"),
-                                array(id1.companyId, "TOO001", id1.key, "A fine wool trimmer", "111.11", "2017-04-27", "2017-05-27"),
-                                array(id2.companyId, "GOO",    id2.key, "The Goo", "4.50", "2016-01-01", "2016-01-01")
+                                array(id1.companyId.toString(), "SHP001", id1.key, "A white sheep", "412.50", "2017-04-27", "2017-05-27"),
+                                array(id1.companyId.toString(), "SHP010", id1.key, "A black sheep", "999.95", "2017-03-27", "2017-04-27"),
+                                array(id1.companyId.toString(), "TOO001", id1.key, "A fine wool trimmer", "111.11", "2017-04-27", "2017-05-27"),
+                                array(id2.companyId.toString(), "GOO",    id2.key, "The Goo", "4.50", "2016-01-01", "2016-01-01")
                         ), null
                 )
 
@@ -225,9 +236,9 @@ class DbLoaderTest {
 
         assertEquals("B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated", TestSchema1.BRAND.defaultColumnNames)
 
-        val brand0 = Brand(db, id0, asList(id0.companyId, id0.key, "Abc (tm)", "We a-b-c for you!", "2017-04-27", "2017-05-27"))
-        val brand1 = Brand(db, id1, asList(id1.companyId, id1.key, "Sheeps Inc.", "Wool and stool!", "2017-02-25", "2017-03-27"))
-        val brand2 = Brand(db, id2, asList(id2.companyId, id2.key, "Gooey Phooey", "Tee hee mee bee", "2017-03-26", "2017-04-27"))
+        val brand0 = Brand(db, id0, asList(id0.companyId.toString(), id0.key, "Abc (tm)", "We a-b-c for you!", "2017-04-27", "2017-05-27"))
+        val brand1 = Brand(db, id1, asList(id1.companyId.toString(), id1.key, "Sheeps Inc.", "Wool and stool!", "2017-02-25", "2017-03-27"))
+        val brand2 = Brand(db, id2, asList(id2.companyId.toString(), id2.key, "Gooey Phooey", "Tee hee mee bee", "2017-03-26", "2017-04-27"))
 
         // these should contain the order of the following async call
         val idxof0 = 2
@@ -243,9 +254,11 @@ class DbLoaderTest {
         delayedExec.executePending()
         assertTrue(called)
 
-        assertEquals("SELECT I.company_id, I.sku, I.brand_key, I.name, I.price, I.t_created, I.t_updated FROM items AS I WHERE (I.brand_key, I.company_id) IN ((?, 256), (?, 16), (?, 1024))", theSql!!)
+        assertEquals("SELECT I.company_id, I.sku, I.brand_key, I.name, I.price, I.t_created, I.t_updated FROM items AS I WHERE (I.brand_key, I.company_id) IN ((?, ?), (?, ?), (?, ?))", theSql!!)
 
-        checkParams(theParams!!, id0.key, id1.key, id2.key)
+        checkParams(theParams!!, id0.key, id0.companyId.toString(),
+                                 id1.key, id1.companyId.toString(),
+                                 id2.key, id2.companyId.toString())
 
         val results = arrayOf(
             futures[0].await(),
