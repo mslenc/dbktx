@@ -2,14 +2,11 @@ group 'com.xs0'
 version '0.9-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.2.50'
-    ext.vertx_version = '3.5.2'
+    ext.kotlin_version = '1.2.60'
+    ext.vertx_version = '3.5.3'
 
     repositories {
         mavenCentral()
-        maven {
-            url('https://dl.bintray.com/kotlin/kotlin-eap-1.1')
-        }
     }
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
@@ -24,15 +21,12 @@ sourceCompatibility = 1.8
 repositories {
     mavenCentral()
     jcenter()
-    maven {
-        url('https://dl.bintray.com/kotlin/kotlin-eap-1.1')
-    }
 }
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
-    compile "org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.5"
+    compile "org.jetbrains.kotlinx:kotlinx-coroutines-core:0.24.0"
     compile "io.github.microutils:kotlin-logging:1.5.4"
 
     compile "io.vertx:vertx-core:$vertx_version"
