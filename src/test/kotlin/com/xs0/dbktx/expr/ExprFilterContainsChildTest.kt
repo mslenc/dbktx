@@ -1,11 +1,12 @@
 package com.xs0.dbktx.expr
 
 import com.xs0.dbktx.conn.DbLoaderImpl
+import com.xs0.dbktx.conn.RequestTime
 import com.xs0.dbktx.schemas.test1.Brand.Companion.ITEMS_SET
 import com.xs0.dbktx.schemas.test1.Item
 import com.xs0.dbktx.schemas.test1.TestSchema1
-import com.xs0.dbktx.util.DelayedExec
-import com.xs0.dbktx.util.MockSQLConnection
+import com.xs0.dbktx.util.testing.DelayedExec
+import com.xs0.dbktx.util.testing.MockSQLConnection
 import com.xs0.dbktx.util.defer
 import io.vertx.core.AsyncResult
 import io.vertx.core.Future
@@ -39,7 +40,7 @@ class ExprFilterContainsChildTest {
             }
         }
         val delayedExec = DelayedExec()
-        val db = DbLoaderImpl(connection, delayedExec)
+        val db = DbLoaderImpl(connection, delayedExec, RequestTime.forTesting())
 
         db.run { defer {
             TestSchema1.BRAND.query {

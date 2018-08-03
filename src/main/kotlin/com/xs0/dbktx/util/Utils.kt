@@ -3,10 +3,9 @@ package com.xs0.dbktx.util
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
 import kotlinx.coroutines.experimental.*
-import mu.KotlinLogging
 import java.lang.Long.reverseBytes
-import kotlin.coroutines.experimental.Continuation
 import kotlin.coroutines.experimental.suspendCoroutine
+import java.util.regex.Pattern
 
 private object HexUtil {
     val reverseHex: IntArray = kotlin.IntArray(256).apply {
@@ -227,4 +226,17 @@ fun String?.trimToNull(): String? {
         return null
 
     return trimmed
+}
+
+private val wordPattern: Pattern = Pattern.compile("\\b\\w+\\b", Pattern.CASE_INSENSITIVE or Pattern.UNICODE_CHARACTER_CLASS or Pattern.UNICODE_CASE)
+
+fun extractWordsForSearch(query: String): List<String> {
+    val matcher = wordPattern.matcher(query)
+    val result = ArrayList<String>()
+    while (matcher.find()) {
+        val word = matcher.group().trim { !it.isLetterOrDigit() }
+        if (word.isNotEmpty())
+            result.add(word)
+    }
+    return result
 }

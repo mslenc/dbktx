@@ -1,4 +1,4 @@
-package com.xs0.dbktx.util
+package com.xs0.dbktx.util.testing
 
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler

@@ -17,16 +17,20 @@ class ExprFilterContainsChild<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         val mappings = info.columnMappings
         val n = mappings.size
 
+        // for now, we expect never to get here, if we don't have actual columns (instead, there are CONSTANT or PARAMETER mappings)
+        // TODO: we could actually do it - CONSTANTs would become simple restrictions on this table, and PARAMETERS could be ignored,
+        // but it's unclear if it'd be actually useful anywhere, so postponing for now
+
         sql.expr(topLevel) {
             paren(n > 1) {
                 tuple(mappings) {
-                    sql(it.columnTo.bindForSelect(parentTable), false)
+                    sql(it.bindColumnTo(parentTable), false)
                 }
             }
             +(if (negated) " NOT IN " else " IN ")
             +"(SELECT "
             tuple(mappings) {
-                +it.columnFrom.bindForSelect(childTable)
+                +it.bindColumnFrom(childTable)
             }
             FROM(info.manyTable, childTable.tableAlias)
             WHERE(filter)

@@ -2,14 +2,14 @@ package com.xs0.dbktx
 
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.conn.DbLoaderImpl
+import com.xs0.dbktx.conn.RequestTime
 import com.xs0.dbktx.schemas.test1.Brand
 import com.xs0.dbktx.schemas.test1.Company
 import com.xs0.dbktx.schemas.test1.Item
 import com.xs0.dbktx.schemas.test1.TestSchema1
 import com.xs0.dbktx.schemas.test1.TestSchema1.ITEM
-//import com.xs0.dbktx.schemas.test1.TestSchema1.tablesByDbName
-import com.xs0.dbktx.util.DelayedExec
-import com.xs0.dbktx.util.MockSQLConnection
+import com.xs0.dbktx.util.testing.DelayedExec
+import com.xs0.dbktx.util.testing.MockSQLConnection
 import com.xs0.dbktx.util.defer
 import io.vertx.core.AsyncResult
 import io.vertx.core.Future
@@ -35,13 +35,13 @@ class DbLoaderTest {
     private fun checkParams(array: JsonArray, vararg expected: Any) {
         val exp = LinkedHashMap<Any, Int>()
         for (e in expected)
-            exp.compute(e) { a, b ->
+            exp.compute(e) { _, b ->
                 if (b == null) 1 else 1 + b
             }
 
         val actual = LinkedHashMap<Any, Int>()
         for (e in array.list)
-            actual.compute(e!!) { a, b -> if (b == null) 1 else 1 + b }
+            actual.compute(e!!) { _, b -> if (b == null) 1 else 1 + b }
 
         assertEquals(exp, actual)
     }
@@ -88,7 +88,7 @@ class DbLoaderTest {
         }
 
         val delayedExec = DelayedExec()
-        val loader = DbLoaderImpl(conn, delayedExec)
+        val loader = DbLoaderImpl(conn, delayedExec, RequestTime.forTesting())
 
         val results = arrayOfNulls<Item>(4)
 
@@ -158,7 +158,7 @@ class DbLoaderTest {
             }
         }
 
-        val db = DbLoaderImpl(conn, delayedExec)
+        val db = DbLoaderImpl(conn, delayedExec, RequestTime.forTesting())
 
 
         val com0 = Company(db, comId0, listOf<Any?>(comId0.toString(), "company", "2017-06-01", "2017-06-13"))
@@ -211,7 +211,7 @@ class DbLoaderTest {
 
         var theSql: String? = null
         var theParams: JsonArray? = null
-        var conn = object : MockSQLConnection() {
+        val conn = object : MockSQLConnection() {
             override fun queryWithParams(sql: String, params: JsonArray, resultHandler: Handler<AsyncResult<ResultSet>>): SQLConnection {
                 called = true
                 theSql = sql
@@ -232,7 +232,7 @@ class DbLoaderTest {
             }
         }
 
-        val db: DbConn = DbLoaderImpl(conn, delayedExec)
+        val db: DbConn = DbLoaderImpl(conn, delayedExec, RequestTime.forTesting())
 
         assertEquals("B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated", TestSchema1.BRAND.defaultColumnNames)
 

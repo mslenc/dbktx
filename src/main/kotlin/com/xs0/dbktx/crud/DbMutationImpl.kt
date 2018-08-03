@@ -44,16 +44,16 @@ internal abstract class DbMutationImpl<E : DbEntity<E, ID>, ID: Any> protected c
 
     private fun <TARGET : DbEntity<TARGET, TID>, TID, VALTYPE: Any>
     doColMap(colMap: ColumnMapping<E, TARGET, VALTYPE>, target: TARGET) {
-        val colFrom = colMap.columnFrom
-        val colTo = colMap.columnTo
+        if (colMap.columnFromKind != ColumnInMappingKind.COLUMN)
+            return // TODO: check that constants and parameters match target?
 
-        if (colFrom is NonNullColumn) {
-            set(colFrom, colTo.invoke(target))
-        } else
-        if (colFrom is NullableColumn) {
-            set(colFrom, colTo.invoke(target))
-        } else {
-            throw IllegalStateException("Column is neither nullable or nonNull")
+        val colFrom = colMap.rawColumnFrom
+        val colTo = colMap.rawColumnTo
+
+        when (colFrom) {
+            is NonNullColumn -> set(colFrom, colTo.invoke(target))
+            is NullableColumn -> set(colFrom, colTo.invoke(target))
+            else -> throw IllegalStateException("Column is neither nullable or nonNull")
         }
     }
 }

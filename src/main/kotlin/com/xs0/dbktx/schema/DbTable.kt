@@ -30,7 +30,9 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
     internal val columnsByDbName = HashMap<String, Column<E, *>>()
 
     internal lateinit var factory: (DbConn, ID, List<Any?>) -> E
-    internal lateinit var primaryKey: UniqueKeyDef<E, ID>
+    lateinit var primaryKey: UniqueKeyDef<E, ID>
+        internal set
+
     internal val uniqueKeys = ArrayList<UniqueKeyDef<E, *>>()
 
     internal lateinit var defaultColumnNames: String
@@ -101,10 +103,7 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         val values = arrayOfNulls<Any>(n)
         for (i in 0 until n) {
             val column = columns[i]
-            val jsonValue = jsonObject.getValue(column.fieldName)
-            if (jsonValue != null) {
-                values[column.indexInRow] = column.sqlType.fromJson(jsonValue)
-            }
+            values[column.indexInRow] = jsonObject.getValue(column.fieldName)
         }
 
         return listOf(*values)

@@ -20,7 +20,7 @@ class ManyToOneInfo<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TO_KEY : Any
 
     init {
         for (mapping in columnMappings) {
-            mappingToOneId[mapping.columnTo.indexInRow] = { entity ->
+            mappingToOneId[mapping.rawColumnTo.indexInRow] = { entity ->
                 doMapping(mapping, entity)
             }
         }
@@ -33,8 +33,13 @@ class ManyToOneInfo<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TO_KEY : Any
     }
 
     internal fun <T : Any> doMapping(mapping: ColumnMapping<FROM, TO, T>, source: FROM): Any? {
-        val value = mapping.columnFrom(source)
-        val targetField = mapping.columnTo
+        val value = if (mapping.columnFromKind == ColumnInMappingKind.COLUMN) {
+            mapping.rawColumnFrom(source)
+        } else {
+            mapping.rawLiteralFromValue
+        }
+
+        val targetField = mapping.rawColumnTo
         return targetField.sqlType.toJson(value!!)
     }
 
@@ -57,7 +62,7 @@ class ManyToOneInfo<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TO_KEY : Any
             }
         } else {
             @Suppress("UNCHECKED_CAST")
-            val columnFrom = columnMappings[0].columnFrom as Column<FROM, TO_KEY>
+            val columnFrom = columnMappings[0].rawColumnFrom as Column<FROM, TO_KEY> // (we don't allow all-constant refs, and if there's only one, it has to be a column)
 
             return { idsSet, tableInQuery ->
                 if (idsSet.isEmpty())

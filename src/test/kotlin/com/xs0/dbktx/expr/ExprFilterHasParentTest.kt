@@ -1,11 +1,12 @@
 package com.xs0.dbktx.expr
 
 import com.xs0.dbktx.conn.DbLoaderImpl
+import com.xs0.dbktx.conn.RequestTime
 import com.xs0.dbktx.schemas.test1.Brand.Companion.COMPANY_REF
 import com.xs0.dbktx.schemas.test1.Company
 import com.xs0.dbktx.schemas.test1.TestSchema1
-import com.xs0.dbktx.util.DelayedExec
-import com.xs0.dbktx.util.MockSQLConnection
+import com.xs0.dbktx.util.testing.DelayedExec
+import com.xs0.dbktx.util.testing.MockSQLConnection
 import com.xs0.dbktx.util.defer
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
@@ -37,7 +38,7 @@ class ExprFilterHasParentTest {
         }
 
         val delayedExec = DelayedExec()
-        val db = DbLoaderImpl(connection, delayedExec)
+        val db = DbLoaderImpl(connection, delayedExec, RequestTime.forTesting())
 
         val deferred = db.run { defer {
             TestSchema1.BRAND.query {
@@ -75,7 +76,7 @@ class ExprFilterHasParentTest {
         }
 
         val delayedExec = DelayedExec()
-        val db = DbLoaderImpl(connection, delayedExec)
+        val db = DbLoaderImpl(connection, delayedExec, RequestTime.forTesting())
 
         val deferred = db.run { defer {
             val query = newQuery(TestSchema1.BRAND)
@@ -92,7 +93,7 @@ class ExprFilterHasParentTest {
         delayedExec.executePending()
         assertTrue(called.get())
 
-        assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B INNER JOIN companies AS C ON B.company_id = C.id WHERE (C.name >= ?) ORDER BY C.name", theSql)
+        assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B INNER JOIN companies AS C ON C.id = B.company_id WHERE (C.name >= ?) ORDER BY C.name", theSql)
 
         assertEquals(1, theParams!!.size())
         assertEquals("qwe", theParams!!.getString(0))
