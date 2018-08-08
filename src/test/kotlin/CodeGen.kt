@@ -76,7 +76,7 @@ object CodeGen {
         val conn: Connection = DriverManager.getConnection(conf.jdbcUrl, conf.username, conf.password)
         val codeGen = CodeGenerator(conn, conf)
 
-        println(codeGen.handleTable("dovolilnice_artikli"))
+        println(codeGen.handleTable("trg_artikli_cene"))
     }
 
     fun findConfFile(): CodeGenConf {
@@ -384,7 +384,7 @@ internal class CodeGenerator(private val conn: Connection, private val conf: Cod
         }
 
         if (numPrimary > 1)
-            sb.appendln("\n        val $ID = b.compositeId(::Id)")
+            sb.appendln("\n        val $ID = b.primaryKey(::Id)")
 
         sb.appendln()
         sb.appendln("        init {")
