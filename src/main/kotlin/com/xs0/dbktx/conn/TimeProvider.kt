@@ -15,6 +15,8 @@ interface RequestTime {
     val localDate: LocalDate get() = localDateTime.toLocalDate()
     val localTime: LocalTime get() = localDateTime.toLocalTime()
 
+    val timeZone: ZoneId
+
     companion object {
         fun forTesting(): RequestTime {
             return SimpleRequestTime(Instant.now(), ZoneId.systemDefault())
@@ -27,6 +29,9 @@ class SimpleRequestTime(override val instant: Instant, zoneId: ZoneId): RequestT
 
     override val localDateTime: LocalDateTime
         get() = zonedDateTime.toLocalDateTime()
+
+    override val timeZone: ZoneId
+        get() = zonedDateTime.zone
 }
 
 class TimeProviderFromClock(val clock: Clock): TimeProvider {
