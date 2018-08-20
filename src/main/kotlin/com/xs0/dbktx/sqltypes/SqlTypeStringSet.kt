@@ -60,7 +60,6 @@ class SqlTypeStringSet(private val concreteType: SqlTypeKind,
         get() = StringSet::class
 
     override fun toSql(value: StringSet, sql: Sql) {
-        sql(toJson(value))
         val sb = StringBuilder()
 
         if (surroundedWithCommas)

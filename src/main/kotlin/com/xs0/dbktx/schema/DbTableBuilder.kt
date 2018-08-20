@@ -78,6 +78,22 @@ internal constructor(
     }
 
 
+    fun <T: Any> nonNullStringJson(fieldName: String, type: SqlTypeDef, getter: (E) -> T, parsedClass: KClass<T>, dummyValue: T): NonNullColumn<E, T> {
+
+        val sqlType = SqlTypes.makeStringJson(type.sqlTypeKind, size = type.param1, isNotNull = true, parsedClass = parsedClass, dummyValue = dummyValue)
+        val column = NonNullColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column)
+        return column
+    }
+
+    fun <T: Any> nullableStringJson(fieldName: String, type: SqlTypeDef, getter: (E) -> T?, parsedClass: KClass<T>, dummyValue: T): NullableColumn<E, T> {
+
+        val sqlType = SqlTypes.makeStringJson(type.sqlTypeKind, size = type.param1, isNotNull = false, parsedClass = parsedClass, dummyValue = dummyValue)
+        val column = NullableColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column)
+        return column
+    }
+
 
     fun nonNullInt(fieldName: String, type: SqlTypeDef, getter: (E) -> Int,
                    primaryKey: Boolean? = null,
