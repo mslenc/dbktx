@@ -109,7 +109,8 @@ internal object SqlTypes {
 
     fun makeLocalDateTime(sqlType: SqlTypeKind, isNotNull: Boolean): SqlType<LocalDateTime> {
         when (sqlType) {
-            DATETIME ->
+            DATETIME,
+            TIMESTAMP ->
                 return SqlTypeLocalDateTime(sqlType, isNotNull = isNotNull)
 
             else ->
@@ -175,12 +176,6 @@ internal object SqlTypes {
 //        }
 //    }
 
-    fun makeEnumString(sqlType: SqlTypeKind, enums: Set<String>, isNotNull: Boolean): SqlType<String> {
-        if (sqlType != ENUM)
-            throw IllegalArgumentException("No mapping from $sqlType to String enum")
-
-        return SqlTypeEnumString(enums, isNotNull)
-    }
 
     fun makeBigDecimal(sqlType: SqlTypeKind, precision: Int, scale: Int, isNotNull: Boolean, isUnsigned: Boolean): SqlType<BigDecimal> {
         return SqlTypeBigDecimal(sqlType, precision, scale, isNotNull = isNotNull, isUnsigned = isUnsigned)
@@ -193,6 +188,17 @@ internal object SqlTypes {
             }
 
             else -> throw UnsupportedOperationException("No mapping from $sqlType to int(enum)")
+        }
+    }
+
+    internal fun <ENUM : Enum<ENUM>> makeEnumToString(klass: KClass<ENUM>, dummyValue: ENUM, sqlType: SqlTypeKind, toDbRep: (ENUM)->String, fromDbRep: (String)->ENUM, isNotNull: Boolean): SqlType<ENUM> {
+        when (sqlType) {
+            ENUM,
+            CHAR, VARCHAR, TINYTEXT, TEXT, MEDIUMTEXT, LONGTEXT -> {
+                return SqlTypeEnumString(klass, toDbRep, fromDbRep, isNotNull, dummyValue)
+            }
+
+            else -> throw UnsupportedOperationException("No mapping from $sqlType to string(enum)")
         }
     }
 }

@@ -7,7 +7,8 @@ import kotlin.reflect.KClass
 
 class SqlTypeLocalDateTime(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<LocalDateTime>(isNotNull = isNotNull) {
     init {
-        if (concreteType != SqlTypeKind.DATETIME)
+        // timestamp should be Instant, but it currently becomes LocalDateTime
+        if (concreteType != SqlTypeKind.DATETIME && concreteType != SqlTypeKind.TIMESTAMP)
             throw IllegalArgumentException("Unsupported type " + concreteType)
     }
 

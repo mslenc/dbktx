@@ -11,7 +11,6 @@ import com.xs0.dbktx.composite.CompositeId2
 import com.xs0.dbktx.composite.CompositeId3
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.fieldprops.SqlTypeDef
-import com.xs0.dbktx.sqltypes.SqlTypeKind
 import com.xs0.dbktx.util.StringSet
 import java.util.*
 
@@ -368,31 +367,68 @@ internal constructor(
         return column
     }
 
+    inline fun <reified ENUM : Enum<ENUM>>
+            nonNullStringEnum(fieldName: String,
+                              typeDef: SqlTypeDef,
+                              noinline getter: (E) -> ENUM,
+                              noinline toDbRep: (ENUM)->String,
+                              noinline fromDbRep: (String)->ENUM,
+                              primaryKey: Boolean = false
+                              ): NonNullColumn<E, ENUM> {
 
-    fun nonNullStringEnum(fieldName: String,
-                          values: Set<String>,
-                          getter: (E) -> String,
-                          type: SqlTypeDef = SqlTypeDef(SqlTypeKind.ENUM),
-                          primaryKey: Boolean = false
-                          ): NonNullColumn<E, String> {
+        val klass = ENUM::class
+        val dummyValue = enumValues<ENUM>()[0]
 
-        val sqlType = SqlTypes.makeEnumString(type.sqlTypeKind, values, isNotNull = true)
+        return nonNullStringEnum(fieldName, typeDef, getter, toDbRep, fromDbRep, klass, dummyValue, primaryKey = primaryKey)
+    }
+
+    fun <ENUM : Enum<ENUM>>
+            nonNullStringEnum(fieldName: String,
+                              typeDef: SqlTypeDef,
+                              getter: (E) -> ENUM,
+                              toDbRep: (ENUM)->String,
+                              fromDbRep: (String)->ENUM,
+                              klass: KClass<ENUM>,
+                              dummyValue: ENUM,
+                              primaryKey: Boolean = false
+    ): NonNullColumn<E, ENUM> {
+
+        val sqlType = SqlTypes.makeEnumToString(klass, dummyValue, typeDef.sqlTypeKind, toDbRep, fromDbRep, isNotNull = true)
         val column = NonNullColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
         finishAddColumn(column, isPrimaryKey = primaryKey)
         return column
     }
 
-    fun nullableStringEnum(fieldName: String,
-                          values: Set<String>,
-                          getter: (E) -> String?,
-                          type: SqlTypeDef = SqlTypeDef(SqlTypeKind.ENUM)
-                          ): NullableColumn<E, String> {
+    inline fun <reified ENUM : Enum<ENUM>>
+            nullableStringEnum(fieldName: String,
+                               typeDef: SqlTypeDef,
+                               noinline getter: (E) -> ENUM?,
+                               noinline toDbRep: (ENUM)->String,
+                               noinline fromDbRep: (String)->ENUM
+                               ): NullableColumn<E, ENUM> {
 
-        val sqlType = SqlTypes.makeEnumString(type.sqlTypeKind, values, isNotNull = false)
+        val klass = ENUM::class
+        val dummyValue = enumValues<ENUM>()[0]
+
+        return nullableStringEnum(fieldName, typeDef, getter, toDbRep, fromDbRep, klass, dummyValue)
+    }
+
+    fun <ENUM : Enum<ENUM>>
+            nullableStringEnum(fieldName: String,
+                               typeDef: SqlTypeDef,
+                               getter: (E) -> ENUM?,
+                               toDbRep: (ENUM)->String,
+                               fromDbRep: (String)->ENUM,
+                               klass: KClass<ENUM>,
+                               dummyValue: ENUM
+                               ): NullableColumn<E, ENUM> {
+
+        val sqlType = SqlTypes.makeEnumToString(klass, dummyValue, typeDef.sqlTypeKind, toDbRep, fromDbRep, isNotNull = true)
         val column = NullableColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
         finishAddColumn(column)
         return column
     }
+
 
 
     inline fun <reified ENUM : Enum<ENUM>>
