@@ -1,5 +1,6 @@
 package com.xs0.dbktx.schema
 
+import com.xs0.asyncdb.common.RowData
 import com.xs0.dbktx.crud.EntityValues
 import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.expr.Expr
@@ -59,7 +60,7 @@ internal class SingleColumnKeyDefImpl<E: DbEntity<E, *>, T: Any>(
         return column.bindForSelect(tableInQuery)
     }
 
-    override fun invoke(row: List<Any?>): T {
+    override fun invoke(row: RowData): T {
         return column(row)
     }
 

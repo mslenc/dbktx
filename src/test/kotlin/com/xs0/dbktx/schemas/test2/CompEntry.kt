@@ -1,5 +1,6 @@
 package com.xs0.dbktx.schemas.test2
 
+import com.xs0.asyncdb.common.RowData
 import com.xs0.dbktx.composite.CompositeId3
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.fieldprops.INT
@@ -7,7 +8,7 @@ import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.DbTable
 
 
-class CompEntry(db: DbConn, id: Int, private val row: List<Any?>)
+class CompEntry(db: DbConn, id: Int, private val row: RowData)
     : DbEntity<CompEntry, Int>(db, id) {
 
     override val metainfo get() = CompEntry
@@ -28,7 +29,7 @@ class CompEntry(db: DbConn, id: Int, private val row: List<Any?>)
         val idWeight: Int get() = component3
 
         constructor(idPerson: Int, idCountry: Int, idWeight: Int) : super(idPerson, idCountry, idWeight)
-        constructor(row: List<Any?>) : super(row)
+        constructor(row: RowData) : super(row)
 
         override val tableMetainfo get() = CompEntry
     }

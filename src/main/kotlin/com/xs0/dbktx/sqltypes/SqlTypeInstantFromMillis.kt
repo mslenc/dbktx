@@ -21,20 +21,25 @@ class SqlTypeInstantFromMillis(concreteType: SqlTypeKind, isNotNull: Boolean) : 
             throw IllegalArgumentException("Unsupported type $concreteType")
     }
 
-    override fun fromJson(value: Any): Instant {
-        if (value is Long) {
+    override fun parseRowDataValue(value: Any): Instant {
+        if (value is Long)
             return Instant.ofEpochMilli(value)
-        }
 
-        if (value is Number) {
+        if (value is Number)
             return Instant.ofEpochMilli(value.toLong())
-        }
+
+        if (value is Instant)
+            return value
 
         throw IllegalArgumentException("Not a long(instant millis) value - $value")
     }
 
-    override fun toJson(value: Instant): Long {
+    override fun encodeForJson(value: Instant): Long {
         return value.toEpochMilli()
+    }
+
+    override fun decodeFromJson(value: Any): Instant {
+        return parseRowDataValue(value)
     }
 
     override val dummyValue: Instant

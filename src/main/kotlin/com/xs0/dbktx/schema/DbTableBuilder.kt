@@ -1,7 +1,7 @@
 package com.xs0.dbktx.schema
 
+import com.xs0.asyncdb.common.RowData
 import com.xs0.dbktx.composite.CompositeId
-import com.xs0.dbktx.sqltypes.SqlType
 import com.xs0.dbktx.sqltypes.SqlTypes
 import java.math.BigDecimal
 import java.time.*
@@ -11,6 +11,7 @@ import com.xs0.dbktx.composite.CompositeId2
 import com.xs0.dbktx.composite.CompositeId3
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.fieldprops.SqlTypeDef
+import com.xs0.dbktx.util.FakeRowData
 import com.xs0.dbktx.util.StringSet
 import java.util.*
 
@@ -20,7 +21,7 @@ internal constructor(
 
     private var primaryKeyInitialized: Boolean = false
 
-    fun build(factory: (DbConn, ID, List<Any?>) -> E): DbTable<E, ID> {
+    fun build(factory: (DbConn, ID, RowData) -> E): DbTable<E, ID> {
         table.factory = factory
 
         val columnNames = StringBuilder()
@@ -541,7 +542,7 @@ internal constructor(
     // TODO: boolean?
 
 
-    internal fun dummyRow(): List<Any> {
+    internal fun dummyRow(): RowData {
         return dummyRow(table.columns)
     }
 
@@ -697,7 +698,7 @@ internal constructor(
     }
 
     fun <T: CompositeId<E, T>>
-    uniqueKey(keyBuilder: (List<Any?>)->T, keyExtractor: (E)->T): MultiColumnKeyDef<E, T> {
+    uniqueKey(keyBuilder: (RowData)->T, keyExtractor: (E)->T): MultiColumnKeyDef<E, T> {
         if (!primaryKeyInitialized)
             throw IllegalStateException("Must first set primary key, before other keys in table " + table.dbName)
 
@@ -717,17 +718,13 @@ internal constructor(
         const val PRIORITY_REL_TO_ONE = 1
         const val PRIORITY_REL_TO_MANY = 2
 
-        internal fun <E : DbEntity<E, *>> dummyRow(columns: ArrayList<Column<E, *>>): List<Any> {
-            val res = ArrayList<Any>()
+        internal fun <E : DbEntity<E, *>> dummyRow(columns: ArrayList<Column<E, *>>): RowData {
+            val res = FakeRowData()
 
             for (column in columns)
-                addDummy(column.sqlType, res)
+                res.insertDummyValue(column)
 
             return res
-        }
-
-        private fun <T: Any> addDummy(sqlType: SqlType<T>, out: MutableList<Any>) {
-            out.add(sqlType.toJson(sqlType.dummyValue))
         }
     }
 }

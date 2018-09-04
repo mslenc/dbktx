@@ -1,8 +1,7 @@
 package com.xs0.dbktx.schemas.test1
 
+import com.xs0.asyncdb.common.RowData
 import com.xs0.dbktx.conn.DbConn
-import com.xs0.dbktx.fieldprops.BIGINT
-import com.xs0.dbktx.fieldprops.BINARY
 import com.xs0.dbktx.fieldprops.DATETIME
 import com.xs0.dbktx.fieldprops.VARCHAR
 import com.xs0.dbktx.schema.DbEntity
@@ -11,7 +10,7 @@ import com.xs0.dbktx.schema.DbTable
 import java.time.LocalDateTime
 import java.util.*
 
-class Company(db: DbConn, id: UUID, private val row: List<Any?>)
+class Company(db: DbConn, id: UUID, private val row: RowData)
     : DbEntity<Company, UUID>(db, id) {
 
     override val metainfo get() = Company

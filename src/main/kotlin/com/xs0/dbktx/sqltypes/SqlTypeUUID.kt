@@ -2,7 +2,6 @@ package com.xs0.dbktx.sqltypes
 
 import com.xs0.dbktx.util.*
 import com.xs0.dbktx.util.SpecialValues.emptyUUID
-import java.util.Base64
 import java.util.UUID
 
 import java.nio.charset.StandardCharsets.ISO_8859_1
@@ -13,87 +12,60 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
 
     override val kotlinType: KClass<UUID> = UUID::class
 
-    private class VarcharRawChars(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
-        override fun fromJson(value: Any): UUID {
-            value as String
-            if (value == "")
-                return emptyUUID
-            if (value.length != 16)
-                throw IllegalArgumentException("Expected a string of length 16")
-
-            return value.toByteArray(ISO_8859_1).toUUID()
-        }
-
-        override fun toJson(value: UUID): String {
-            return if (value === emptyUUID) {
-                ""
-            } else {
-                String(value.toBytes(), ISO_8859_1)
-            }
-        }
-
-        override fun toSql(value: UUID, sql: Sql) {
-            sql(toJson(value))
-        }
+    override fun encodeForJson(value: UUID): Any {
+        return if (value === emptyUUID) "" else value.toString()
     }
 
-    private class VarcharBase64(isNotNull: Boolean, private val skipPadding: Boolean) : SqlTypeUUID(isNotNull) {
-
-        override fun fromJson(value: Any): UUID {
-            val str = (value as String).trimToNull() ?: return emptyUUID
-
-            return Base64.getDecoder().decode(str).toUUID()
-        }
-
-        override fun toJson(value: UUID): String {
-            if (value === emptyUUID)
-                return ""
-
-            val bytes = value.toBytes()
-            return if (skipPadding) {
-                Base64.getEncoder().withoutPadding().encodeToString(bytes)
+    override fun decodeFromJson(value: Any): UUID {
+        if (value is CharSequence) {
+            return if (value == "") {
+                emptyUUID
             } else {
-                Base64.getEncoder().encodeToString(bytes)
+                UUID.fromString(value.toString())
             }
         }
 
-        override fun toSql(value: UUID, sql: Sql) {
-            sql(toJson(value))
-        }
+        throw IllegalArgumentException("Expected a UUID String")
     }
 
     private class VarcharHex(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
-        override fun fromJson(value: Any): UUID {
-            val str = (value as String).trimToNull() ?: return emptyUUID
+        override fun parseRowDataValue(value: Any): UUID {
+            if (value is UUID)
+                return value
 
-            return bytesFromHex(str).toUUID()
-        }
+            if (value is CharSequence) {
+                return if (value.isNotEmpty()) {
+                    bytesFromHex(value.toString()).toUUID()
+                } else {
+                    emptyUUID
+                }
+            }
 
-        override fun toJson(value: UUID): String {
-            if (value === emptyUUID)
-                return ""
-
-            return toHexString(value.toBytes())
+            throw IllegalArgumentException("Expected a 32-character hex string")
         }
 
         override fun toSql(value: UUID, sql: Sql) {
-            sql(toJson(value))
+            if (value === emptyUUID) {
+                sql("")
+            } else {
+                sql(toHexString(value.toBytes()))
+            }
         }
     }
 
     private class VarcharFullString(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
+        override fun parseRowDataValue(value: Any): UUID {
+            if (value is UUID)
+                return value
 
-        override fun fromJson(value: Any): UUID {
-            val str = (value as String).trimToNull() ?: return emptyUUID
+            if (value is CharSequence) {
+                return if (value.isNotEmpty())
+                    UUID.fromString(value.toString())
+                else
+                    emptyUUID
+            }
 
-            return UUID.fromString(str)
-        }
-
-        override fun toJson(value: UUID): String {
-            if (value === emptyUUID)
-                return ""
-
-            return value.toString()
+            throw IllegalArgumentException("Expected a 36-character UUID string")
         }
 
         override fun toSql(value: UUID, sql: Sql) {
@@ -106,18 +78,19 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
     }
 
     private class BinaryRawChars(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
+        override fun parseRowDataValue(value: Any): UUID {
+            if (value is UUID)
+                return value
 
-        override fun fromJson(value: Any): UUID {
-            val str = (value as String).trimToNull() ?: return emptyUUID
+            if (value is ByteArray) {
+                return if (value.size == 0) {
+                    emptyUUID
+                } else {
+                    value.toUUID()
+                }
+            }
 
-            return Base64.getDecoder().decode(str).toUUID()
-        }
-
-        override fun toJson(value: UUID): String {
-            if (value === emptyUUID)
-                return ""
-
-            return Base64.getEncoder().encodeToString(value.toBytes())
+            throw IllegalArgumentException("Expected 16 bytes of UUID")
         }
 
         override fun toSql(value: UUID, sql: Sql) {
@@ -129,88 +102,20 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
         }
     }
 
-    private class BinaryBase64(isNotNull: Boolean, private val skipPadding: Boolean) : SqlTypeUUID(isNotNull) {
-
-        override fun fromJson(value: Any): UUID {
-            // we have base64 in DB, and then again in the json thing (due to being binary)
-            val str = (value as String).trimToNull() ?: return emptyUUID
-
-            val base64 = Base64.getDecoder().decode(str)
-            return Base64.getDecoder().decode(base64).toUUID()
-        }
-
-        override fun toJson(value: UUID): String {
-            if (value === emptyUUID)
-                return ""
-
-            val bytes = value.toBytes()
-            val base64 = if (skipPadding)
-                Base64.getEncoder().withoutPadding().encode(bytes)
-            else
-                Base64.getEncoder().encode(bytes)
-
-            // that base64 is what is eventually DB, and we have to encode again for JSON
-            return Base64.getEncoder().encodeToString(base64)
-        }
-
-        override fun toSql(value: UUID, sql: Sql) {
-            if (value === emptyUUID) {
-                sql.raw("''")
-                return
-            }
-
-            val bytes = value.toBytes()
-            val base64 = if (skipPadding)
-                Base64.getEncoder().withoutPadding().encode(bytes)
-            else
-                Base64.getEncoder().encode(bytes)
-
-            sql(base64)
-        }
-    }
-
-    private class BinaryHex(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
-
-        override fun fromJson(value: Any): UUID {
-            val str = (value as String).trimToNull() ?: return emptyUUID
-
-            val hexBytes = Base64.getDecoder().decode(str)
-            val bytes = bytesFromHex(hexBytes)
-            return bytes.toUUID()
-        }
-
-        override fun toJson(value: UUID): String {
-            if (value === emptyUUID)
-                return ""
-
-            val hex = toHexBytes(value.toBytes())
-            return Base64.getEncoder().encodeToString(hex)
-        }
-
-        override fun toSql(value: UUID, sql: Sql) {
-            if (value === emptyUUID) {
-                sql.raw("''")
-            } else {
-                sql(toHexBytes(value.toBytes()))
-            }
-        }
-    }
-
     private class BinaryFullString(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
+        override fun parseRowDataValue(value: Any): UUID {
+            if (value is UUID)
+                return value
 
-        override fun fromJson(value: Any): UUID {
-            val str = (value as String).trimToNull() ?: return emptyUUID
+            if (value is ByteArray) {
+                if (value.size == 0)
+                    return emptyUUID
 
-            val bytes = Base64.getDecoder().decode(str)
-            return UUID.fromString(String(bytes, ISO_8859_1))
-        }
+                if (value.size == 36)
+                    return UUID.fromString(String(value, ISO_8859_1))
+            }
 
-        override fun toJson(value: UUID): String {
-            if (value === emptyUUID)
-                return ""
-
-            val bytes = value.toString().toByteArray(ISO_8859_1)
-            return Base64.getEncoder().encodeToString(bytes)
+            throw IllegalArgumentException("Expected 36 bytes of UUID in string form")
         }
 
         override fun toSql(value: UUID, sql: Sql) {
@@ -229,9 +134,6 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
             when (concreteType) {
                 SqlTypeKind.CHAR, SqlTypeKind.VARCHAR ->
                     when (typeSize) {
-                        16 -> return VarcharRawChars(isNotNull)
-                        22 -> return VarcharBase64(isNotNull, skipPadding = true)
-                        24 -> return VarcharBase64(isNotNull, skipPadding = false)
                         32 -> return VarcharHex(isNotNull)
 
                         else -> if (typeSize >= 36)
@@ -241,9 +143,6 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
                 SqlTypeKind.BINARY, SqlTypeKind.VARBINARY ->
                     when (typeSize) {
                         16 -> return BinaryRawChars(isNotNull)
-                        22 -> return BinaryBase64(isNotNull, skipPadding = true)
-                        24 -> return BinaryBase64(isNotNull, skipPadding = false)
-                        32 -> return BinaryHex(isNotNull)
 
                         else -> if (typeSize >= 36)
                             return BinaryFullString(isNotNull)

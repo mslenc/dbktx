@@ -1,5 +1,6 @@
 package schema1
 
+import com.xs0.asyncdb.common.RowData
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.crud.FilterBuilder
 import com.xs0.dbktx.expr.ExprBoolean
@@ -7,7 +8,7 @@ import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.DbTable
 import com.xs0.dbktx.fieldprops.*
 
-class DbPeople(db: DbConn, id: Int, private val row: List<Any?>)
+class DbPeople(db: DbConn, id: Int, private val row: RowData)
     : DbEntity<DbPeople, Int>(db, id) {
 
     override val metainfo = TABLE

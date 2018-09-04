@@ -32,15 +32,12 @@ class ManyToOneInfo<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TO_KEY : Any
         }
     }
 
-    internal fun <T : Any> doMapping(mapping: ColumnMapping<FROM, TO, T>, source: FROM): Any? {
-        val value = if (mapping.columnFromKind == ColumnInMappingKind.COLUMN) {
+    private fun <T : Any> doMapping(mapping: ColumnMapping<FROM, TO, T>, source: FROM): Any? {
+        return if (mapping.columnFromKind == ColumnInMappingKind.COLUMN) {
             mapping.rawColumnFrom(source)
         } else {
             mapping.rawLiteralFromValue
         }
-
-        val targetField = mapping.rawColumnTo
-        return targetField.sqlType.toJson(value!!)
     }
 
     fun makeReverseQueryBuilder(): (Set<TO_KEY>, TableInQuery<FROM>) -> ExprBoolean {

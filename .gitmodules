@@ -1,0 +1,3 @@
+[submodule "vertx-asyncdb"]
+	path = vertx-asyncdb
+	url = git@github.com:mslenc/vertx-asyncdb.git

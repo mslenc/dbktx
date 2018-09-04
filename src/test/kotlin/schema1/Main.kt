@@ -1,11 +1,11 @@
 package schema1
 
+import com.xs0.asyncdb.vertx.MySQLDbClient
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.conn.DbConnectorImpl
 import com.xs0.dbktx.conn.TimeProviderFromClock
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
-import io.vertx.ext.asyncsql.MySQLClient
 import kotlinx.coroutines.experimental.Unconfined
 import kotlinx.coroutines.experimental.launch
 import java.time.Clock
@@ -24,7 +24,7 @@ fun main(args: Array<String>) {
                 "database" to "eteam"
             ))
 
-    val mySqlClient = MySQLClient.createShared(vertx, mySQLClientConfig, "test")
+    val mySqlClient = MySQLDbClient.createShared(vertx, mySQLClientConfig, "test")
 
     val dbConnector = DbConnectorImpl(mySqlClient, timeProvider = TimeProviderFromClock(Clock.systemDefaultZone()))
 

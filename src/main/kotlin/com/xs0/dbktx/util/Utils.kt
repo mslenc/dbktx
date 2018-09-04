@@ -133,7 +133,7 @@ fun <T> defer(block: suspend () -> T): Deferred<T> {
     return async(Unconfined) { block() }
 }
 
-inline suspend fun <T> vx(crossinline callback: (Handler<AsyncResult<T>>) -> Unit) =
+suspend inline fun <T> vx(crossinline callback: (Handler<AsyncResult<T>>) -> Unit) =
         suspendCoroutine<T> { cont ->
             callback(Handler { result: AsyncResult<T> ->
                 if (result.succeeded()) {

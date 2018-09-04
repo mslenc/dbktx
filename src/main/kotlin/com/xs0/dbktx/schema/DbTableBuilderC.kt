@@ -1,10 +1,11 @@
 package com.xs0.dbktx.schema
 
+import com.xs0.asyncdb.common.RowData
 import com.xs0.dbktx.composite.CompositeId
 import kotlin.reflect.KClass
 
 class DbTableBuilderC<E : DbEntity<E, ID>, ID : CompositeId<E, ID>> internal constructor(table: DbTable<E, ID>) : DbTableBuilder<E, ID>(table) {
-    fun primaryKey(constructor: (List<Any?>)->ID): MultiColumnKeyDef<E, ID> {
+    fun primaryKey(constructor: (RowData)->ID): MultiColumnKeyDef<E, ID> {
         val id = constructor(dummyRow())
 
         checkColumns(id)

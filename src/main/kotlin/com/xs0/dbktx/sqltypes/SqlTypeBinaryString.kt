@@ -1,13 +1,12 @@
 package com.xs0.dbktx.sqltypes
 
 import com.xs0.dbktx.util.Sql
+import java.nio.charset.Charset
+import java.nio.charset.StandardCharsets
 
-import java.util.Base64
-
-import java.nio.charset.StandardCharsets.ISO_8859_1
 import kotlin.reflect.KClass
 
-class SqlTypeBinaryString(concreteType: SqlTypeKind, size: Int?, isNotNull: Boolean) : SqlType<String>(isNotNull, false) {
+class SqlTypeBinaryString(concreteType: SqlTypeKind, size: Int?, isNotNull: Boolean, private val charset: Charset = StandardCharsets.ISO_8859_1) : SqlType<String>(isNotNull, false) {
     private val maxSize: Int
 
     init {
@@ -44,23 +43,26 @@ class SqlTypeBinaryString(concreteType: SqlTypeKind, size: Int?, isNotNull: Bool
             throw IllegalArgumentException("Invalid size, must be at least 1")
     }
 
-    override fun fromJson(value: Any): String {
-        if (value is CharSequence) {
-            val encoded = value.toString()
-            val bytes = Base64.getDecoder().decode(encoded)
-            return String(bytes, ISO_8859_1)
-        }
+    override fun parseRowDataValue(value: Any): String {
+        if (value is CharSequence)
+            return value.toString()
 
-        throw IllegalArgumentException("Not a string(binary) value - " + value)
+        if (value is ByteArray)
+            return String(value, charset)
+
+        throw IllegalArgumentException("Not a byte[] or CharSequence value - " + value.javaClass)
     }
 
-    override fun toJson(value: String): String {
-        val bytes = value.toByteArray(ISO_8859_1)
-        return Base64.getEncoder().encodeToString(bytes)
+    override fun encodeForJson(value: String): Any {
+        return value
+    }
+
+    override fun decodeFromJson(value: Any): String {
+        return value.toString()
     }
 
     override fun toSql(value: String, sql: Sql) {
-        sql(value.toByteArray(ISO_8859_1))
+        sql(value.toByteArray(charset))
     }
 
     override val dummyValue: String = "binaryString".take(maxSize)

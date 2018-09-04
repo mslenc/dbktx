@@ -1,5 +1,6 @@
 package com.xs0.dbktx.schemas.test1
 
+import com.xs0.asyncdb.common.RowData
 import com.xs0.dbktx.composite.CompositeId2
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.fieldprops.*
@@ -9,7 +10,7 @@ import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.*
 
-class Item(db: DbConn, id: Item.Id, private val row: List<Any?>)
+class Item(db: DbConn, id: Item.Id, private val row: RowData)
     : DbEntity<Item, Item.Id>(db, id) {
 
     override val metainfo get() = Item
@@ -31,7 +32,7 @@ class Item(db: DbConn, id: Item.Id, private val row: List<Any?>)
         val sku:String get() = component2
 
         constructor(companyId: UUID, sku: String) : super(companyId, sku)
-        constructor(row: List<Any?>) : super(row)
+        constructor(row: RowData) : super(row)
 
         override val tableMetainfo get() = Item
     }

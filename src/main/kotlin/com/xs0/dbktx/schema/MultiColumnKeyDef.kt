@@ -1,15 +1,17 @@
 package com.xs0.dbktx.schema
 
+import com.xs0.asyncdb.common.RowData
 import com.xs0.dbktx.composite.CompositeId
 import com.xs0.dbktx.crud.BoundMultiColumnForSelect
 import com.xs0.dbktx.expr.*
 import com.xs0.dbktx.crud.EntityValues
 import com.xs0.dbktx.crud.TableInQuery
+import com.xs0.dbktx.util.FakeRowData
 
 class MultiColumnKeyDef<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(
         override val table: DbTable<E, *>,
         override val indexInTable: Int,
-        private val constructor: (List<Any?>) -> ID,
+        private val constructor: (RowData) -> ID,
         private val extractor: (E) -> ID,
         private val prototype: ID,
         override val isPrimaryKey: Boolean) : UniqueKeyDef<E, ID> {
@@ -25,7 +27,7 @@ class MultiColumnKeyDef<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(
         return prototype.getColumn(index)
     }
 
-    override operator fun invoke(row: List<Any?>): ID {
+    override operator fun invoke(row: RowData): ID {
         return constructor(row)
     }
 
@@ -41,11 +43,7 @@ class MultiColumnKeyDef<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(
     }
 
     override fun extract(values: EntityValues<E>): ID? {
-        val numCols = prototype.tableMetainfo.numColumns
-
-        val row = ArrayList<Any?>(numCols)
-        for (i in 0 until numCols)
-            row.add(null)
+        val row = FakeRowData()
 
         for (i in 1..numColumns) {
             val part = getColumn(i)
@@ -57,9 +55,9 @@ class MultiColumnKeyDef<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(
         return constructor(row)
     }
 
-    private fun <T: Any> extractSingleColumnValue(part: NonNullColumn<E, T>, values: EntityValues<E>, row: ArrayList<Any?>): Boolean {
+    private fun <T: Any> extractSingleColumnValue(part: NonNullColumn<E, T>, values: EntityValues<E>, row: FakeRowData): Boolean {
         val value = part.extract(values) ?: return false
-        row[part.indexInRow] = part.sqlType.toJson(value)
+        row.put(part, value)
         return true
     }
 }

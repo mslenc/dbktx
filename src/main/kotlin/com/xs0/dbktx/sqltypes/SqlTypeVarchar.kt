@@ -46,15 +46,19 @@ class SqlTypeVarchar(
             throw IllegalArgumentException("Invalid size, must be at least 1")
     }
 
-    override fun fromJson(value: Any): String {
+    override fun parseRowDataValue(value: Any): String {
         if (value is CharSequence)
             return value.toString()
 
-        throw IllegalStateException("Not a string value: " + value.javaClass)
+        throw IllegalStateException("Not a string value: class " + value.javaClass)
     }
 
-    override fun toJson(value: String): Any {
+    override fun encodeForJson(value: String): Any {
         return value
+    }
+
+    override fun decodeFromJson(value: Any): String {
+        return parseRowDataValue(value)
     }
 
     override fun toSql(value: String, sql: Sql) {

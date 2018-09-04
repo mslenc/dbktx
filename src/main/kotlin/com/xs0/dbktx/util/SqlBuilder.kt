@@ -10,13 +10,12 @@ import com.xs0.dbktx.schema.ColumnInMappingKind
 import com.xs0.dbktx.schema.DbTable
 import com.xs0.dbktx.schema.RelToOneImpl
 import com.xs0.dbktx.sqltypes.toHexString
-import io.vertx.core.json.JsonArray
 import java.math.BigDecimal
 import java.time.*
 
 class Sql {
     private val sql = StringBuilder()
-    val params = JsonArray()
+    val params = ArrayList<Any>()
 
     fun getSql(): String {
         return sql.toString()

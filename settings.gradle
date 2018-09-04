@@ -1,2 +1,3 @@
 rootProject.name = 'dbktx'
-
+include 'vertx-asyncdb'
+include 'vertx-asyncdb:asyncdb'

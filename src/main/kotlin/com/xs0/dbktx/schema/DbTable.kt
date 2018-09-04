@@ -1,11 +1,13 @@
 package com.xs0.dbktx.schema
 
+import com.xs0.asyncdb.common.RowData
 import com.xs0.dbktx.composite.CompositeId
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.conn.DbLoaderInternal
 import com.xs0.dbktx.crud.*
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.util.EntityIndex
+import com.xs0.dbktx.util.FakeRowData
 import com.xs0.dbktx.util.Sql
 import io.vertx.core.json.JsonObject
 import kotlin.reflect.KClass
@@ -29,7 +31,7 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
     internal val columns = ArrayList<Column<E, *>>()
     internal val columnsByDbName = HashMap<String, Column<E, *>>()
 
-    internal lateinit var factory: (DbConn, ID, List<Any?>) -> E
+    internal lateinit var factory: (DbConn, ID, RowData) -> E
     lateinit var primaryKey: UniqueKeyDef<E, ID>
         internal set
 
@@ -59,11 +61,11 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return this
     }
 
-    fun createId(row: List<Any?>): ID {
+    fun createId(row: RowData): ID {
         return primaryKey(row)
     }
 
-    fun create(db: DbConn, id: ID, row: List<Any?>): E {
+    fun create(db: DbConn, id: ID, row: RowData): E {
         return factory(db, id, row)
     }
 
@@ -94,19 +96,22 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         if (value == null) {
             result.putNull(column.fieldName)
         } else {
-            result.put(column.fieldName, column.sqlType.toJson(value))
+            result.put(column.fieldName, column.sqlType.encodeForJson(value))
         }
     }
 
-    internal fun importFromJson(jsonObject: JsonObject): List<Any?> {
-        val n = columns.size
-        val values = arrayOfNulls<Any>(n)
-        for (i in 0 until n) {
-            val column = columns[i]
-            values[column.indexInRow] = jsonObject.getValue(column.fieldName)
+    internal fun importFromJson(jsonObject: JsonObject): RowData {
+        val result = FakeRowData()
+
+        for (column in columns) {
+            val value = jsonObject.getValue(column.fieldName)
+
+            if (value != null) {
+                result.insertJsonValue(column, value)
+            }
         }
 
-        return listOf(*values)
+        return result
     }
 
     fun insertion(db: DbConn): DbInsert<E, ID> {
@@ -168,7 +173,7 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return update
     }
 
-    internal fun callInsertAndResolveEntityInIndex(entityIndex: EntityIndex<E>, db: DbConn, row: List<Any?>): E {
+    internal fun callInsertAndResolveEntityInIndex(entityIndex: EntityIndex<E>, db: DbConn, row: RowData): E {
         return entityIndex.insertAndResolveEntityInIndex(db, this, row)
     }
 

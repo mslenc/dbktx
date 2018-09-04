@@ -11,80 +11,91 @@ import org.junit.Assert.*
 class SqlTypeUUIDTest {
     @Test
     fun testSanity() {
-        val kinds = arrayOf(CHAR, VARCHAR, BINARY, VARBINARY)
-        val sizes = intArrayOf(16, 22, 24, 32, 36)
+        val types = arrayOf(
+            SqlTypeUUID.create(CHAR, 32, true),
+            SqlTypeUUID.create(CHAR, 36, true),
+            SqlTypeUUID.create(VARCHAR, 32, true),
+            SqlTypeUUID.create(VARCHAR, 36, true),
+            SqlTypeUUID.create(BINARY, 16, true),
+            SqlTypeUUID.create(BINARY, 36, true),
+            SqlTypeUUID.create(VARBINARY, 16, true),
+            SqlTypeUUID.create(VARBINARY, 36, true)
+        )
 
         repeat (1000) {
-            for (kind in kinds) {
-                for (size in sizes) {
-                    val sqlType = SqlTypeUUID.create(kind, size, true)
-
-                    val input = UUID.randomUUID()
-                    val output = sqlType.fromJson(sqlType.toJson(input))
-
-                    assertEquals(input, output)
-                }
-            }
-        }
-    }
-
-    @Test
-    fun testSanity2() {
-        // this tests against a particular bug that occurred - if the UUID started with "20" in a 16-byte
-        // encoding, it would get trimmed in some (buggy) implementation, then fail to decode due to being
-        // too short. So, we specifically test against that, to prevent reoccurrence..
-        val kinds = arrayOf(CHAR, VARCHAR, BINARY, VARBINARY)
-        val sizes = intArrayOf(16, 22, 24, 32, 36)
-
-        for (kind in kinds) {
-            for (size in sizes) {
-                val sqlType = SqlTypeUUID.create(kind, size, true)
-
-                val input = UUID.fromString("2064b9e5-0344-4c5b-a1e1-3225e72a39d1")
-                val encoded = sqlType.toJson(input)
-                val output = try {
-                    sqlType.fromJson(encoded)
-                } catch (e: ArrayIndexOutOfBoundsException) {
-                    throw AssertionError("Failed with AIOOBE for $input ($kind, $size)")
-                }
+            for (sqlType in types) {
+                val input = UUID.randomUUID()
+                val output = sqlType.decodeFromJson(sqlType.encodeForJson(input))
 
                 assertEquals(input, output)
             }
         }
     }
 
+
     @Test
     fun testSanityEmptyUUID() {
-        val kinds = arrayOf(CHAR, VARCHAR, BINARY, VARBINARY)
-        val sizes = intArrayOf(16, 22, 24, 32, 36)
+        val types = arrayOf(
+            SqlTypeUUID.create(CHAR, 32, true),
+            SqlTypeUUID.create(CHAR, 36, true),
+            SqlTypeUUID.create(VARCHAR, 32, true),
+            SqlTypeUUID.create(VARCHAR, 36, true),
+            SqlTypeUUID.create(BINARY, 16, true),
+            SqlTypeUUID.create(BINARY, 36, true),
+            SqlTypeUUID.create(VARBINARY, 16, true),
+            SqlTypeUUID.create(VARBINARY, 36, true)
+        )
 
-        for (kind in kinds) {
-            for (size in sizes) {
-                val sqlType = SqlTypeUUID.create(kind, size, true)
+        for (sqlType in types) {
+            val input = emptyUUID
+            val output = sqlType.decodeFromJson(sqlType.encodeForJson(input))
 
-                val input = emptyUUID
-                val output = sqlType.fromJson(sqlType.toJson(input))
-
-                assertSame(input, output)
-            }
+            assertSame(input, output)
         }
     }
 
     @Test
     fun testSanityEmptyUUIDNotTheOne() {
-        val kinds = arrayOf(CHAR, VARCHAR, BINARY, VARBINARY)
-        val sizes = intArrayOf(16, 22, 24, 32, 36)
+        val charTypes = arrayOf(
+            SqlTypeUUID.create(CHAR, 32, true),
+            SqlTypeUUID.create(CHAR, 36, true),
+            SqlTypeUUID.create(VARCHAR, 32, true),
+            SqlTypeUUID.create(VARCHAR, 36, true)
+        )
 
-        for (kind in kinds) {
-            for (size in sizes) {
-                val sqlType = SqlTypeUUID.create(kind, size, true)
+        val binaryTypes = arrayOf(
+            SqlTypeUUID.create(BINARY, 16, true),
+            SqlTypeUUID.create(BINARY, 36, true),
+            SqlTypeUUID.create(VARBINARY, 16, true),
+            SqlTypeUUID.create(VARBINARY, 36, true)
+        )
 
-                val input = UUID(0L, 0L)
-                val output = sqlType.fromJson(sqlType.toJson(input))
+        for (sqlType in charTypes) {
+            val input = UUID(0L, 0L)
+            val output = sqlType.decodeFromJson(sqlType.encodeForJson(input))
 
-                assertEquals(input, output)
-                assertNotSame(output, emptyUUID)
-            }
+            assertEquals(input, output)
+            assertNotSame(emptyUUID, output)
+
+            val bubu = sqlType.decodeFromJson("")
+            assertSame(emptyUUID, bubu)
+
+            val baba = sqlType.parseRowDataValue("")
+            assertSame(emptyUUID, baba)
+        }
+
+        for (sqlType in binaryTypes) {
+            val input = UUID(0L, 0L)
+            val output = sqlType.decodeFromJson(sqlType.encodeForJson(input))
+
+            assertEquals(input, output)
+            assertNotSame(emptyUUID, output)
+
+            val bubu = sqlType.decodeFromJson("")
+            assertSame(emptyUUID, bubu)
+
+            val baba = sqlType.parseRowDataValue(byteArrayOf())
+            assertSame(emptyUUID, baba)
         }
     }
 

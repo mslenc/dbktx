@@ -1,12 +1,12 @@
 package com.xs0.dbktx.conn
 
+import com.xs0.asyncdb.common.ResultSet
+import com.xs0.asyncdb.vertx.TransactionIsolation
 import com.xs0.dbktx.crud.*
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.schema.*
 import com.xs0.dbktx.util.Sql
 import io.vertx.core.json.JsonObject
-import io.vertx.ext.sql.ResultSet
-import io.vertx.ext.sql.TransactionIsolation
 
 /**
  * A connection to the database, providing methods for querying, updating and

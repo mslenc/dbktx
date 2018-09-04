@@ -1,5 +1,6 @@
 package com.xs0.dbktx.schemas.test1
 
+import com.xs0.asyncdb.common.RowData
 import com.xs0.dbktx.composite.CompositeId2
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.fieldprops.BIGINT
@@ -10,7 +11,7 @@ import com.xs0.dbktx.schema.*
 import java.time.LocalDateTime
 import java.util.*
 
-class Brand(db: DbConn, id: Brand.Id, private val row: List<Any?>)
+class Brand(db: DbConn, id: Brand.Id, private val row: RowData)
     : DbEntity<Brand, Brand.Id>(db, id) {
 
     override val metainfo get() = Brand
@@ -25,7 +26,7 @@ class Brand(db: DbConn, id: Brand.Id, private val row: List<Any?>)
 
     class Id : CompositeId2<Brand, String, UUID, Id> {
         constructor(key: String, companyId: UUID) : super(key, companyId)
-        constructor(row: List<Any?>) : super(row)
+        constructor(row: RowData) : super(row)
 
         override val column1 get() = KEY
         override val column2 get() = COMPANY_ID

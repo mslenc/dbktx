@@ -1,10 +1,10 @@
 package com.xs0.dbktx.conn
 
+import com.xs0.asyncdb.vertx.DbClient
+import com.xs0.asyncdb.vertx.DbConnection
 import com.xs0.dbktx.util.DelayedExecScheduler
 import com.xs0.dbktx.util.vx
 import io.vertx.core.Vertx
-import io.vertx.ext.asyncsql.AsyncSQLClient
-import io.vertx.ext.sql.SQLConnection
 import mu.KLogging
 
 object VertxScheduler: DelayedExecScheduler {
@@ -18,16 +18,16 @@ object VertxScheduler: DelayedExecScheduler {
  * schedules delayed execution on the provided scheduler.
  */
 class DbConnectorImpl(
-        private val sqlClient: AsyncSQLClient,
+        private val sqlClient: DbClient,
         private val delayedExecScheduler: DelayedExecScheduler = VertxScheduler,
         private val timeProvider: TimeProvider,
-        private val connectionWrapper: (SQLConnection)->SQLConnection = { it }
+        private val connectionWrapper: (DbConnection)->DbConnection = { it }
         )
     : DbConnector
 
 {
     override suspend fun connect(block: suspend (DbConn) -> Unit) {
-        val rawConn: SQLConnection = try {
+        val rawConn: DbConnection = try {
             vx { handler -> sqlClient.getConnection(handler) }
         } catch (e: Exception) {
             logger.error("Failed to connect", e)

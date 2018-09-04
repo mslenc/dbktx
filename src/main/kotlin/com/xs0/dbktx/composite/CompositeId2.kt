@@ -1,5 +1,6 @@
 package com.xs0.dbktx.composite
 
+import com.xs0.asyncdb.common.RowData
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.NonNullColumn
 import com.xs0.dbktx.util.Sql
@@ -13,7 +14,7 @@ abstract class CompositeId2<E : DbEntity<E, ID>, T1: Any, T2: Any, ID : Composit
     lateinit var component1: T1 private set
     lateinit var component2: T2 private set
 
-    protected constructor(row: List<Any?>) : this() {
+    protected constructor(row: RowData) : this() {
         this.component1 = column1(row)
         this.component2 = column2(row)
     }

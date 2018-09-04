@@ -25,6 +25,8 @@ repositories {
 }
 
 dependencies {
+    compile project('vertx-asyncdb')
+
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     compile "org.jetbrains.kotlinx:kotlinx-coroutines-core:0.24.0"
@@ -32,7 +34,6 @@ dependencies {
 
     compile "io.vertx:vertx-core:$vertx_version"
     compile "io.vertx:vertx-web:$vertx_version"
-    compile "io.vertx:vertx-mysql-postgresql-client:$vertx_version"
 
     compile "com.fasterxml.jackson.core:jackson-databind:$jackson_version"
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:$jackson_version"

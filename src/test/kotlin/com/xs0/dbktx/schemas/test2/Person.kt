@@ -1,12 +1,13 @@
 package com.xs0.dbktx.schemas.test2
 
+import com.xs0.asyncdb.common.RowData
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.fieldprops.*
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.DbTable
 
 
-class Person(db: DbConn, id: Int, private val row: List<Any?>)
+class Person(db: DbConn, id: Int, private val row: RowData)
     : DbEntity<Person, Int>(db, id) {
 
     override val metainfo get() = Person

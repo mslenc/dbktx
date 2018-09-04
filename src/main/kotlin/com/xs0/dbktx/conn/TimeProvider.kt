@@ -1,10 +1,10 @@
 package com.xs0.dbktx.conn
 
-import io.vertx.ext.sql.SQLConnection
+import com.xs0.asyncdb.vertx.DbConnection
 import java.time.*
 
 interface TimeProvider {
-    suspend fun getTime(conn: SQLConnection): RequestTime
+    suspend fun getTime(conn: DbConnection): RequestTime
 }
 
 interface RequestTime {
@@ -35,7 +35,7 @@ class SimpleRequestTime(override val instant: Instant, zoneId: ZoneId): RequestT
 }
 
 class TimeProviderFromClock(val clock: Clock): TimeProvider {
-    override suspend fun getTime(conn: SQLConnection): RequestTime {
+    override suspend fun getTime(conn: DbConnection): RequestTime {
         return getTime()
     }
 

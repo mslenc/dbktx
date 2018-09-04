@@ -8,32 +8,25 @@ import kotlin.reflect.KClass
 class SqlTypeYear(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<Year>(isNotNull = isNotNull) {
     init {
         if (concreteType != SqlTypeKind.YEAR)
-            throw IllegalArgumentException("Unsupported type " + concreteType)
+            throw IllegalArgumentException("Unsupported type $concreteType")
     }
 
-    override fun fromJson(value: Any): Year {
-        var year = 0
+    override fun parseRowDataValue(value: Any): Year {
+        if (value is Year)
+            return value
 
-        if (value is Number)
-            year = value.toInt()
-
-        if (year == 0 && value is String) {
-            try {
-                year = Integer.parseInt(value.toString())
-            } catch (e: NumberFormatException) {
-                // carry on
-            }
-
-        }
-
-        if (year in 1000..9999)
-            return Year.of(year)
-
-        throw IllegalArgumentException("Not a year value - " + value)
+        throw IllegalArgumentException("Not a year value - $value")
     }
 
-    override fun toJson(value: Year): Any {
+    override fun encodeForJson(value: Year): Any {
         return value.value
+    }
+
+    override fun decodeFromJson(value: Any): Year {
+        if (value is Number)
+            return Year.of(value.toInt())
+
+        throw IllegalArgumentException("Not a year value - $value")
     }
 
     override val dummyValue: Year = Year.of(2017)

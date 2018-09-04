@@ -8,19 +8,30 @@ import kotlin.reflect.KClass
 class SqlTypeDuration(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<Duration>(isNotNull = isNotNull) {
     init {
         if (concreteType != SqlTypeKind.TIME)
-            throw IllegalArgumentException("Unsupported type " + concreteType)
+            throw IllegalArgumentException("Unsupported type $concreteType")
+    }
+
+    override fun parseRowDataValue(value: Any): Duration {
+        if (value is Duration)
+            return value
+
+        throw IllegalArgumentException("Not a Duration value - $value")
+    }
+
+    override fun encodeForJson(value: Duration): String {
+        return Sql.formatDuration(value)
+    }
+
+    private fun fail(str: String): Nothing {
+        throw IllegalArgumentException("Unrecognized duration value \"$str\"")
     }
 
     private val colonRegex = Pattern.compile(":")
     private val dotRegex = Pattern.compile("[.]")
 
-    private fun fail(str: String): Nothing {
-        throw IllegalArgumentException("Unrecognized TIME value \"$str\"")
-    }
-
-    override fun fromJson(value: Any): Duration {
+    override fun decodeFromJson(value: Any): Duration {
         if (value !is CharSequence)
-            throw IllegalArgumentException("Not a string(time/duration) value - " + value)
+            throw IllegalArgumentException("Not a string(time/duration) value - $value")
 
         val str = value.toString()
 
@@ -55,10 +66,6 @@ class SqlTypeDuration(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<D
                                     nanos)
 
         fail(str)
-    }
-
-    override fun toJson(value: Duration): String {
-        return Sql.formatDuration(value)
     }
 
     override fun toSql(value: Duration, sql: Sql) {

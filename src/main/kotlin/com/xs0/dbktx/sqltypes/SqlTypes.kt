@@ -109,8 +109,7 @@ internal object SqlTypes {
 
     fun makeLocalDateTime(sqlType: SqlTypeKind, isNotNull: Boolean): SqlType<LocalDateTime> {
         when (sqlType) {
-            DATETIME,
-            TIMESTAMP ->
+            DATETIME ->
                 return SqlTypeLocalDateTime(sqlType, isNotNull = isNotNull)
 
             else ->

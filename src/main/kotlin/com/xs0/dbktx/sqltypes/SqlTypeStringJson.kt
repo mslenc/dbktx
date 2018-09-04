@@ -3,6 +3,7 @@ package com.xs0.dbktx.sqltypes
 import com.xs0.dbktx.util.JSON
 import com.xs0.dbktx.util.Sql
 import kotlin.reflect.KClass
+import kotlin.reflect.full.cast
 
 class SqlTypeStringJson<T: Any>(
         private val concreteType: SqlTypeKind,
@@ -16,18 +17,25 @@ class SqlTypeStringJson<T: Any>(
         // TODO: check concreteType is varchar/text, maximum length, etc..
     }
 
-    override fun fromJson(value: Any): T {
-        if (value !is CharSequence)
-            throw IllegalStateException("Not a string value: " + value.javaClass)
+    override fun parseRowDataValue(value: Any): T {
+        if (kotlinType.isInstance(value))
+            return kotlinType.cast(value)
 
-        return JSON.parse(value.toString(), kotlinType)
+        if (value is CharSequence)
+            return JSON.parse(value.toString(), kotlinType)
+
+        throw IllegalStateException("Expected a string (JSON) value: " + value.javaClass)
     }
 
-    override fun toJson(value: T): String {
+    override fun encodeForJson(value: T): Any {
         return JSON.stringify(value)
     }
 
+    override fun decodeFromJson(value: Any): T {
+        return parseRowDataValue(value)
+    }
+
     override fun toSql(value: T, sql: Sql) {
-        sql(toJson(value))
+        sql(JSON.stringify(value))
     }
 }
