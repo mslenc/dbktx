@@ -301,6 +301,26 @@ internal constructor(
     }
 
 
+    fun nonNullDuration(fieldName: String, type: SqlTypeDef, getter: (E) -> Duration,
+                    primaryKey: Boolean = false
+    ): NonNullOrderedColumn<E, Duration> {
+
+        val sqlType = SqlTypes.makeDuration(type.sqlTypeKind, isNotNull = true)
+        val column = NonNullOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
+        return column
+    }
+
+    fun nullableDuration(fieldName: String, type: SqlTypeDef, getter: (E) -> Duration?
+    ): NullableOrderedColumn<E, Duration> {
+
+        val sqlType = SqlTypes.makeDuration(type.sqlTypeKind, isNotNull = false)
+        val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column)
+        return column
+    }
+
+
     fun nonNullDate(fieldName: String, type: SqlTypeDef, getter: (E) -> LocalDate,
                     primaryKey: Boolean = false
                     ): NonNullOrderedColumn<E, LocalDate> {
