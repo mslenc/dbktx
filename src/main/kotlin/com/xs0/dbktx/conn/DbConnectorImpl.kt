@@ -35,6 +35,14 @@ class DbConnectorImpl(
         }
 
         try {
+            // TODO: remove this workaround..
+            vx<Void> { handler -> rawConn.execute("ROLLBACK", handler) }
+        } catch (e: Exception) {
+            vx<Void> { handler -> rawConn.close(handler) }
+            throw e
+        }
+
+        try {
             val wrappedConn = connectionWrapper(rawConn)
             val requestTime = timeProvider.getTime(wrappedConn)
             val dbConn = DbLoaderImpl(wrappedConn, delayedExecScheduler, requestTime)
