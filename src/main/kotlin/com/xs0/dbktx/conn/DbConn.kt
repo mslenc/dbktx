@@ -274,6 +274,19 @@ interface DbConn {
     }
 
     /**
+     * Shortcut for creating and executing a count query. Use like this:
+     * ```
+     * val numRows = with(db) { SOME_TABLE.countAll { SOME_FIELD eq value } }
+     * ```
+     */
+    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+            Z.countAll(filter: FilterBuilder<E>.() -> ExprBoolean): Long {
+        val query = newQuery(this)
+        query.filter(filter)
+        return query.countAll()
+    }
+
+    /**
      * Shortcut for defining and executing an insertion. Use like this:
      * ```
      * val newId = with(db) { SOME_TABLE.insert {
