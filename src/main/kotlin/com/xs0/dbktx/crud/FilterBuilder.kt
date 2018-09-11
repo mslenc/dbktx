@@ -4,7 +4,6 @@ import com.xs0.dbktx.expr.*
 import com.xs0.dbktx.schema.*
 import com.xs0.dbktx.sqltypes.SqlTypeVarchar
 import com.xs0.dbktx.util.escapeSqlLikePattern
-import sun.reflect.generics.scope.DummyScope
 
 @DslMarker
 annotation class SqlExprBuilder
@@ -314,6 +313,13 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         }
     }
 
+    fun <TO: DbEntity<TO, *>> RelToMany<E, TO>.isNotEmpty(): ExprBoolean {
+        val dstTable = currentTable().forcedSubQuery(this)
+        val relImpl = this as RelToManyImpl<E, *, TO>
+
+        return ExprFilterContainsChild(currentTable(), relImpl.info, null, dstTable)
+    }
+
 
     fun <TO: DbEntity<TO, *>> RelToMany<E, TO>.contains(block: FilterBuilder<TO>.() -> ExprBoolean): ExprBoolean {
         val dstTable = currentTable().forcedSubQuery(this)
@@ -327,7 +333,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
     infix fun <TO: DbEntity<TO, *>> RelToMany<E, TO>.contains(childQuery: EntityQuery<TO>): ExprBoolean {
         val relImpl = this as RelToManyImpl<E, *, TO>
         val dstTable = currentTable().forcedSubQuery(this)
-        val dstFilter = childQuery.copyAndRemapFilters(dstTable) ?: ExprDummy(true)
+        val dstFilter = childQuery.copyAndRemapFilters(dstTable)
 
         return ExprFilterContainsChild(currentTable(), relImpl.info, dstFilter, dstTable)
     }

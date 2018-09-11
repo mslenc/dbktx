@@ -9,7 +9,7 @@ import com.xs0.dbktx.util.Sql
 class ExprFilterContainsChild<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         private val parentTable: TableInQuery<FROM>,
         private val info: ManyToOneInfo<TO, FROM, *>,
-        private val filter: ExprBoolean,
+        private val filter: ExprBoolean?,
         private val childTable: TableInQuery<TO>,
         private val negated: Boolean = false) : ExprBoolean {
 
@@ -43,7 +43,7 @@ class ExprFilterContainsChild<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
     }
 
     override fun remap(remapper: TableRemapper): ExprBoolean {
-        return ExprFilterContainsChild(remapper.remap(parentTable), info, filter.remap(remapper), remapper.remap(childTable), negated)
+        return ExprFilterContainsChild(remapper.remap(parentTable), info, filter?.remap(remapper), remapper.remap(childTable), negated)
     }
 
     override fun toString(): String {

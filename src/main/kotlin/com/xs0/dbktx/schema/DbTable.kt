@@ -142,9 +142,9 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return update
     }
 
-    fun update(db: DbConn, vararg entities: E): DbUpdate<E> {
-        return update(db, listOf(*entities))
-    }
+//    fun update(db: DbConn, vararg entities: E): DbUpdate<E> {
+//        return update(db, listOf(*entities))
+//    }
 
     fun updateByIds(db: DbConn, vararg ids: ID): DbUpdate<E> {
         val idsSet = setOf(*ids)
