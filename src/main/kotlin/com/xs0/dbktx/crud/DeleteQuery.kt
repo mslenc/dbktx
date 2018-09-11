@@ -12,6 +12,10 @@ internal class DeleteQueryImpl<E : DbEntity<E, *>>(
         loader: DbConn)
     : FilterableQueryImpl<E>(table, loader), DeleteQuery<E> {
 
+    override fun makeBaseTable(table: DbTable<E, *>): TableInQuery<E> {
+        return BaseTableInUpdateQuery(this, table)
+    }
+
     var executed = false
 
     override suspend fun deleteAllMatchingRows(): Long {

@@ -61,8 +61,8 @@ internal fun <E : DbEntity<E, *>>
 buildDeleteQuery(query: DeleteQueryImpl<E>): Sql {
 
     return Sql().apply {
-        raw("DELETE")
-        FROM(query.baseTable)
+        raw("DELETE FROM ")
+        raw(query.baseTable.table.quotedDbName)
         WHERE(query.filters ?: throw RuntimeException("Missing filters"))
     }
 }

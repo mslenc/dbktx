@@ -54,8 +54,9 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
         internal val table: DbTable<E, *>,
         internal val loader: DbConn) : QueryImpl(), FilterableQuery<E> {
 
-    override val baseTable = BaseTableInQuery(this, table) as TableInQuery<E>
+    override val baseTable = makeBaseTable(table)
 
+    protected abstract fun makeBaseTable(table: DbTable<E, *>): TableInQuery<E>
     protected abstract fun checkModifiable()
     internal var filters: ExprBoolean? = null
 
@@ -147,6 +148,10 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
         table: DbTable<E, *>,
         loader: DbConn)
     : FilterableQueryImpl<E>(table, loader), EntityQuery<E> {
+
+    override fun makeBaseTable(table: DbTable<E, *>): TableInQuery<E> {
+        return BaseTableInQuery(this, table)
+    }
 
     override val db: DbConn
         get() = loader
