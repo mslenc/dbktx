@@ -8,4 +8,7 @@ interface RelToMany<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>> {
 
     suspend operator fun invoke(from: FROM): List<TO>
     suspend operator fun invoke(from: FROM, block: FilterBuilder<TO>.() -> ExprBoolean): List<TO>
+
+    suspend fun countAll(from: FROM): Long
+    suspend fun count(from: FROM, block: FilterBuilder<TO>.() -> ExprBoolean): Long
 }

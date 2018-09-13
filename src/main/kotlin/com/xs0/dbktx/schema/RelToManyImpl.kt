@@ -48,6 +48,23 @@ class RelToManyImpl<FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *
         return query.run()
     }
 
+    override suspend fun countAll(from: FROM): Long {
+        val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
+
+        query.filter { createCondition(setOf(info.oneKey(from)), query.baseTable) }
+
+        return query.countAll()
+    }
+
+    override suspend fun count(from: FROM, block: FilterBuilder<TO>.() -> ExprBoolean): Long {
+        val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
+
+        query.filter { createCondition(setOf(info.oneKey(from)), query.baseTable) }
+        query.filter(block)
+
+        return query.countAll()
+    }
+
     internal suspend fun callLoad(db: DbLoaderInternal, from: FROM): List<TO> {
         return db.load(from, this)
     }
