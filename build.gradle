@@ -1,5 +1,5 @@
-group 'com.xs0'
-version '0.9-SNAPSHOT'
+group 'com.github.mslenc'
+version '0.7.0'
 
 buildscript {
     ext.kotlin_version = '1.2.70'

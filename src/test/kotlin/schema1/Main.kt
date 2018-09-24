@@ -1,9 +1,9 @@
 package schema1
 
 import com.github.mslenc.asyncdb.vertx.MySQLDbClient
-import com.xs0.dbktx.conn.DbConn
-import com.xs0.dbktx.conn.DbConnectorImpl
-import com.xs0.dbktx.conn.TimeProviderFromClock
+import com.github.mslenc.dbktx.conn.DbConn
+import com.github.mslenc.dbktx.conn.DbConnectorImpl
+import com.github.mslenc.dbktx.conn.TimeProviderFromClock
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
 import kotlinx.coroutines.experimental.Unconfined

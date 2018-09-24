@@ -1,6 +1,6 @@
 package schema1
 
-import com.xs0.dbktx.schema.DbSchema
+import com.github.mslenc.dbktx.schema.DbSchema
 
 object TestSchema: DbSchema() {
     val PEOPLE = DbPeople.TABLE
