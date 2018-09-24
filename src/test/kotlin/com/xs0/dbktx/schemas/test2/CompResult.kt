@@ -1,6 +1,6 @@
 package com.xs0.dbktx.schemas.test2
 
-import com.xs0.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.common.RowData
 import com.xs0.dbktx.composite.CompositeId3
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.fieldprops.INT

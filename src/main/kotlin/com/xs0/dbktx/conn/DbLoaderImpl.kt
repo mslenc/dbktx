@@ -1,10 +1,9 @@
 package com.xs0.dbktx.conn
 
-import com.xs0.asyncdb.common.ResultSet
-import com.xs0.asyncdb.common.RowData
-import com.xs0.asyncdb.vertx.DbConnection
-import com.xs0.asyncdb.vertx.TransactionIsolation
-import com.xs0.asyncdb.vertx.UpdateResult
+import com.github.mslenc.asyncdb.common.ResultSet
+import com.github.mslenc.asyncdb.vertx.DbConnection
+import com.github.mslenc.asyncdb.vertx.TransactionIsolation
+import com.github.mslenc.asyncdb.vertx.UpdateResult
 import com.xs0.dbktx.crud.*
 import com.xs0.dbktx.schema.Column
 import com.xs0.dbktx.expr.ExprBoolean

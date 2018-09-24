@@ -1,7 +1,7 @@
 package com.xs0.dbktx.conn
 
-import com.xs0.asyncdb.common.ResultSet
-import com.xs0.asyncdb.vertx.TransactionIsolation
+import com.github.mslenc.asyncdb.common.ResultSet
+import com.github.mslenc.asyncdb.vertx.TransactionIsolation
 import com.xs0.dbktx.crud.*
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.schema.*

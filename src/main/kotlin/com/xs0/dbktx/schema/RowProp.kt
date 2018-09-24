@@ -1,6 +1,6 @@
 package com.xs0.dbktx.schema
 
-import com.xs0.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.common.RowData
 import com.xs0.dbktx.crud.EntityValues
 import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.expr.*

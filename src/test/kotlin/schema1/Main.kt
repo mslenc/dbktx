@@ -1,6 +1,6 @@
 package schema1
 
-import com.xs0.asyncdb.vertx.MySQLDbClient
+import com.github.mslenc.asyncdb.vertx.MySQLDbClient
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.conn.DbConnectorImpl
 import com.xs0.dbktx.conn.TimeProviderFromClock

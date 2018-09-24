@@ -1,6 +1,6 @@
 package com.xs0.dbktx.util
 
-import com.xs0.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.common.RowData
 
 /**
  * A list which pulls data from some entity via some arbitrary mapping.

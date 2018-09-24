@@ -1,9 +1,9 @@
 package com.xs0.dbktx.util.testing
 
-import com.xs0.asyncdb.common.ResultSet
-import com.xs0.asyncdb.vertx.DbConnection
-import com.xs0.asyncdb.vertx.TransactionIsolation
-import com.xs0.asyncdb.vertx.UpdateResult
+import com.github.mslenc.asyncdb.common.ResultSet
+import com.github.mslenc.asyncdb.vertx.DbConnection
+import com.github.mslenc.asyncdb.vertx.TransactionIsolation
+import com.github.mslenc.asyncdb.vertx.UpdateResult
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
 

@@ -1,6 +1,6 @@
 package com.xs0.dbktx.composite
 
-import com.xs0.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.common.RowData
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.NonNullColumn
 import com.xs0.dbktx.util.Sql

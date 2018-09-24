@@ -1,7 +1,7 @@
 package com.xs0.dbktx.expr
 
-import com.xs0.asyncdb.common.ResultSet
-import com.xs0.asyncdb.vertx.DbConnection
+import com.github.mslenc.asyncdb.common.ResultSet
+import com.github.mslenc.asyncdb.vertx.DbConnection
 import com.xs0.dbktx.conn.DbLoaderImpl
 import com.xs0.dbktx.conn.RequestTime
 import com.xs0.dbktx.schemas.test1.Brand.Companion.COMPANY_REF

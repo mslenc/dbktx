@@ -1,7 +1,7 @@
 package com.xs0.dbktx.util.testing
 
-import com.xs0.asyncdb.common.ResultSet
-import com.xs0.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.common.ResultSet
+import com.github.mslenc.asyncdb.common.RowData
 import java.util.AbstractList
 
 class MockResultSet(private val columnNames: Array<String>) : AbstractList<RowData>(), ResultSet {

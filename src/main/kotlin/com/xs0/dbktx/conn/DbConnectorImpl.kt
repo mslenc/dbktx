@@ -1,7 +1,7 @@
 package com.xs0.dbktx.conn
 
-import com.xs0.asyncdb.vertx.DbClient
-import com.xs0.asyncdb.vertx.DbConnection
+import com.github.mslenc.asyncdb.vertx.DbClient
+import com.github.mslenc.asyncdb.vertx.DbConnection
 import com.xs0.dbktx.util.DelayedExecScheduler
 import com.xs0.dbktx.util.vx
 import io.vertx.core.Vertx
