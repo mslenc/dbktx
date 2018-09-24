@@ -1,6 +1,7 @@
 package com.xs0.dbktx.sqltypes
 
 import com.xs0.dbktx.sqltypes.SqlTypeKind.*
+import com.xs0.dbktx.util.StringSet
 import java.math.BigDecimal
 import java.time.*
 
@@ -20,6 +21,26 @@ internal object SqlTypes {
 
             BINARY, VARBINARY, TINYBLOB, BLOB, MEDIUMBLOB, LONGBLOB ->
                 return SqlTypeBinaryString(sqlType, size, isNotNull)
+
+            else ->
+                throw UnsupportedOperationException("No mapping from $sqlType to String")
+        }
+    }
+
+    fun makeStringSet(sqlType: SqlTypeKind, size: Int?, isNotNull: Boolean, surroundedWithCommas: Boolean): SqlType<StringSet> {
+        when (sqlType) {
+            CHAR, VARCHAR, TINYTEXT, TEXT, MEDIUMTEXT, LONGTEXT ->
+                return SqlTypeStringSet(sqlType, surroundedWithCommas=surroundedWithCommas, isNotNull=isNotNull) // TODO: size
+
+            else ->
+                throw UnsupportedOperationException("No mapping from $sqlType to String")
+        }
+    }
+
+    fun <T: Any> makeStringJson(sqlType: SqlTypeKind, size: Int?, isNotNull: Boolean, parsedClass: KClass<T>, dummyValue: T): SqlType<T> {
+        when (sqlType) {
+            CHAR, VARCHAR, TINYTEXT, TEXT, MEDIUMTEXT, LONGTEXT ->
+                return SqlTypeStringJson(sqlType, parsedClass, dummyValue, isNotNull = isNotNull) // TODO: size
 
             else ->
                 throw UnsupportedOperationException("No mapping from $sqlType to String")
@@ -106,6 +127,16 @@ internal object SqlTypes {
         }
     }
 
+    fun makeInstantFromMillis(sqlType: SqlTypeKind, isNotNull: Boolean): SqlType<Instant> {
+        when (sqlType) {
+            BIGINT ->
+                return SqlTypeInstantFromMillis(sqlType, isNotNull = isNotNull)
+
+            else ->
+                throw UnsupportedOperationException("No mapping from $sqlType to Instant (millis)")
+        }
+    }
+
     fun makeYear(sqlType: SqlTypeKind, isNotNull: Boolean): SqlType<Year> {
         when (sqlType) {
             YEAR ->
@@ -144,12 +175,6 @@ internal object SqlTypes {
 //        }
 //    }
 
-    fun makeEnumString(sqlType: SqlTypeKind, enums: Set<String>, isNotNull: Boolean): SqlType<String> {
-        if (sqlType != ENUM)
-            throw IllegalArgumentException("No mapping from $sqlType to String enum")
-
-        return SqlTypeEnumString(enums, isNotNull)
-    }
 
     fun makeBigDecimal(sqlType: SqlTypeKind, precision: Int, scale: Int, isNotNull: Boolean, isUnsigned: Boolean): SqlType<BigDecimal> {
         return SqlTypeBigDecimal(sqlType, precision, scale, isNotNull = isNotNull, isUnsigned = isUnsigned)
@@ -162,6 +187,17 @@ internal object SqlTypes {
             }
 
             else -> throw UnsupportedOperationException("No mapping from $sqlType to int(enum)")
+        }
+    }
+
+    internal fun <ENUM : Enum<ENUM>> makeEnumToString(klass: KClass<ENUM>, dummyValue: ENUM, sqlType: SqlTypeKind, toDbRep: (ENUM)->String, fromDbRep: (String)->ENUM, isNotNull: Boolean): SqlType<ENUM> {
+        when (sqlType) {
+            ENUM,
+            CHAR, VARCHAR, TINYTEXT, TEXT, MEDIUMTEXT, LONGTEXT -> {
+                return SqlTypeEnumString(klass, toDbRep, fromDbRep, isNotNull, dummyValue)
+            }
+
+            else -> throw UnsupportedOperationException("No mapping from $sqlType to string(enum)")
         }
     }
 }

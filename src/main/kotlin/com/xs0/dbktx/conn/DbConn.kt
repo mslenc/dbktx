@@ -1,231 +1,300 @@
 package com.xs0.dbktx.conn
 
-import com.xs0.dbktx.crud.DbInsert
-import com.xs0.dbktx.crud.DbUpdate
-import com.xs0.dbktx.crud.EntityQuery
+import com.github.mslenc.asyncdb.common.ResultSet
+import com.github.mslenc.asyncdb.vertx.TransactionIsolation
+import com.xs0.dbktx.crud.*
 import com.xs0.dbktx.expr.ExprBoolean
-import com.xs0.dbktx.schema.DbEntity
-import com.xs0.dbktx.schema.DbTable
-import com.xs0.dbktx.schema.RelToMany
-import com.xs0.dbktx.schema.RelToOne
-import com.xs0.dbktx.crud.EntityValues
+import com.xs0.dbktx.schema.*
 import com.xs0.dbktx.util.Sql
-import com.xs0.dbktx.util.defer
 import io.vertx.core.json.JsonObject
-import io.vertx.ext.sql.ResultSet
-import io.vertx.ext.sql.TransactionIsolation
-import kotlinx.coroutines.experimental.Deferred
 
 /**
  * A connection to the database, providing methods for querying, updating and
  * transaction management.
  */
 interface DbConn {
-    suspend fun query(sqlBuilder: Sql): ResultSet
+    val requestTime: RequestTime
 
-    fun queryAsync(sqlBuilder: Sql): Deferred<ResultSet> {
-        return defer { query(sqlBuilder) }
-    }
-
-
-    suspend fun <E: DbEntity<E, ID>, ID: Any>
-    query(query: EntityQuery<E>): List<E>
-
-    fun <E: DbEntity<E, ID>, ID: Any>
-    queryAsync(query: EntityQuery<E>): Deferred<List<E>> {
-        return defer { query(query) }
-    }
-
-
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    query(table: DbTable<E, ID>, filter: ExprBoolean<E>): List<E>
-
-    fun <E : DbEntity<E, ID>, ID: Any>
-    queryAsync(table: DbTable<E, ID>, filter: ExprBoolean<E>): Deferred<List<E>> {
-        return defer { query(table, filter) }
-    }
-
-
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    queryAll(table: DbTable<E, ID>) : List<E>
-
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    queryAllAsync(table: DbTable<E, ID>) : Deferred<List<E>> {
-        return defer { queryAll(table) }
-    }
-
-
-    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.count(filter: Z.() -> ExprBoolean<E>): Long {
-        return count(this, filter())
-    }
-
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    count(table: DbTable<E, ID>, filter: ExprBoolean<E>?): Long
-
-    fun <E : DbEntity<E, ID>, ID: Any>
-    countAsync(table: DbTable<E, ID>, filter: ExprBoolean<E>?): Deferred<Long> {
-        return defer { count(table, filter) }
-    }
-
-
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    countAll(table: DbTable<E, ID>): Long
-
-    fun <E : DbEntity<E, ID>, ID: Any>
-    countAllAsync(table: DbTable<E, ID>): Deferred<Long> {
-        return defer { countAll(table) }
-    }
-
-
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    load(table: DbTable<E, ID>, id: ID): E
-
-    fun <E : DbEntity<E, ID>, ID: Any>
-    loadAsync(table: DbTable<E, ID>, id: ID): Deferred<E> {
-        return defer { load(table, id) }
-    }
-
-
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    find(table: DbTable<E, ID>, id: ID?): E?
-
-    fun <E : DbEntity<E, ID>, ID: Any>
-    findAsync(table: DbTable<E, ID>, id: ID?): Deferred<E?> {
-        return defer { find(table, id) }
-    }
-
-
-    suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    load(from: FROM, relation: RelToOne<FROM, TO>): TO
-
-    fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    loadAsync(from: FROM, relation: RelToOne<FROM, TO>): Deferred<TO> {
-        return defer { load(from, relation) }
-    }
-
-    suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    find(from: FROM, relation: RelToOne<FROM, TO>): TO?
-
-    fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    findAsync(from: FROM, relation: RelToOne<FROM, TO>): Deferred<TO?> {
-        return defer { find(from, relation) }
-    }
-
-
-
-    suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID : Any, TO : DbEntity<TO, TOID>, TOID : Any>
-    load(from: FROM, relation: RelToMany<FROM, TO>): List<TO>
-
-    fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    loadAsync(from: FROM, relation: RelToMany<FROM, TO>): Deferred<List<TO>> {
-        return defer { load(from, relation) }
-    }
-
-
-    suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBoolean<TO>?): List<TO>
-
-    suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    loadAsync(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBoolean<TO>): Deferred<List<TO>> {
-        return defer { load(from, relation, filter) }
-    }
-
+    /**
+     * Sets the autocommit mode for this connection
+     */
     suspend fun setAutoCommit(autoCommit: Boolean)
+
+    /**
+     * Sets the transaction isolation mode for this connection
+     */
     suspend fun setTransactionIsolation(isolation: TransactionIsolation)
+
+    /**
+     * Commits any pending changes
+     */
     suspend fun commit()
+
+    /**
+     * Rolls back any pending changes
+     */
     suspend fun rollback()
+
+    /**
+     * Executes arbitrary SQL (not SELECT)
+     *
+     * @see query for SELECT statements
+     */
     suspend fun execute(sql: String)
 
+    /**
+     * Executes arbitrary SELECT SQL
+     *
+     * @see execute for non-SELECT statements
+     */
+    suspend fun query(sqlBuilder: Sql): ResultSet
 
+    /**
+     * INTERNAL FUNCTION, use [EntityQuery.run] instead.
+     */
+    suspend fun <E: DbEntity<E, *>>
+    executeSelect(query: EntityQuery<E>): List<E>
+
+    /**
+     * INTERNAL FUNCTION, use [EntityQuery.countAll] instead.
+     */
+    suspend fun <E: DbEntity<E, *>>
+    executeCount(query: EntityQuery<E>): Long
+
+    /**
+     * INTERNAL FUNCTION, use [insert] or [newInsertion] instead.
+     */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeInsert(table: DbTable<E, ID>, values: EntityValues<E>): ID
+    executeInsert(table: TableInQuery<E>, values: EntityValues<E>): ID
 
+    /**
+     * INTERNAL FUNCTION, use [update] or [DbTable.update] instead.
+     */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeUpdate(table: DbTable<E, ID>, filter: ExprBoolean<E>?, values: EntityValues<E>, specificIds: Set<ID>?): Long
+    executeUpdate(table: TableInQuery<E>, filters: ExprBoolean?, values: EntityValues<E>, specificIds: Set<ID>?): Long
 
-    suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    loadForAll(ref: RelToOne<FROM, TO>, sources: Collection<FROM>?): Map<FROM, TO?>
+    /**
+     * INTERNAL FUNCTION, use [delete] instead.
+     */
+    suspend fun <E : DbEntity<E, *>>
+    executeDelete(deleteQuery: DeleteQuery<E>): Long
 
-    fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    loadForAllAsync(ref: RelToOne<FROM, TO>, sources: Collection<FROM>): Deferred<Map<FROM, TO?>> {
-        return defer { loadForAll(ref, sources) }
-    }
 
+    /**
+     * Follows a relation-to-one and throws if the target entity was not found.
+     */
+    suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
+    load(from: FROM, relation: RelToOne<FROM, TO>): TO
+
+    /**
+     * Follows a relation-to-one and returns null if the target entity was not found.
+     */
+    suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
+    find(from: FROM, relation: RelToOne<FROM, TO>): TO?
+
+    /**
+     * Follows a relation-to-many
+     */
+    suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
+    load(from: FROM, relation: RelToMany<FROM, TO>): List<TO>
+
+    /**
+     * Follows a relation-to-many and applies additional filter to the result.
+     */
+    suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
+    load(from: FROM, relation: RelToMany<FROM, TO>, filter: FilterBuilder<TO>.()->ExprBoolean): List<TO>
+
+    /**
+     * Follows a relation-to-one for multiple source entities.
+     */
+    suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
+    loadForAll(ref: RelToOne<FROM, TO>, sources: Collection<FROM>): Map<FROM, TO?>
+
+    /**
+     * Follows a relation-to-many for multiple source entities.
+     */
+    suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
+    loadForAll(ref: RelToMany<FROM, TO>, sources: Collection<FROM>): Map<FROM, List<TO>>
+
+
+    /**
+     * Loads a row from the table by ID and throws if it is not found.
+     */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    loadMany(table: DbTable<E, ID>, ids: Iterable<ID>): Map<ID, E>
+    loadById(table: DbTable<E, ID>, id: ID): E
 
-    fun <E : DbEntity<E, ID>, ID: Any>
-    loadManyAsync(table: DbTable<E, ID>, ids: Iterable<ID>): Deferred<Map<ID, E>> {
-        return defer { loadMany(table, ids) }
-    }
-
+    /**
+     * Loads a row from the table by ID and returns null if it is not found.
+     */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    findMany(table: DbTable<E, ID>, ids: Iterable<ID>): Map<ID, E?>
+    findById(table: DbTable<E, ID>, id: ID?): E?
 
-    fun <E : DbEntity<E, ID>, ID: Any>
-    findManyAsync(table: DbTable<E, ID>, ids: Iterable<ID>): Deferred<Map<ID, E?>> {
-        return defer { findMany(table, ids) }
+    @Deprecated("Use the other findByKey", replaceWith = ReplaceWith("findByKey(keyDef, key)"))
+    suspend fun <E: DbEntity<E, *>, KEY: Any>
+    findByKey(table: DbTable<E, *>, keyDef: UniqueKeyDef<E, KEY>, key: KEY): E? {
+        return findByKey(keyDef, key)
     }
 
+    suspend fun <E: DbEntity<E, *>, KEY: Any>
+    findByKey(keyDef: UniqueKeyDef<E, KEY>, key: KEY): E?
+
+    /**
+     * Loads multiple rows from the table by IDs and throws if all IDs are not actually found.
+     */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    delete(entity: E): Boolean
+    loadByIds(table: DbTable<E, ID>, ids: Iterable<ID>): Map<ID, E>
 
-    fun <E : DbEntity<E, ID>, ID: Any>
-    deleteAsync(entity: E): Deferred<Boolean> {
-        return defer { delete(entity) }
-    }
+    /**
+     * Loads multiple rows from the table by IDs and returns null for all rows not present
+     */
+    suspend fun <E : DbEntity<E, ID>, ID: Any>
+    findByIds(table: DbTable<E, ID>, ids: Iterable<ID>): Map<ID, E?>
 
-
-    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    delete(table: Z, filter: Z.() -> ExprBoolean<E>): Long
-
-    fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    deleteAsync(table: Z, filter: Z.() -> ExprBoolean<E>): Deferred<Long> {
-        return defer { delete(table, filter) }
-    }
-
-    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    delete(table: Z, ids: Set<ID>): Long
-
-    fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    deleteAsync(table: Z, ids: Set<ID>): Deferred<Long> {
-        return defer { delete(table, ids) }
-    }
-
-
-    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.delete(id: ID): Boolean
-
-    fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.deleteAsync(id: ID): Deferred<Boolean> {
-        return defer { delete(id) }
-    }
-
-    fun <E : DbEntity<E, ID>, ID: Any>
-    importJson(table: DbTable<E, ID>, json: JsonObject)
-
-
+    /**
+     * Shortcut for [loadById]. Use like this:
+     * ```
+     * val id = 1536
+     * val competition = with(db) { COMPETITIONS(id) }
+     * ```
+     */
     suspend operator fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
     Z.invoke(id: ID): E {
-        return load(this, id)
+        return loadById(this, id)
     }
 
+//    suspend operator get() is not supported (yet).. when it becomes supported, uncomment this..
+//
+//    /**
+//     * Shortcut for [findById]. Use like this:
+//     * ```
+//     * val id = 1536
+//     * val competitionMaybe = with(db) { COMPETITIONS[id] }
+//     * ```
+//     */
+//    suspend operator fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+//    Z.get(id: ID): E? {
+//        return findById(this, id)
+//    }
+
+
+    // ease-of-use functions
+    /**
+     * Queries all the rows in the table.
+     */
+    suspend fun <E : DbEntity<E, ID>, ID: Any>
+    queryAll(table: DbTable<E, ID>) : List<E> {
+        return table.newQuery(this).run()
+    }
+
+    /**
+     * Counts all the rows in the table.
+     */
+    suspend fun <E : DbEntity<E, ID>, ID : Any>
+    countAll(table: DbTable<E, ID>): Long {
+        return table.newQuery(this).countAll()
+    }
+
+    /**
+     * A shortcut for building and executing a count query. Use like this:
+     * ```
+     * val count = db.count(SOME_TABLE) {
+     *     SOME_FIELD eq "foo"
+     * }
+     * ```
+     */
+    suspend fun <E : DbEntity<E, *>>
+    count(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
+        val query = table.newQuery(this)
+        query.filter(filter)
+        return query.countAll()
+    }
+
+    /**
+     * Deletes the entity from DB.
+     */
+    suspend fun <E : DbEntity<E, ID>, ID: Any>
+    delete(entity: E): Boolean {
+        return deleteByIds(entity.metainfo, setOf(entity.id)) > 0
+    }
+
+    /**
+     * Deletes all rows matching the specified filter. Use like this:
+     * ```
+     * val aYearAgo = ...;
+     * db.delete(COMPETITIONS) {
+     *     COMP_DATE lt aYearAgo
+     * }
+     * ```
+     */
+    suspend fun <E : DbEntity<E, *>>
+    deleteMany(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
+        val query = table.newDeleteQuery(this)
+        query.filter(filter)
+        return query.deleteAllMatchingRows()
+    }
+
+    /**
+     * Deletes multiple entities by their IDs.
+     */
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-            Z.get(id: ID): E? {
-        return find(this, id)
+    deleteByIds(table: Z, ids: Set<ID>): Long {
+        if (ids.isEmpty())
+            return 0L
+
+        val query = table.newDeleteQuery(this)
+        query.filter { table.primaryKey oneOf ids }
+        return query.deleteAllMatchingRows()
     }
 
+    /**
+     * Deletes a single entity by ID.
+     */
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.query(filter: Z.() -> ExprBoolean<E>): List<E> {
-        return query(this, filter())
+    Z.deleteById(id: ID): Boolean {
+        return deleteByIds(this, setOf(id)) > 0
     }
 
+    /**
+     * Opposite of [DbTable.toJsonObject] - imports the serialized entity back into internal cache.
+     */
+    fun <E : DbEntity<E, ID>, ID: Any>
+    importJson(table: DbTable<E, ID>, json: JsonObject): E
+
+    /**
+     * Shortcut for creating and executing a query. Use like this:
+     * ```
+     * val rows = with(db) { SOME_TABLE.query { SOME_FIELD eq value } }
+     * ```
+     */
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.queryAsync(filter: Z.() -> ExprBoolean<E>): Deferred<List<E>> {
-        return queryAsync(this, filter())
+    Z.query(filter: FilterBuilder<E>.() -> ExprBoolean): List<E> {
+        val query = newQuery(this)
+        query.filter(filter)
+        return query.run()
     }
 
+    /**
+     * Shortcut for creating and executing a count query. Use like this:
+     * ```
+     * val numRows = with(db) { SOME_TABLE.countAll { SOME_FIELD eq value } }
+     * ```
+     */
+    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
+            Z.countAll(filter: FilterBuilder<E>.() -> ExprBoolean): Long {
+        val query = newQuery(this)
+        query.filter(filter)
+        return query.countAll()
+    }
+
+    /**
+     * Shortcut for defining and executing an insertion. Use like this:
+     * ```
+     * val newId = with(db) { SOME_TABLE.insert {
+     *     SOME_FIELD += "some field value"
+     *     OTHER_FIELD += 15
+     * } }
+     * ```
+     */
     suspend fun <E: DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
     Z.insert(builder: DbInsert<E, ID>.() -> Unit): ID {
         val insert = insertion(this@DbConn)
@@ -233,13 +302,24 @@ interface DbConn {
         return insert.execute()
     }
 
+    /**
+     * Similar to [insert], but returns the insertion so that it may be further modified, before [DbInsert.execute] is called.
+     */
     fun <E: DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.insertion(builder: DbInsert<E, ID>.() -> Unit): DbInsert<E, ID> {
+    Z.newInsertion(builder: DbInsert<E, ID>.() -> Unit): DbInsert<E, ID> {
         val insertion = insertion(this@DbConn)
         insertion.apply(builder)
         return insertion
     }
 
+    /**
+     * Updates a single entity. Use like this:
+     * ```
+     * with(db) { SOME_TABLE.update(entity) {
+     *     SOME_FIELD += "new field value"
+     * } }
+     * ```
+     */
     suspend fun <E: DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
     Z.update(entity: E, builder: DbUpdate<E>.() -> Unit): Boolean {
         val update = update(this@DbConn, entity)
@@ -247,6 +327,10 @@ interface DbConn {
         return update.execute() > 0
     }
 
+    /**
+     * Creates a new query. Use [EntityQuery.filter], [EntityQuery.orderBy], etc. to set it up,
+     * then finish with [EntityQuery.run] and/or [EntityQuery.countAll].
+     */
     fun <E : DbEntity<E, ID>, ID: Any>
     newQuery(table: DbTable<E, ID>) = table.newQuery(this)
 }

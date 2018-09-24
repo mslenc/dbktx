@@ -1,39 +1,55 @@
 package com.xs0.dbktx.conn
 
+import com.github.mslenc.asyncdb.vertx.DbClient
+import com.github.mslenc.asyncdb.vertx.DbConnection
 import com.xs0.dbktx.util.DelayedExecScheduler
 import com.xs0.dbktx.util.vx
 import io.vertx.core.Vertx
-import io.vertx.ext.asyncsql.AsyncSQLClient
-import io.vertx.ext.sql.SQLConnection
 import mu.KLogging
 
 object VertxScheduler: DelayedExecScheduler {
     override fun schedule(runnable: () -> Unit) {
-        Vertx.currentContext().runOnContext({ runnable() })
+        Vertx.currentContext().runOnContext { runnable() }
     }
 }
 
 /**
  * Creates a connector that obtains connections from the provided sql client and
- * schedules delayed execution on the provided scheduler. Expected to be used
- * mostly for testing.
+ * schedules delayed execution on the provided scheduler.
  */
 class DbConnectorImpl(
-        private val sqlClient: AsyncSQLClient,
-        private val delayedExecScheduler: DelayedExecScheduler = VertxScheduler)
+        private val sqlClient: DbClient,
+        private val delayedExecScheduler: DelayedExecScheduler = VertxScheduler,
+        private val timeProvider: TimeProvider,
+        private val connectionWrapper: (DbConnection)->DbConnection = { it }
+        )
     : DbConnector
 
 {
-    suspend override fun connect(block: suspend (DbConn) -> Unit) {
-        val rawConn: SQLConnection = try {
+    override suspend fun connect(block: suspend (DbConn) -> Unit) {
+        val rawConn: DbConnection = try {
             vx { handler -> sqlClient.getConnection(handler) }
         } catch (e: Exception) {
             logger.error("Failed to connect", e)
             throw e
         }
 
-        DbLoaderImpl(rawConn, delayedExecScheduler).use {
-            block(it)
+        try {
+            // TODO: remove this workaround..
+            vx<Void> { handler -> rawConn.execute("ROLLBACK", handler) }
+        } catch (e: Exception) {
+            vx<Void> { handler -> rawConn.close(handler) }
+            throw e
+        }
+
+        try {
+            val wrappedConn = connectionWrapper(rawConn)
+            val requestTime = timeProvider.getTime(wrappedConn)
+            val dbConn = DbLoaderImpl(wrappedConn, delayedExecScheduler, requestTime)
+
+            block(dbConn)
+        } finally {
+            vx<Void> { handler -> rawConn.close(handler) }
         }
     }
 

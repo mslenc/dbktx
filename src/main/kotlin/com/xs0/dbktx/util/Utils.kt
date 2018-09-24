@@ -3,10 +3,9 @@ package com.xs0.dbktx.util
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
 import kotlinx.coroutines.experimental.*
-import mu.KotlinLogging
 import java.lang.Long.reverseBytes
-import kotlin.coroutines.experimental.Continuation
 import kotlin.coroutines.experimental.suspendCoroutine
+import java.util.regex.Pattern
 
 private object HexUtil {
     val reverseHex: IntArray = kotlin.IntArray(256).apply {
@@ -134,7 +133,7 @@ fun <T> defer(block: suspend () -> T): Deferred<T> {
     return async(Unconfined) { block() }
 }
 
-inline suspend fun <T> vx(crossinline callback: (Handler<AsyncResult<T>>) -> Unit) =
+suspend inline fun <T> vx(crossinline callback: (Handler<AsyncResult<T>>) -> Unit) =
         suspendCoroutine<T> { cont ->
             callback(Handler { result: AsyncResult<T> ->
                 if (result.succeeded()) {
@@ -216,4 +215,28 @@ inline fun <T> List<T>.indexOfFirstMatching(selector: (T)->Boolean): Int? {
         }
     }
     return null
+}
+
+fun String?.trimToNull(): String? {
+    if (this == null)
+        return null
+
+    val trimmed = this.trim()
+    if (trimmed.isEmpty())
+        return null
+
+    return trimmed
+}
+
+private val wordPattern: Pattern = Pattern.compile("\\b\\w+\\b", Pattern.CASE_INSENSITIVE or Pattern.UNICODE_CHARACTER_CLASS or Pattern.UNICODE_CASE)
+
+fun extractWordsForSearch(query: String): List<String> {
+    val matcher = wordPattern.matcher(query)
+    val result = ArrayList<String>()
+    while (matcher.find()) {
+        val word = matcher.group().trim { !it.isLetterOrDigit() }
+        if (word.isNotEmpty())
+            result.add(word)
+    }
+    return result
 }

@@ -1,5 +1,6 @@
-package com.xs0.dbktx.util
+package com.xs0.dbktx.util.testing
 
+import com.xs0.dbktx.util.DelayedExecScheduler
 import java.util.ArrayList
 
 class DelayedExec : DelayedExecScheduler {

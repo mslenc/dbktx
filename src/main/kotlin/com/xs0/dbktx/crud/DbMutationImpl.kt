@@ -4,9 +4,9 @@ import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.expr.Expr
 import com.xs0.dbktx.schema.*
 
-abstract class DbMutationImpl<E : DbEntity<E, ID>, ID: Any> protected constructor(
+internal abstract class DbMutationImpl<E : DbEntity<E, ID>, ID: Any> protected constructor(
         protected val db: DbConn,
-        override val table: DbTable<E, ID>) : DbMutation<E> {
+        override val table: BaseTableInUpdateQuery<E>) : DbMutation<E> {
 
     protected val values = EntityValues<E>()
 
@@ -33,7 +33,7 @@ abstract class DbMutationImpl<E : DbEntity<E, ID>, ID: Any> protected constructo
     override fun <TARGET : DbEntity<TARGET, TID>, TID: Any>
     set(relation: RelToOne<E, TARGET>, target: TARGET): DbMutation<E> {
         @Suppress("UNCHECKED_CAST")
-        relation as RelToOneImpl<E, ID, TARGET, TID>
+        relation as RelToOneImpl<E, TARGET, TID>
 
         for (colMap in relation.info.columnMappings) {
             doColMap(colMap, target)
@@ -44,16 +44,16 @@ abstract class DbMutationImpl<E : DbEntity<E, ID>, ID: Any> protected constructo
 
     private fun <TARGET : DbEntity<TARGET, TID>, TID, VALTYPE: Any>
     doColMap(colMap: ColumnMapping<E, TARGET, VALTYPE>, target: TARGET) {
-        val colFrom = colMap.columnFrom
-        val colTo = colMap.columnTo
+        if (colMap.columnFromKind != ColumnInMappingKind.COLUMN)
+            return // TODO: check that constants and parameters match target?
 
-        if (colFrom is NonNullColumn) {
-            set(colFrom, colTo.invoke(target))
-        } else
-        if (colFrom is NullableColumn) {
-            set(colFrom, colTo.invoke(target))
-        } else {
-            throw IllegalStateException("Column is neither nullable or nonNull")
+        val colFrom = colMap.rawColumnFrom
+        val colTo = colMap.rawColumnTo
+
+        when (colFrom) {
+            is NonNullColumn -> set(colFrom, colTo.invoke(target))
+            is NullableColumn -> set(colFrom, colTo.invoke(target))
+            else -> throw IllegalStateException("Column is neither nullable or nonNull")
         }
     }
 }

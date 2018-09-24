@@ -1,17 +1,21 @@
 package com.xs0.dbktx.util
 
+import com.xs0.dbktx.crud.BoundColumnForSelect
+import com.xs0.dbktx.crud.JoinType
+import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.expr.SqlEmitter
 import com.xs0.dbktx.schema.Column
+import com.xs0.dbktx.schema.ColumnInMappingKind
 import com.xs0.dbktx.schema.DbTable
+import com.xs0.dbktx.schema.RelToOneImpl
 import com.xs0.dbktx.sqltypes.toHexString
-import io.vertx.core.json.JsonArray
 import java.math.BigDecimal
 import java.time.*
 
 class Sql {
     private val sql = StringBuilder()
-    val params = JsonArray()
+    val params = ArrayList<Any>()
 
     fun getSql(): String {
         return sql.toString()
@@ -78,7 +82,18 @@ class Sql {
         return quotedRaw(formatDuration(param))
     }
 
-    operator fun invoke(column: Column<*, *>): Sql {
+    fun columnForSelect(table: TableInQuery<*>, column: Column<*, *>): Sql {
+        if (table.tableAlias.isNotEmpty())
+            sql.append(table.tableAlias).append('.')
+        sql.append(column.quotedFieldName)
+        return this
+    }
+
+    fun columnForSelect(col: BoundColumnForSelect<*, *>): Sql {
+        return columnForSelect(col.tableInQuery, col.column)
+    }
+
+    fun columnForUpdate(column: Column<*, *>): Sql {
         sql.append(column.quotedFieldName)
         return this
     }
@@ -127,11 +142,58 @@ class Sql {
         return raw("SELECT ").raw(what)
     }
 
-    fun FROM(table: DbTable<*,*>): Sql {
-        return raw(" FROM ").raw(table.quotedDbName)
+    fun FROM(table: DbTable<*,*>, alias: String): Sql {
+        return raw(" FROM ").raw(table.quotedDbName).raw(" AS ").raw(alias)
     }
 
-    fun WHERE(filter: ExprBoolean<*>?): Sql {
+    fun FROM(tiq: TableInQuery<*>): Sql {
+        raw(" FROM ").raw(tiq.table.quotedDbName).raw(" AS ").raw(tiq.tableAlias)
+
+        buildJoins(tiq)
+
+        return this
+    }
+
+    private fun buildJoins(tiq: TableInQuery<*>) {
+        for (joinedTable in tiq.joins) {
+            val joinType = joinedTable.incomingJoin.joinType
+            if (joinType == JoinType.SUB_QUERY)
+                continue
+
+            val rel = joinedTable.incomingJoin.relToOne as RelToOneImpl<*,*,*>
+            val sourceTable = joinedTable.prevTable
+            val targetTable = rel.targetTable
+
+            if (joinType == JoinType.INNER_JOIN) {
+                raw(" INNER JOIN ")
+            } else {
+                raw(" LEFT JOIN ")
+            }
+
+            raw(targetTable.quotedDbName).raw(" AS ").raw(joinedTable.tableAlias).raw(" ON ")
+
+            tuple(rel.info.columnMappings, separator = " AND ") { colMap ->
+                when (colMap.columnFromKind) {
+                    ColumnInMappingKind.COLUMN -> {
+                        columnForSelect(SqlBuilderHelpers.forceBindColumnTo(colMap, joinedTable))
+                        raw(" = ")
+                        columnForSelect(SqlBuilderHelpers.forceBindColumnFrom(colMap, sourceTable))
+                    }
+
+                    ColumnInMappingKind.CONSTANT,
+                    ColumnInMappingKind.PARAMETER -> {
+                        columnForSelect(SqlBuilderHelpers.forceBindColumnTo(colMap, joinedTable))
+                        raw(" = ")
+                        colMap.columnFromLiteral.toSql(this)
+                    }
+                }
+            }
+
+            buildJoins(joinedTable)
+        }
+    }
+
+    fun WHERE(filter: ExprBoolean?): Sql {
         if (filter != null) {
             raw(" WHERE ")
             filter.toSql(this, true)
@@ -185,15 +247,11 @@ class Sql {
             throw IllegalArgumentException("Empty tuple")
     }
 
-    inline operator fun String.unaryPlus() {
+    operator fun String.unaryPlus() {
         raw(this)
     }
 
-    inline operator fun SqlEmitter.unaryPlus() {
+    operator fun SqlEmitter.unaryPlus() {
         invoke(this, false)
-    }
-
-    inline operator fun DbTable<*,*>.unaryPlus() {
-        invoke(this)
     }
 }

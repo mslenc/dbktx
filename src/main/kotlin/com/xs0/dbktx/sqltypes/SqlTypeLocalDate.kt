@@ -8,18 +8,25 @@ import kotlin.reflect.KClass
 class SqlTypeLocalDate(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<LocalDate>(isNotNull = isNotNull) {
     init {
         if (concreteType != SqlTypeKind.DATE)
-            throw IllegalArgumentException("Unsupported type " + concreteType)
+            throw IllegalArgumentException("Unsupported type $concreteType")
     }
 
-    override fun fromJson(value: Any): LocalDate {
+    override fun parseRowDataValue(value: Any): LocalDate {
+        if (value is LocalDate)
+            return value
+
+        throw IllegalArgumentException("Not a LocalDate value - $value")
+    }
+
+    override fun encodeForJson(value: LocalDate): Any {
+        return value.toString()
+    }
+
+    override fun decodeFromJson(value: Any): LocalDate {
         if (value is CharSequence)
             return LocalDate.parse(value)
 
-        throw IllegalArgumentException("Not a string(date) value - " + value)
-    }
-
-    override fun toJson(value: LocalDate): String {
-        return value.toString()
+        throw IllegalArgumentException("Not a string value (for LocalDate) - $value")
     }
 
     override fun toSql(value: LocalDate, sql: Sql) {

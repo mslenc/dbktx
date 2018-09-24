@@ -1,10 +1,11 @@
 package com.xs0.dbktx.composite
 
+import com.github.mslenc.asyncdb.common.RowData
 import com.xs0.dbktx.schema.DbEntity
 import com.xs0.dbktx.schema.NonNullColumn
 import com.xs0.dbktx.util.Sql
 
-abstract class CompositeId3<E : DbEntity<E, ID>, T1: Any, T2: Any, T3: Any, ID : CompositeId3<E, T1, T2, T3, ID>>
+abstract class CompositeId3<E : DbEntity<E, *>, T1: Any, T2: Any, T3: Any, ID : CompositeId3<E, T1, T2, T3, ID>>
     private constructor()
     : CompositeId<E, ID>() {
     abstract val column1: NonNullColumn<E, T1>
@@ -15,7 +16,7 @@ abstract class CompositeId3<E : DbEntity<E, ID>, T1: Any, T2: Any, T3: Any, ID :
     lateinit var component2: T2 private set
     lateinit var component3: T3 private set
 
-    protected constructor(row: List<Any?>) : this() {
+    protected constructor(row: RowData) : this() {
         this.component1 = column1(row)
         this.component2 = column2(row)
         this.component3 = column3(row)

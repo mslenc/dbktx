@@ -24,22 +24,26 @@ class SqlTypeDouble(concreteType: SqlTypeKind,
                 this.maxVal = Double.MAX_VALUE
             }
 
-            else -> throw IllegalArgumentException("Unsupported type " + concreteType)
+            else -> throw IllegalArgumentException("Unsupported type $concreteType")
         }
     }
 
-    override fun fromJson(value: Any): Double {
+    override fun parseRowDataValue(value: Any): Double {
         if (value is Double)
             return value
 
         if (value is Number)
             return value.toDouble()
 
-        throw IllegalArgumentException("Not a double - " + value)
+        throw IllegalArgumentException("Not a double - $value")
     }
 
-    override fun toJson(value: Double): Any {
+    override fun encodeForJson(value: Double): Any {
         return value
+    }
+
+    override fun decodeFromJson(value: Any): Double {
+        return parseRowDataValue(value)
     }
 
     override fun toSql(value: Double, sql: Sql) {

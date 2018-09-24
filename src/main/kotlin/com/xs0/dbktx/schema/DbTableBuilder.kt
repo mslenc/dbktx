@@ -1,6 +1,7 @@
 package com.xs0.dbktx.schema
 
-import com.xs0.dbktx.sqltypes.SqlType
+import com.github.mslenc.asyncdb.common.RowData
+import com.xs0.dbktx.composite.CompositeId
 import com.xs0.dbktx.sqltypes.SqlTypes
 import java.math.BigDecimal
 import java.time.*
@@ -10,19 +11,17 @@ import com.xs0.dbktx.composite.CompositeId2
 import com.xs0.dbktx.composite.CompositeId3
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.fieldprops.SqlTypeDef
-import com.xs0.dbktx.sqltypes.SqlTypeKind
+import com.xs0.dbktx.util.FakeRowData
+import com.xs0.dbktx.util.StringSet
 import java.util.*
-
-typealias Ref<T> = KClass<out DbEntity<*, T>>
 
 open class DbTableBuilder<E : DbEntity<E, ID>, ID : Any>
 internal constructor(
         protected val table: DbTable<E, ID>) {
 
-    private val foreignKeys = HashMap<String, KClass<out DbEntity<*, *>>>()
-    private var idFieldInitialized: Boolean = false
+    private var primaryKeyInitialized: Boolean = false
 
-    fun build(factory: (DbConn, ID, List<Any?>) -> E): DbTable<E, ID> {
+    fun build(factory: (DbConn, ID, RowData) -> E): DbTable<E, ID> {
         table.factory = factory
 
         val columnNames = StringBuilder()
@@ -31,54 +30,90 @@ internal constructor(
         while (i < n) {
             if (i > 0)
                 columnNames.append(", ")
+            columnNames.append(table.aliasPrefix)
+            columnNames.append(".")
             columnNames.append(table.columns[i].fieldName)
             i++
         }
-        table.columnNames = columnNames.toString()
+        table.defaultColumnNames = columnNames.toString()
 
         return table.validate()
     }
 
     fun nonNullString(fieldName: String, type: SqlTypeDef, getter: (E) -> String,
-                      primaryKey: Boolean = false,
-                      references: Ref<String>? = null): NonNullStringColumn<E> {
+                      primaryKey: Boolean = false
+                      ): NonNullStringColumn<E> {
 
         val sqlType = SqlTypes.makeString(type.sqlTypeKind, type.param1, true)
         val column = NonNullStringColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = primaryKey, isAutoIncrement = false)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
         return column
     }
 
-    fun nullableString(fieldName: String, type: SqlTypeDef, getter: (E) -> String?,
-                       references: Ref<String>? = null): NullableStringColumn<E> {
+    fun nullableString(fieldName: String, type: SqlTypeDef, getter: (E) -> String?
+                       ): NullableStringColumn<E> {
 
         val sqlType = SqlTypes.makeString(type.sqlTypeKind, type.param1, false)
         val column = NullableStringColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = false, isAutoIncrement = false)
+        finishAddColumn(column)
         return column
     }
 
+    fun nonNullStringSet(fieldName: String, type: SqlTypeDef, getter: (E) -> StringSet,
+                         surroundedWithCommas: Boolean = false): NonNullStringSetColumn<E> {
+
+        val sqlType = SqlTypes.makeStringSet(type.sqlTypeKind, size = type.param1, isNotNull = true, surroundedWithCommas = surroundedWithCommas)
+        val column = NonNullStringSetColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column)
+        return column
+    }
+
+    fun nullableStringSet(fieldName: String, type: SqlTypeDef, getter: (E) -> StringSet?,
+                          surroundedWithCommas: Boolean = false): NullableStringSetColumn<E> {
+
+        val sqlType = SqlTypes.makeStringSet(type.sqlTypeKind, size = type.param1, isNotNull = false, surroundedWithCommas = surroundedWithCommas)
+        val column = NullableStringSetColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column)
+        return column
+    }
+
+
+    fun <T: Any> nonNullStringJson(fieldName: String, type: SqlTypeDef, getter: (E) -> T, parsedClass: KClass<T>, dummyValue: T): NonNullColumn<E, T> {
+
+        val sqlType = SqlTypes.makeStringJson(type.sqlTypeKind, size = type.param1, isNotNull = true, parsedClass = parsedClass, dummyValue = dummyValue)
+        val column = NonNullColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column)
+        return column
+    }
+
+    fun <T: Any> nullableStringJson(fieldName: String, type: SqlTypeDef, getter: (E) -> T?, parsedClass: KClass<T>, dummyValue: T): NullableColumn<E, T> {
+
+        val sqlType = SqlTypes.makeStringJson(type.sqlTypeKind, size = type.param1, isNotNull = false, parsedClass = parsedClass, dummyValue = dummyValue)
+        val column = NullableColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column)
+        return column
+    }
 
 
     fun nonNullInt(fieldName: String, type: SqlTypeDef, getter: (E) -> Int,
                    primaryKey: Boolean? = null,
                    autoIncrement: Boolean = false,
-                   unsigned: Boolean = false,
-                   references: Ref<Int>? = null): NonNullOrderedColumn<E, Int> {
+                   unsigned: Boolean = false
+                   ): NonNullOrderedColumn<E, Int> {
 
         val sqlType = SqlTypes.makeInteger(type.sqlTypeKind, isNotNull = true, isAutoGenerated = autoIncrement, isUnsigned = unsigned)
         val column = NonNullOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = primaryKey ?: autoIncrement, isAutoIncrement = autoIncrement)
+        finishAddColumn(column, isPrimaryKey = primaryKey ?: autoIncrement, isAutoIncrement = autoIncrement)
         return column
     }
 
     fun nullableInt(fieldName: String, type: SqlTypeDef, getter: (E) -> Int?,
-                    unsigned: Boolean = false,
-                    references: Ref<Int>? = null): NullableOrderedColumn<E, Int> {
+                    unsigned: Boolean = false
+                    ): NullableOrderedColumn<E, Int> {
 
         val sqlType = SqlTypes.makeInteger(type.sqlTypeKind, isNotNull = false, isAutoGenerated = false, isUnsigned = unsigned)
         val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references)
+        finishAddColumn(column)
         return column
     }
 
@@ -87,22 +122,22 @@ internal constructor(
     fun nonNullLong(fieldName: String, type: SqlTypeDef, getter: (E) -> Long,
                     primaryKey: Boolean? = null,
                     autoIncrement: Boolean = false,
-                    unsigned: Boolean = false,
-                    references: Ref<Long>? = null): NonNullOrderedColumn<E, Long> {
+                    unsigned: Boolean = false
+                    ): NonNullOrderedColumn<E, Long> {
 
         val sqlType = SqlTypes.makeLong(type.sqlTypeKind, isNotNull = true, isAutoGenerated = autoIncrement, isUnsigned = unsigned)
         val column = NonNullOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = primaryKey ?: autoIncrement, isAutoIncrement = autoIncrement)
+        finishAddColumn(column, isPrimaryKey = primaryKey ?: autoIncrement, isAutoIncrement = autoIncrement)
         return column
     }
 
     fun nullableLong(fieldName: String, type: SqlTypeDef, getter: (E) -> Long?,
-                     unsigned: Boolean = false,
-                     references: Ref<Long>? = null): NullableOrderedColumn<E, Long> {
+                     unsigned: Boolean = false
+                     ): NullableOrderedColumn<E, Long> {
 
         val sqlType = SqlTypes.makeLong(type.sqlTypeKind, isNotNull = false, isAutoGenerated = false, isUnsigned = unsigned)
         val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = false, isAutoIncrement = false)
+        finishAddColumn(column)
         return column
     }
 
@@ -110,22 +145,22 @@ internal constructor(
 
     fun nonNullFloat(fieldName: String, type: SqlTypeDef, getter: (E) -> Float,
                      primaryKey: Boolean = false,
-                     unsigned: Boolean = false,
-                     references: Ref<Float>? = null): NonNullOrderedColumn<E, Float> {
+                     unsigned: Boolean = false
+                     ): NonNullOrderedColumn<E, Float> {
 
         val sqlType = SqlTypes.makeFloat(type.sqlTypeKind, isNotNull = true, isUnsigned = unsigned)
         val column = NonNullOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = primaryKey)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
         return column
     }
 
     fun nullableFloat(fieldName: String, type: SqlTypeDef, getter: (E) -> Float?,
-                      unsigned: Boolean = false,
-                      references: Ref<Float>? = null): NullableOrderedColumn<E, Float> {
+                      unsigned: Boolean = false
+                      ): NullableOrderedColumn<E, Float> {
 
         val sqlType = SqlTypes.makeFloat(type.sqlTypeKind, isNotNull = false, isUnsigned = unsigned)
         val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references)
+        finishAddColumn(column)
         return column
     }
 
@@ -133,146 +168,175 @@ internal constructor(
 
     fun nonNullDouble(fieldName: String, type: SqlTypeDef, getter: (E) -> Double,
                       primaryKey: Boolean = false,
-                      unsigned: Boolean = false,
-                      references: Ref<Double>? = null): NonNullOrderedColumn<E, Double> {
+                      unsigned: Boolean = false
+                      ): NonNullOrderedColumn<E, Double> {
 
         val sqlType = SqlTypes.makeDouble(type.sqlTypeKind, isNotNull = true, isUnsigned = unsigned)
         val column = NonNullOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = primaryKey)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
         return column
     }
 
     fun nullableDouble(fieldName: String, type: SqlTypeDef, getter: (E) -> Double?,
-                       unsigned: Boolean = false,
-                       references: Ref<Double>? = null): NullableOrderedColumn<E, Double> {
+                       unsigned: Boolean = false
+                       ): NullableOrderedColumn<E, Double> {
 
         val sqlType = SqlTypes.makeDouble(type.sqlTypeKind, isNotNull = false, isUnsigned = unsigned)
         val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references)
+        finishAddColumn(column)
         return column
     }
 
 
     fun nonNullUUID(fieldName: String, type: SqlTypeDef, getter: (E) -> UUID,
-                    primaryKey: Boolean = false,
-                    references: Ref<UUID>? = null): NonNullColumn<E, UUID> {
+                    primaryKey: Boolean = false
+                    ): NonNullColumn<E, UUID> {
 
         val size = type.param1 ?: throw IllegalArgumentException("Missing size for UUID type")
         val sqlType = SqlTypes.makeUUID(type.sqlTypeKind, size = size, isNotNull = true)
         val column = NonNullColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = primaryKey)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
         return column
     }
 
-    fun nullableUUID(fieldName: String, type: SqlTypeDef, getter: (E) -> UUID?,
-                     references: Ref<UUID>? = null): NullableColumn<E, UUID> {
+    fun nullableUUID(fieldName: String, type: SqlTypeDef, getter: (E) -> UUID?
+                     ): NullableColumn<E, UUID> {
 
         val size = type.param1 ?: throw IllegalArgumentException("Missing size for UUID type")
         val sqlType = SqlTypes.makeUUID(type.sqlTypeKind, size = size, isNotNull = false)
         val column = NullableColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references)
+        finishAddColumn(column)
         return column
     }
 
 
 
     fun nonNullYear(fieldName: String, type: SqlTypeDef, getter: (E) -> Year,
-                    primaryKey: Boolean = false,
-                    references: Ref<Year>? = null): NonNullOrderedColumn<E, Year> {
+                    primaryKey: Boolean = false
+                    ): NonNullOrderedColumn<E, Year> {
 
         val sqlType = SqlTypes.makeYear(type.sqlTypeKind, isNotNull = true)
         val column = NonNullOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = primaryKey)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
         return column
     }
 
-    fun nullableYear(fieldName: String, type: SqlTypeDef, getter: (E) -> Year?,
-                     references: Ref<Year>? = null): NullableOrderedColumn<E, Year> {
+    fun nullableYear(fieldName: String, type: SqlTypeDef, getter: (E) -> Year?
+                     ): NullableOrderedColumn<E, Year> {
 
         val sqlType = SqlTypes.makeYear(type.sqlTypeKind, isNotNull = false)
         val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references)
+        finishAddColumn(column)
         return column
     }
 
 
 
     fun nonNullDateTime(fieldName: String, type: SqlTypeDef, getter: (E) -> LocalDateTime,
-                        primaryKey: Boolean = false,
-                        references: Ref<LocalDateTime>? = null): NonNullOrderedColumn<E, LocalDateTime> {
+                        primaryKey: Boolean = false
+                        ): NonNullOrderedColumn<E, LocalDateTime> {
 
         val sqlType = SqlTypes.makeLocalDateTime(type.sqlTypeKind, isNotNull = true)
         val column = NonNullOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = primaryKey)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
         return column
     }
 
-    fun nullableDateTime(fieldName: String, type: SqlTypeDef, getter: (E) -> LocalDateTime?,
-                         references: Ref<LocalDateTime>? = null): NullableOrderedColumn<E, LocalDateTime> {
+    fun nullableDateTime(fieldName: String, type: SqlTypeDef, getter: (E) -> LocalDateTime?
+                         ): NullableOrderedColumn<E, LocalDateTime> {
 
         val sqlType = SqlTypes.makeLocalDateTime(type.sqlTypeKind, isNotNull = false)
         val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references)
+        finishAddColumn(column)
         return column
     }
 
 
     fun nonNullInstant(fieldName: String, type: SqlTypeDef, getter: (E) -> Instant,
-                       primaryKey: Boolean = false,
-                       references: Ref<Instant>? = null): NonNullOrderedColumn<E, Instant> {
+                       primaryKey: Boolean = false
+                       ): NonNullOrderedColumn<E, Instant> {
 
         val sqlType = SqlTypes.makeInstant(type.sqlTypeKind, isNotNull = true)
         val column = NonNullOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = primaryKey)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
         return column
     }
 
-    fun nullableInstant(fieldName: String, type: SqlTypeDef, getter: (E) -> Instant?,
-                        references: Ref<Instant>? = null): NullableOrderedColumn<E, Instant> {
+    fun nullableInstant(fieldName: String, type: SqlTypeDef, getter: (E) -> Instant?
+                        ): NullableOrderedColumn<E, Instant> {
 
         val sqlType = SqlTypes.makeInstant(type.sqlTypeKind, isNotNull = false)
         val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references)
+        finishAddColumn(column)
+        return column
+    }
+
+    fun nullableInstantFromMillis(fieldName: String, type: SqlTypeDef, getter: (E) -> Instant?
+                                  ): NullableOrderedColumn<E, Instant> {
+
+        val sqlType = SqlTypes.makeInstantFromMillis(type.sqlTypeKind, isNotNull = false)
+        val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column)
         return column
     }
 
 
     fun nonNullTime(fieldName: String, type: SqlTypeDef, getter: (E) -> LocalTime,
-                    primaryKey: Boolean = false,
-                    references: Ref<LocalTime>? = null): NonNullOrderedColumn<E, LocalTime> {
+                    primaryKey: Boolean = false
+                    ): NonNullOrderedColumn<E, LocalTime> {
 
         val sqlType = SqlTypes.makeLocalTime(type.sqlTypeKind, isNotNull = true)
         val column = NonNullOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = primaryKey)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
         return column
     }
 
-    fun nullableTime(fieldName: String, type: SqlTypeDef, getter: (E) -> LocalTime?,
-                     references: Ref<LocalTime>? = null): NullableOrderedColumn<E, LocalTime> {
+    fun nullableTime(fieldName: String, type: SqlTypeDef, getter: (E) -> LocalTime?
+                     ): NullableOrderedColumn<E, LocalTime> {
 
         val sqlType = SqlTypes.makeLocalTime(type.sqlTypeKind, isNotNull = false)
         val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references)
+        finishAddColumn(column)
+        return column
+    }
+
+
+    fun nonNullDuration(fieldName: String, type: SqlTypeDef, getter: (E) -> Duration,
+                    primaryKey: Boolean = false
+    ): NonNullOrderedColumn<E, Duration> {
+
+        val sqlType = SqlTypes.makeDuration(type.sqlTypeKind, isNotNull = true)
+        val column = NonNullOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
+        return column
+    }
+
+    fun nullableDuration(fieldName: String, type: SqlTypeDef, getter: (E) -> Duration?
+    ): NullableOrderedColumn<E, Duration> {
+
+        val sqlType = SqlTypes.makeDuration(type.sqlTypeKind, isNotNull = false)
+        val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column)
         return column
     }
 
 
     fun nonNullDate(fieldName: String, type: SqlTypeDef, getter: (E) -> LocalDate,
-                    primaryKey: Boolean = false,
-                    references: Ref<LocalDate>? = null): NonNullOrderedColumn<E, LocalDate> {
+                    primaryKey: Boolean = false
+                    ): NonNullOrderedColumn<E, LocalDate> {
 
         val sqlType = SqlTypes.makeLocalDate(type.sqlTypeKind, isNotNull = true)
         val column = NonNullOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = primaryKey)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
         return column
     }
 
-    fun nullableDate(fieldName: String, type: SqlTypeDef, getter: (E) -> LocalDate?,
-                     references: Ref<LocalDate>? = null): NullableOrderedColumn<E, LocalDate> {
+    fun nullableDate(fieldName: String, type: SqlTypeDef, getter: (E) -> LocalDate?
+                     ): NullableOrderedColumn<E, LocalDate> {
 
         val sqlType = SqlTypes.makeLocalDate(type.sqlTypeKind, isNotNull = false)
         val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references)
+        finishAddColumn(column)
         return column
     }
 
@@ -282,7 +346,7 @@ internal constructor(
 
         val sqlType = SqlTypes.makeByteArray(type.sqlTypeKind, type.param1, isNotNull = true)
         val column = NonNullColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, foreignKey = null)
+        finishAddColumn(column)
         return column
     }
 
@@ -291,64 +355,101 @@ internal constructor(
 
         val sqlType = SqlTypes.makeByteArray(type.sqlTypeKind, type.param1, isNotNull = false)
         val column = NullableColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, foreignKey = null)
+        finishAddColumn(column)
         return column
     }
 
 
     fun nonNullDecimal(fieldName: String, type: SqlTypeDef, getter: (E) -> BigDecimal,
                        primaryKey: Boolean = false,
-                       unsigned: Boolean = false,
-                       references: Ref<BigDecimal>? = null): NonNullOrderedColumn<E, BigDecimal> {
+                       unsigned: Boolean = false
+                       ): NonNullOrderedColumn<E, BigDecimal> {
 
         val precision: Int = type.param1 ?: throw IllegalArgumentException("Missing precision for DECIMAL")
         val scale: Int = type.param2 ?: throw IllegalArgumentException("Missing scale for DECIMAL")
 
         val sqlType = SqlTypes.makeBigDecimal(type.sqlTypeKind, precision, scale, isNotNull = true, isUnsigned = unsigned)
         val column = NonNullOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = primaryKey)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
         return column
     }
 
     fun nullableDecimal(fieldName: String, type: SqlTypeDef, getter: (E) -> BigDecimal?,
                         primaryKey: Boolean = false,
-                        unsigned: Boolean = false,
-                        references: Ref<BigDecimal>? = null): NullableOrderedColumn<E, BigDecimal> {
+                        unsigned: Boolean = false
+                        ): NullableOrderedColumn<E, BigDecimal> {
 
         val precision: Int = type.param1 ?: throw IllegalArgumentException("Missing precision for DECIMAL")
         val scale: Int = type.param2 ?: throw IllegalArgumentException("Missing scale for DECIMAL")
 
         val sqlType = SqlTypes.makeBigDecimal(type.sqlTypeKind, precision, scale, isNotNull = false, isUnsigned = unsigned)
         val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = primaryKey)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
         return column
     }
 
+    inline fun <reified ENUM : Enum<ENUM>>
+            nonNullStringEnum(fieldName: String,
+                              typeDef: SqlTypeDef,
+                              noinline getter: (E) -> ENUM,
+                              noinline toDbRep: (ENUM)->String,
+                              noinline fromDbRep: (String)->ENUM,
+                              primaryKey: Boolean = false
+                              ): NonNullColumn<E, ENUM> {
 
-    fun nonNullStringEnum(fieldName: String,
-                          values: Set<String>,
-                          getter: (E) -> String,
-                          type: SqlTypeDef = SqlTypeDef(SqlTypeKind.ENUM),
-                          primaryKey: Boolean = false,
-                          references: Ref<String>? = null): NonNullColumn<E, String> {
+        val klass = ENUM::class
+        val dummyValue = enumValues<ENUM>()[0]
 
-        val sqlType = SqlTypes.makeEnumString(type.sqlTypeKind, values, isNotNull = true)
+        return nonNullStringEnum(fieldName, typeDef, getter, toDbRep, fromDbRep, klass, dummyValue, primaryKey = primaryKey)
+    }
+
+    fun <ENUM : Enum<ENUM>>
+            nonNullStringEnum(fieldName: String,
+                              typeDef: SqlTypeDef,
+                              getter: (E) -> ENUM,
+                              toDbRep: (ENUM)->String,
+                              fromDbRep: (String)->ENUM,
+                              klass: KClass<ENUM>,
+                              dummyValue: ENUM,
+                              primaryKey: Boolean = false
+    ): NonNullColumn<E, ENUM> {
+
+        val sqlType = SqlTypes.makeEnumToString(klass, dummyValue, typeDef.sqlTypeKind, toDbRep, fromDbRep, isNotNull = true)
         val column = NonNullColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = primaryKey)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
         return column
     }
 
-    fun nullableStringEnum(fieldName: String,
-                          values: Set<String>,
-                          getter: (E) -> String?,
-                          type: SqlTypeDef = SqlTypeDef(SqlTypeKind.ENUM),
-                          references: Ref<String>? = null): NullableColumn<E, String> {
+    inline fun <reified ENUM : Enum<ENUM>>
+            nullableStringEnum(fieldName: String,
+                               typeDef: SqlTypeDef,
+                               noinline getter: (E) -> ENUM?,
+                               noinline toDbRep: (ENUM)->String,
+                               noinline fromDbRep: (String)->ENUM
+                               ): NullableColumn<E, ENUM> {
 
-        val sqlType = SqlTypes.makeEnumString(type.sqlTypeKind, values, isNotNull = false)
+        val klass = ENUM::class
+        val dummyValue = enumValues<ENUM>()[0]
+
+        return nullableStringEnum(fieldName, typeDef, getter, toDbRep, fromDbRep, klass, dummyValue)
+    }
+
+    fun <ENUM : Enum<ENUM>>
+            nullableStringEnum(fieldName: String,
+                               typeDef: SqlTypeDef,
+                               getter: (E) -> ENUM?,
+                               toDbRep: (ENUM)->String,
+                               fromDbRep: (String)->ENUM,
+                               klass: KClass<ENUM>,
+                               dummyValue: ENUM
+                               ): NullableColumn<E, ENUM> {
+
+        val sqlType = SqlTypes.makeEnumToString(klass, dummyValue, typeDef.sqlTypeKind, toDbRep, fromDbRep, isNotNull = true)
         val column = NullableColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references)
+        finishAddColumn(column)
         return column
     }
+
 
 
     inline fun <reified ENUM : Enum<ENUM>>
@@ -357,14 +458,13 @@ internal constructor(
                            noinline getter: (E) -> ENUM,
                            noinline toDbRep: (ENUM)->Int,
                            noinline fromDbRep: (Int)->ENUM,
-                           references: Ref<ENUM>? = null,
                            primaryKey: Boolean = false
                            ): NonNullColumn<E, ENUM> {
 
         val klass = ENUM::class
         val dummyValue = enumValues<ENUM>()[0]
 
-        return nonNullIntEnum(fieldName, typeDef, getter, toDbRep, fromDbRep, klass, dummyValue, references, primaryKey = primaryKey)
+        return nonNullIntEnum(fieldName, typeDef, getter, toDbRep, fromDbRep, klass, dummyValue, primaryKey = primaryKey)
     }
 
     fun <ENUM : Enum<ENUM>>
@@ -375,13 +475,12 @@ internal constructor(
                            fromDbRep: (Int)->ENUM,
                            klass: KClass<ENUM>,
                            dummyValue: ENUM,
-                           references: Ref<ENUM>? = null,
                            primaryKey: Boolean = false
                            ): NonNullColumn<E, ENUM> {
 
         val sqlType = SqlTypes.makeEnumToInt(klass, dummyValue, typeDef.sqlTypeKind, toDbRep, fromDbRep, isNotNull = true)
         val column = NonNullColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references, isPrimaryKey = primaryKey)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
         return column
     }
 
@@ -390,14 +489,13 @@ internal constructor(
                             noinline getter: (E) -> ENUM?,
                             noinline toDbRep: (ENUM)->Int,
                             noinline fromDbRep: (Int)->ENUM,
-                            typeDef: SqlTypeDef,
-                            references: Ref<ENUM>? = null
+                            typeDef: SqlTypeDef
                             ): NullableColumn<E, ENUM> {
 
         val klass = ENUM::class
         val dummyValue = enumValues<ENUM>()[0]
 
-        return nullableIntEnum(fieldName, getter, toDbRep, fromDbRep, typeDef, klass, dummyValue, references)
+        return nullableIntEnum(fieldName, getter, toDbRep, fromDbRep, typeDef, klass, dummyValue)
     }
 
     fun <ENUM : Enum<ENUM>>
@@ -407,19 +505,18 @@ internal constructor(
                             fromDbRep: (Int)->ENUM,
                             typeDef: SqlTypeDef,
                             klass: KClass<ENUM>,
-                            dummyValue: ENUM,
-                            references: Ref<ENUM>? = null
+                            dummyValue: ENUM
                             ): NullableColumn<E, ENUM> {
 
         val sqlType = SqlTypes.makeEnumToInt(klass, dummyValue, typeDef.sqlTypeKind, toDbRep, fromDbRep, isNotNull = true)
         val column = NullableColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
-        finishAddColumn(column, references)
+        finishAddColumn(column)
         return column
     }
 
 
 
-    private fun <T : Any> finishAddColumn(column: Column<E, T>, foreignKey: Ref<T>?, isPrimaryKey: Boolean = false, isAutoIncrement: Boolean = false) {
+    private fun <T : Any> finishAddColumn(column: Column<E, T>, isPrimaryKey: Boolean = false, isAutoIncrement: Boolean = false) {
         if (isAutoIncrement) {
             if (!isPrimaryKey)
                 throw IllegalArgumentException("To be auto_increment, the column must be a primary key")
@@ -427,16 +524,12 @@ internal constructor(
         }
 
         if (isPrimaryKey) {
-            if (column is NonNullRowProp<*, *>) {
+            if (column is NonNullColumn<E, T>) {
                 @Suppress("UNCHECKED_CAST")
-                setIdField(column as NonNullRowProp<E, T>, column.sqlType.kotlinType)
+                setPrimaryKey(SingleColumnKeyDefImpl(table, table.uniqueKeys.size, column as NonNullColumn<E, ID>, isPrimaryKey = true), column.sqlType.kotlinType)
             } else {
                 throw IllegalArgumentException("Primary key must be non null")
             }
-        }
-
-        if (foreignKey != null) {
-            foreignKeys.put(column.fieldName, foreignKey)
         }
 
         if (table.columnsByDbName.put(column.fieldName, column) != null)
@@ -446,86 +539,87 @@ internal constructor(
     }
 
     protected fun <T : Any>
-    setIdField(idField: NonNullRowProp<E, T>, actualClass: KClass<out T>) {
+    setPrimaryKey(idField: UniqueKeyDef<E, T>, actualClass: KClass<out T>) {
         if (!actualClass.isSubclassOf(table.idClass))
             throw IllegalStateException("ID type mismatch in table " + table.dbName + " -- expected " + table.idClass + ", but actual is " + actualClass)
 
         @Suppress("UNCHECKED_CAST")
-        val casted = idField as NonNullRowProp<E, ID>
+        val casted = idField as UniqueKeyDef<E, ID>
 
-        if (idFieldInitialized)
+        if (primaryKeyInitialized)
             throw IllegalStateException("ID column is already set for table " + table.dbName)
 
-        table.idField = casted
-        idFieldInitialized = true
+        if (!casted.isPrimaryKey)
+            throw IllegalStateException("ID column not marked as primary key for table " + table.dbName)
+
+        table.primaryKey = casted
+        primaryKeyInitialized = true
+
+        table.uniqueKeys.add(casted)
     }
 
 
     // TODO: boolean?
 
 
-    internal fun dummyRow(): List<Any> {
+    internal fun dummyRow(): RowData {
         return dummyRow(table.columns)
     }
 
     fun <TARGET : DbEntity<TARGET, TID>, TID: Any>
-    relToOne(sourceColumn: Column<E, TID>): RelToOne<E, TARGET> {
-        val foreignKey = foreignKeys[sourceColumn.fieldName] ?: throw IllegalArgumentException("Missing foreign key info for column " + sourceColumn.fieldName)
-
-        @Suppress("UNCHECKED_CAST")
-        return this.relToOne(sourceColumn, foreignKey as KClass<TARGET>)
-    }
-
-    fun <TARGET : DbEntity<TARGET, TID>, TID: Any>
-    relToOne(sourceField: Column<E, TID>, targetClass: KClass<TARGET>): RelToOne<E, TARGET> {
-        val result = RelToOneImpl<E, ID, TARGET, TID>()
+    relToOne(sourceColumn: Column<E, TID>, targetClass: KClass<TARGET>): RelToOne<E, TARGET> {
+        val result = RelToOneImpl<E, TARGET, TID>()
         table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
             val targetTable = table.schema.getTableFor(targetClass)
 
-            if (!sourceField.sqlType.kotlinType.isSubclassOf(targetTable.idClass))
+            if (!sourceColumn.sqlType.kotlinType.isSubclassOf(targetTable.idClass))
                 throw IllegalStateException("Type mismatch on relToOne mapping for table " + table.dbName)
 
+            val targetPrimaryKey = targetTable.primaryKey
+            if (targetPrimaryKey.isComposite)
+                throw IllegalStateException("Target has a composite primary key when defining relation ${sourceColumn.fieldName} for table ${table.dbName}")
+
             @Suppress("UNCHECKED_CAST")
-            val targetId = targetTable.idField as NonNullColumn<TARGET, TID>
+            val targetColumn = targetPrimaryKey.getColumn(1) as NonNullColumn<TARGET, TID>
 
             val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
-                    ColumnMapping(sourceField, targetId)
+                ColumnMappingActualColumn(sourceColumn, targetColumn)
             )
 
-            val info = ManyToOneInfo(table, targetTable, fields)
+            val info = ManyToOneInfo(table, targetTable, targetPrimaryKey, fields)
 
-            result.init(info, sourceField::invoke)
+            result.init(info, sourceColumn::invoke)
         }
         return result
     }
 
     fun <TARGET : DbEntity<TARGET, TID>, TID: Any>
     relToMany(oppositeRel: ()-> RelToOne<TARGET, E>): RelToMany<E, TARGET> {
-        val rel = RelToManyImpl<E, ID, TARGET, TID>()
+        val rel = RelToManyImpl<E, ID, TARGET>()
         table.schema.addLazyInit(PRIORITY_REL_TO_MANY) {
             @Suppress("UNCHECKED_CAST")
-            val relToOne = oppositeRel() as RelToOneImpl<TARGET, TID, E, ID>
+            val relToOne = oppositeRel() as RelToOneImpl<TARGET, E, ID>
             val info = relToOne.info
-            rel.init(info, relToOne.idMapper, info.makeReverseQueryBuilder())
+            rel.init(relToOne, info, relToOne.keyMapper, info.makeReverseQueryBuilder())
         }
         return rel
     }
 
     fun <TARGET : DbEntity<TARGET, TID>, TID : CompositeId2<TARGET, A, B, TID>, A : Any, B : Any>
     relToOne(columnA: Column<E, A>, columnB: Column<E, B>, targetClass: KClass<TARGET>, idConstructor: ((A, B)->TID)? = null): RelToOne<E, TARGET> {
-        val result = RelToOneImpl<E, ID, TARGET, TID>()
+        val result = RelToOneImpl<E, TARGET, TID>()
         table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
             val targetTable = table.schema.getTableFor(targetClass)
             @Suppress("UNCHECKED_CAST")
-            val targetIdColumns = targetTable.idField as MultiColumn<TARGET, TID>
+            val targetIdColumns = targetTable.primaryKey as MultiColumnKeyDef<TARGET, TID>
             val targetId = targetIdColumns(dummyRow(targetTable.columns))
 
             val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
-                    ColumnMapping(columnA, targetId.column1),
-                    ColumnMapping(columnB, targetId.column2)
+                    ColumnMappingActualColumn(columnA, targetId.column1),
+                    ColumnMappingActualColumn(columnB, targetId.column2)
             )
 
-            val info = ManyToOneInfo(table, targetTable, fields)
+            val info = ManyToOneInfo(table, targetTable, targetIdColumns, fields)
 
             val idCons: (E)->TID?
             if (idConstructor != null) {
@@ -545,20 +639,21 @@ internal constructor(
 
     fun <TARGET : DbEntity<TARGET, TID>, TID : CompositeId3<TARGET, T1, T2, T3, TID>, T1: Any, T2: Any, T3: Any>
     relToOne(column1: Column<E, T1>, column2: Column<E, T2>, column3: Column<E, T3>, targetClass: KClass<TARGET>, idConstructor: ((T1, T2, T3)->TID)? = null): RelToOne<E, TARGET> {
-        val result = RelToOneImpl<E, ID, TARGET, TID>()
+        val result = RelToOneImpl<E, TARGET, TID>()
         table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
             val targetTable = table.schema.getTableFor(targetClass)
+
             @Suppress("UNCHECKED_CAST")
-            val targetIdColumns = targetTable.idField as MultiColumn<TARGET, TID>
+            val targetIdColumns = targetTable.primaryKey as MultiColumnKeyDef<TARGET, TID>
             val targetId = targetIdColumns(dummyRow(targetTable.columns))
 
             val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
-                    ColumnMapping(column1, targetId.column1),
-                    ColumnMapping(column2, targetId.column2),
-                    ColumnMapping(column3, targetId.column3)
+                    ColumnMappingActualColumn(column1, targetId.column1),
+                    ColumnMappingActualColumn(column2, targetId.column2),
+                    ColumnMappingActualColumn(column3, targetId.column3)
             )
 
-            val info = ManyToOneInfo(table, targetTable, fields)
+            val info = ManyToOneInfo(table, targetTable, targetIdColumns, fields)
 
             val idCons: (E)->TID?
             if (idConstructor != null) {
@@ -577,21 +672,79 @@ internal constructor(
         return result
     }
 
+    fun <TARGET : DbEntity<TARGET, *>, KEY : CompositeId3<TARGET, T1, T2, T3, KEY>, T1: Any, T2: Any, T3: Any>
+    relToOne(column1: Column<E, T1>, column2: Column<E, T2>, column3: Column<E, T3>, targetKeyGetter: ()->MultiColumnKeyDef<TARGET, KEY>): RelToOne<E, TARGET> {
+        val result = RelToOneImpl<E, TARGET, KEY>()
+        table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
+            val targetKey = targetKeyGetter()
+            val targetTable = targetKey.table
+
+            val targetIdColumns = targetKey
+            val targetId = targetIdColumns(dummyRow(targetTable.columns))
+
+            val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
+                    ColumnMappingActualColumn(column1, targetId.column1),
+                    ColumnMappingActualColumn(column2, targetId.column2),
+                    ColumnMappingActualColumn(column3, targetId.column3)
+            )
+
+            val info = ManyToOneInfo(table, targetTable, targetKey, fields)
+
+            val idCons: (E)->KEY? = info.makeForwardMapper()
+
+            result.init(info, idCons)
+        }
+        return result
+    }
+
+    fun <TARGET : DbEntity<TARGET, *>, KEY : Any>
+    relToOne(column: Column<E, KEY>, targetKeyGetter: ()->SingleColumnKeyDef<TARGET, KEY>): RelToOne<E, TARGET> {
+        val result = RelToOneImpl<E, TARGET, KEY>()
+        table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
+            val targetKey = targetKeyGetter()
+            val targetTable = targetKey.table
+
+            val fields: Array<ColumnMapping<E, TARGET, *>> = arrayOf(
+                ColumnMappingActualColumn(column, targetKey.column)
+            )
+
+            val info = ManyToOneInfo(table, targetTable, targetKey, fields)
+
+            val idCons: (E)->KEY? = info.makeForwardMapper()
+
+            result.init(info, idCons)
+        }
+        return result
+    }
+
+    fun <T: CompositeId<E, T>>
+    uniqueKey(keyBuilder: (RowData)->T, keyExtractor: (E)->T): MultiColumnKeyDef<E, T> {
+        if (!primaryKeyInitialized)
+            throw IllegalStateException("Must first set primary key, before other keys in table " + table.dbName)
+
+        val keyDef = MultiColumnKeyDef(table, table.uniqueKeys.size, keyBuilder, keyExtractor, keyBuilder(dummyRow()), isPrimaryKey = false)
+        table.uniqueKeys.add(keyDef)
+        return keyDef
+    }
+
+    fun <T: Any>
+    uniqueKey(column: NonNullColumn<E, T>): SingleColumnKeyDef<E, T> {
+        val keyDef = SingleColumnKeyDefImpl(table, table.uniqueKeys.size, column, isPrimaryKey = false)
+        table.uniqueKeys.add(keyDef)
+        return keyDef
+    }
+
     companion object {
         const val PRIORITY_REL_TO_ONE = 1
         const val PRIORITY_REL_TO_MANY = 2
 
-        internal fun <E : DbEntity<E, *>> dummyRow(columns: ArrayList<Column<E, *>>): List<Any> {
-            val res = ArrayList<Any>()
+        internal fun <E : DbEntity<E, *>> dummyRow(columns: ArrayList<Column<E, *>>): RowData {
+            val res = FakeRowData()
 
             for (column in columns)
-                addDummy(column.sqlType, res)
+                res.insertDummyValue(column)
 
             return res
-        }
-
-        private fun <T: Any> addDummy(sqlType: SqlType<T>, out: MutableList<Any>) {
-            out.add(sqlType.toJson(sqlType.dummyValue))
         }
     }
 }

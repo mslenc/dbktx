@@ -1,39 +1,75 @@
 package com.xs0.dbktx.schema
 
+import com.xs0.dbktx.conn.DbLoaderImpl
+import com.xs0.dbktx.conn.DbLoaderInternal
+import com.xs0.dbktx.crud.EntityQuery
+import com.xs0.dbktx.crud.FilterBuilder
+import com.xs0.dbktx.crud.TableInQuery
 import com.xs0.dbktx.expr.ExprBoolean
-import com.xs0.dbktx.expr.ExprFilterContainsChild
 
-class RelToManyImpl<FROM : DbEntity<FROM, FID>, FID: Any, TO : DbEntity<TO, TID>, TID: Any> : RelToMany<FROM, TO> {
+class RelToManyImpl<FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *>> : RelToMany<FROM, TO> {
 
-    private lateinit var info: ManyToOneInfo<TO, TID, FROM, FID>
-    private lateinit var reverseIdMapper: (TO)->FID?
-    private lateinit var queryExprBuilder: (Set<FID>)-> ExprBoolean<TO>
+    internal lateinit var info: ManyToOneInfo<TO, FROM, FROM_KEY>
+    private lateinit var reverseKeyMapper: (TO)->FROM_KEY?
+    private lateinit var queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)-> ExprBoolean
+    private lateinit var oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>
 
-    fun init(info: ManyToOneInfo<TO, TID, FROM, FID>, reverseIdMapper: (TO)->FID?, queryExprBuilder: (Set<FID>)-> ExprBoolean<TO>) {
+    internal fun init(oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>, info: ManyToOneInfo<TO, FROM, FROM_KEY>, reverseKeyMapper: (TO)->FROM_KEY?, queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)-> ExprBoolean) {
+        this.oppositeRel = oppositeRel
         this.info = info
-        this.reverseIdMapper = reverseIdMapper
+        this.reverseKeyMapper = reverseKeyMapper
         this.queryExprBuilder = queryExprBuilder
     }
 
-    fun reverseMap(to: TO): FID? {
-        return reverseIdMapper(to)
+    fun reverseMap(to: TO): FROM_KEY? {
+        return reverseKeyMapper(to)
     }
 
-    val sourceTable: DbTable<FROM, FID>
+    val sourceTable: DbTable<FROM, *>
         get() = info.oneTable
 
-    val targetTable: DbTable<TO, TID>
+    override val targetTable: DbTable<TO, *>
         get() = info.manyTable
 
-    fun createCondition(fromIds: Set<FID>): ExprBoolean<TO> {
-        return queryExprBuilder(fromIds)
+    fun createCondition(fromIds: Set<FROM_KEY>, tableInQuery: TableInQuery<TO>): ExprBoolean {
+        return queryExprBuilder(fromIds, tableInQuery)
     }
 
-    override fun contains(setFilter: ExprBoolean<TO>): ExprBoolean<FROM> {
-        return ExprFilterContainsChild(info, setFilter)
+    override suspend fun invoke(from: FROM): List<TO> {
+        return from.db.load(from, this)
     }
 
-    override suspend fun invoke(from: FROM, filter: ExprBoolean<TO>?): List<TO> {
-        return from.db.load(from, this, filter)
+    override suspend fun invoke(from: FROM, block: FilterBuilder<TO>.() -> ExprBoolean): List<TO> {
+        val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
+
+        query.filter { createCondition(setOf(info.oneKey(from)), query.baseTable) }
+        query.filter(block)
+
+        return query.run()
+    }
+
+    override suspend fun countAll(from: FROM): Long {
+        val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
+
+        query.filter { createCondition(setOf(info.oneKey(from)), query.baseTable) }
+
+        return query.countAll()
+    }
+
+    override suspend fun count(from: FROM, block: FilterBuilder<TO>.() -> ExprBoolean): Long {
+        val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
+
+        query.filter { createCondition(setOf(info.oneKey(from)), query.baseTable) }
+        query.filter(block)
+
+        return query.countAll()
+    }
+
+    internal suspend fun callLoad(db: DbLoaderInternal, from: FROM): List<TO> {
+        return db.load(from, this)
+    }
+
+    internal suspend fun callLoadToManyWithFilter(db: DbLoaderImpl, from: FROM, filter: FilterBuilder<TO>.() -> ExprBoolean): List<TO> {
+        return db.loadToManyWithFilter(from, this, filter)
     }
 }

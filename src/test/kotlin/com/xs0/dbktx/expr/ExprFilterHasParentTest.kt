@@ -1,16 +1,17 @@
 package com.xs0.dbktx.expr
 
+import com.github.mslenc.asyncdb.common.ResultSet
+import com.github.mslenc.asyncdb.vertx.DbConnection
 import com.xs0.dbktx.conn.DbLoaderImpl
+import com.xs0.dbktx.conn.RequestTime
+import com.xs0.dbktx.schemas.test1.Brand.Companion.COMPANY_REF
+import com.xs0.dbktx.schemas.test1.Company
 import com.xs0.dbktx.schemas.test1.TestSchema1
-import com.xs0.dbktx.util.DelayedExec
-import com.xs0.dbktx.util.MockSQLConnection
+import com.xs0.dbktx.util.testing.DelayedExec
+import com.xs0.dbktx.util.defer
+import com.xs0.dbktx.util.testing.MockDbConnection
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
-import io.vertx.core.json.JsonArray
-import io.vertx.ext.sql.ResultSet
-import io.vertx.ext.sql.SQLConnection
-import kotlinx.coroutines.experimental.Unconfined
-import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
 import org.junit.Test
 
@@ -23,10 +24,10 @@ class ExprFilterHasParentTest {
     fun testParentQuery() = runBlocking {
         val called = AtomicBoolean(false)
         var theSql: String? = null
-        var theParams: JsonArray? = null
+        var theParams: List<Any> = emptyList()
 
-        val connection = object : MockSQLConnection() {
-            override fun queryWithParams(sql: String, params: JsonArray, resultHandler: Handler<AsyncResult<ResultSet>>): SQLConnection {
+        val connection = object : MockDbConnection() {
+            override fun queryWithParams(sql: String, params: List<Any>, resultHandler: Handler<AsyncResult<ResultSet>>): DbConnection {
                 called.set(true)
                 theSql = sql
                 theParams = params
@@ -36,24 +37,65 @@ class ExprFilterHasParentTest {
         }
 
         val delayedExec = DelayedExec()
-        val db = DbLoaderImpl(connection, delayedExec)
+        val db = DbLoaderImpl(connection, delayedExec, RequestTime.forTesting())
 
-        val deferred = db.run {
-            TestSchema1.BRAND.queryAsync {
-                COMPANY_REF.has(TestSchema1.COMPANY) {
-                    NAME gte "qwe"
+        val deferred = db.run { defer {
+            TestSchema1.BRAND.query {
+                COMPANY_REF.has {
+                    Company.NAME gte "qwe"
                 }
             }
-        }
+        } }
 
         assertFalse(called.get())
         delayedExec.executePending()
         assertTrue(called.get())
 
-        assertEquals("SELECT company_id, key, name, tag_line, t_created, t_updated FROM brands WHERE company_id IN (SELECT id FROM companies WHERE name >= ?)", theSql)
+        assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B WHERE B.company_id IN (SELECT C.id FROM companies AS C WHERE C.name >= ?)", theSql)
 
-        assertEquals(1, theParams!!.size())
-        assertEquals("qwe", theParams!!.getString(0))
+        assertEquals(1, theParams.size)
+        assertEquals("qwe", theParams[0])
+
+    }
+
+    @Test
+    fun testParentQueryInPresenceOfJoins() = runBlocking {
+        val called = AtomicBoolean(false)
+        var theSql: String? = null
+        var theParams: List<Any> = emptyList()
+
+        val connection = object : MockDbConnection() {
+            override fun queryWithParams(sql: String, params: List<Any>, resultHandler: Handler<AsyncResult<ResultSet>>): DbConnection {
+                called.set(true)
+                theSql = sql
+                theParams = params
+
+                return this
+            }
+        }
+
+        val delayedExec = DelayedExec()
+        val db = DbLoaderImpl(connection, delayedExec, RequestTime.forTesting())
+
+        val deferred = db.run { defer {
+            val query = newQuery(TestSchema1.BRAND)
+            query.filter {
+                COMPANY_REF.has {
+                    Company.NAME gte "qwe"
+                }
+            }
+            query.orderBy(COMPANY_REF, Company.NAME)
+            query.run()
+        } }
+
+        assertFalse(called.get())
+        delayedExec.executePending()
+        assertTrue(called.get())
+
+        assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B INNER JOIN companies AS C ON C.id = B.company_id WHERE (C.name >= ?) ORDER BY C.name", theSql)
+
+        assertEquals(1, theParams.size)
+        assertEquals("qwe", theParams[0])
 
     }
 }

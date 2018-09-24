@@ -2,32 +2,28 @@ package com.xs0.dbktx.sqltypes
 
 import com.xs0.dbktx.util.Sql
 import kotlin.reflect.KClass
+import kotlin.reflect.full.cast
 
-// enum => String
-class SqlTypeEnumString(val values: Set<String>, isNotNull: Boolean) : SqlType<String>(isNotNull = isNotNull) {
-    override val dummyValue: String
-
-    init {
-        if (values.isEmpty())
-            throw IllegalArgumentException("Missing enum values")
-
-        dummyValue = values.iterator().next()
-    }
-
-    override fun fromJson(value: Any): String {
+class SqlTypeEnumString<ENUM : Enum<ENUM>>(override val kotlinType: KClass<ENUM>, private val toDbRep: (ENUM)->String, private val fromDbRep: (String)->ENUM, isNotNull: Boolean, override val dummyValue: ENUM) : SqlType<ENUM>(isNotNull = isNotNull) {
+    override fun parseRowDataValue(value: Any): ENUM {
         if (value is CharSequence)
-            return value.toString()
+            return fromDbRep(value.toString())
 
-        throw IllegalArgumentException("Not a string - " + value)
+        if (kotlinType.isInstance(value))
+            return kotlinType.cast(value)
+
+        throw IllegalStateException("Expected a string (CharSequence), but got ${value::class}")
     }
 
-    override fun toJson(value: String): String {
-        return value
+    override fun encodeForJson(value: ENUM): Any {
+        return toDbRep(value)
     }
 
-    override fun toSql(value: String, sql: Sql) {
-        sql(value)
+    override fun decodeFromJson(value: Any): ENUM {
+        return parseRowDataValue(value)
     }
 
-    override val kotlinType: KClass<String> = String::class
+    override fun toSql(value: ENUM, sql: Sql) {
+        sql(toDbRep(value))
+    }
 }

@@ -13,7 +13,7 @@ class SqlTypeBigDecimal(concreteType: SqlTypeKind,
 
     init {
         if (concreteType != SqlTypeKind.DECIMAL)
-            throw IllegalArgumentException("Unsupported type " + concreteType)
+            throw IllegalArgumentException("Unsupported type $concreteType")
 
         if (precision !in 1..65)
             throw IllegalArgumentException("Invalid precision")
@@ -21,7 +21,18 @@ class SqlTypeBigDecimal(concreteType: SqlTypeKind,
             throw IllegalArgumentException("Invalid scale")
     }
 
-    override fun fromJson(value: Any): BigDecimal {
+    override fun parseRowDataValue(value: Any): BigDecimal {
+        if (value is BigDecimal)
+            return value
+
+        throw IllegalStateException("Not a BigDecimal value - $value")
+    }
+
+    override fun encodeForJson(value: BigDecimal): Any {
+        return value.toPlainString()
+    }
+
+    override fun decodeFromJson(value: Any): BigDecimal {
         if (value is BigDecimal)
             return value
 
@@ -35,11 +46,7 @@ class SqlTypeBigDecimal(concreteType: SqlTypeKind,
             return BigDecimal(value.toLong())
         }
 
-        throw IllegalArgumentException("Not a recognized bigdecimal value - " + value + " (" + value.javaClass + ")")
-    }
-
-    override fun toJson(value: BigDecimal): String {
-        return value.toString()
+        throw IllegalArgumentException("Not a recognized BigDecimal value - $value (${value.javaClass})")
     }
 
     override fun toSql(value: BigDecimal, sql: Sql) {

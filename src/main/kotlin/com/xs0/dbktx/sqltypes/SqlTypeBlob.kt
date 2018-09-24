@@ -34,22 +34,29 @@ class SqlTypeBlob(concreteType: SqlTypeKind, size: Int, isNotNull: Boolean) : Sq
                 this.maxSize = size
             }
 
-            else -> throw IllegalArgumentException("Unsupported type " + concreteType)
+            else -> throw IllegalArgumentException("Unsupported type $concreteType")
         }
 
         if (maxSize < 1)
             throw IllegalArgumentException("Invalid size, must be at least 1")
     }
 
-    override fun fromJson(value: Any): ByteArray {
+    override fun parseRowDataValue(value: Any): ByteArray {
+        if (value is ByteArray)
+            return value
+
+        throw IllegalArgumentException("Not a byte[] value - ${value.javaClass}")
+    }
+
+    override fun decodeFromJson(value: Any): ByteArray {
         if (value is CharSequence) {
             return Base64.getDecoder().decode(value.toString())
         } else {
-            throw IllegalArgumentException("Not a string(base64) value - " + value)
+            throw IllegalArgumentException("Not a string(base64) value - $value")
         }
     }
 
-    override fun toJson(value: ByteArray): String {
+    override fun encodeForJson(value: ByteArray): Any {
         return Base64.getEncoder().encodeToString(value)
     }
 

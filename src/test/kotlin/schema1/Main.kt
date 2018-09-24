@@ -1,12 +1,14 @@
 package schema1
 
+import com.github.mslenc.asyncdb.vertx.MySQLDbClient
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.conn.DbConnectorImpl
+import com.xs0.dbktx.conn.TimeProviderFromClock
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
-import io.vertx.ext.asyncsql.MySQLClient
 import kotlinx.coroutines.experimental.Unconfined
 import kotlinx.coroutines.experimental.launch
+import java.time.Clock
 
 fun main(args: Array<String>) {
     val vertx = Vertx.vertx()
@@ -22,11 +24,11 @@ fun main(args: Array<String>) {
                 "database" to "eteam"
             ))
 
-    val mySqlClient = MySQLClient.createShared(vertx, mySQLClientConfig, "test")
+    val mySqlClient = MySQLDbClient.createShared(vertx, mySQLClientConfig, "test")
 
-    val dbConnector = DbConnectorImpl(mySqlClient)
+    val dbConnector = DbConnectorImpl(mySqlClient, timeProvider = TimeProviderFromClock(Clock.systemDefaultZone()))
 
-    server.requestHandler({ request ->
+    server.requestHandler { request ->
         launch(Unconfined) {
             val start = System.currentTimeMillis()
             var response = "!!!"
@@ -35,8 +37,8 @@ fun main(args: Array<String>) {
                 dbConnector.connect { db: DbConn ->
                     val sb = StringBuilder()
 
-                    val mitja = db.load(TestSchema.PEOPLE, 1)
-                    val irena = db.load(TestSchema.PEOPLE, 2)
+                    val mitja = db.loadById(TestSchema.PEOPLE, 1)
+                    val irena = db.loadById(TestSchema.PEOPLE, 2)
 
                     for (person in arrayOf(mitja, irena)) {
                         sb.append(person.firstName + " " + person.lastName + "\n")
@@ -46,16 +48,16 @@ fun main(args: Array<String>) {
                 }
             } catch (t: Throwable) {
                 t.printStackTrace()
-                response = "Error: " + t
+                response = "Error: $t"
             }
 
             val res = request.response()
             res.putHeader("content-type", "text/plain; charset=UTF-8")
             res.end(response + "Hello World!")
 
-            println("Finished in ${System.currentTimeMillis() - start}ms")
+            println("Finished in ${System.currentTimeMillis() - start} ms")
         }
-    })
+    }
 
     server.listen(8888)
 }

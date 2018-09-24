@@ -130,6 +130,15 @@ fun YEAR(size: Int): SqlTypeDef {
     return SqlTypeDef(SqlTypeKind.YEAR, size)
 }
 
+fun ENUM(): SqlTypeDef {
+    return SqlTypeDef(SqlTypeKind.ENUM)
+}
+
+fun ENUM(vararg posibs: String): SqlTypeDef {
+    // TODO: use posibs somehow?
+    return SqlTypeDef(SqlTypeKind.ENUM)
+}
+
 class SqlTypeDef internal constructor(
         val sqlTypeKind: SqlTypeKind,
         val param1: Int? = null,

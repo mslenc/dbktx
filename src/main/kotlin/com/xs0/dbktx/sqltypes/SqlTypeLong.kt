@@ -32,22 +32,26 @@ class SqlTypeLong(
             }
 
             else ->
-                throw IllegalArgumentException("Unsupported type " + concreteType)
+                throw IllegalArgumentException("Unsupported type $concreteType")
         }
     }
 
-    override fun fromJson(value: Any): Long {
+    override fun parseRowDataValue(value: Any): Long {
         if (value is Long)
             return value
 
         if (value is Number)
             return value.toLong()
 
-        throw IllegalArgumentException("Not a long - " + value)
+        throw IllegalArgumentException("Not a long - $value")
     }
 
-    override fun toJson(value: Long): Any {
+    override fun encodeForJson(value: Long): Any {
         return value
+    }
+
+    override fun decodeFromJson(value: Any): Long {
+        return parseRowDataValue(value)
     }
 
     override fun toSql(value: Long, sql: Sql) {

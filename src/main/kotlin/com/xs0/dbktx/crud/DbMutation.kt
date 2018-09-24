@@ -4,7 +4,7 @@ import com.xs0.dbktx.expr.Expr
 import com.xs0.dbktx.schema.*
 
 interface DbMutation<E : DbEntity<E, *>> {
-    val table: DbTable<E, *>
+    val table: TableInQuery<E>
 
     fun <T : Any> set(column: NonNullColumn<E, T>, value: T): DbMutation<E>
     fun <T : Any> set(column: NullableColumn<E, T>, value: T?): DbMutation<E>

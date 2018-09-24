@@ -1,17 +1,15 @@
 package com.xs0.dbktx.conn
 
-import com.xs0.dbktx.crud.EntityQuery
-import com.xs0.dbktx.crud.EntityQueryImpl
+import com.github.mslenc.asyncdb.common.ResultSet
+import com.github.mslenc.asyncdb.vertx.DbConnection
+import com.github.mslenc.asyncdb.vertx.TransactionIsolation
+import com.github.mslenc.asyncdb.vertx.UpdateResult
+import com.xs0.dbktx.crud.*
 import com.xs0.dbktx.schema.Column
 import com.xs0.dbktx.expr.ExprBoolean
 import com.xs0.dbktx.schema.*
-import com.xs0.dbktx.crud.EntityValues
 import com.xs0.dbktx.util.*
 import io.vertx.core.json.JsonObject
-import io.vertx.ext.sql.ResultSet
-import io.vertx.ext.sql.SQLConnection
-import io.vertx.ext.sql.TransactionIsolation
-import io.vertx.ext.sql.UpdateResult
 import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.Unconfined
 import kotlinx.coroutines.experimental.launch
@@ -22,15 +20,104 @@ import java.util.*
 import kotlin.collections.LinkedHashMap
 import kotlin.coroutines.experimental.suspendCoroutine
 
-internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLConnection, private val delayedExecScheduler: DelayedExecScheduler) {
-    private val masterIndex = MasterIndex()
-    private var scheduled: Boolean = false // whether the delayed loading is already scheduled
-    private val queue = LinkedList<suspend (SQLConnection)->Unit>()
-    private val _dbConnection: SQLConnection
+internal fun <E : DbEntity<E, *>>
+buildSelectQuery(query: EntityQueryImpl<E>): Sql {
 
-    init {
-        this._dbConnection = MultiQueryConn(conn)
+    return Sql().apply {
+        SELECT(query.table.defaultColumnNames)
+        FROM(query.baseTable)
+        WHERE(query.filters)
+
+        if (!query.orderBy.isEmpty()) {
+            +" ORDER BY "
+            tuple(query.orderBy) {
+                +it.expr
+                if (!it.isAscending)
+                    +" DESC"
+            }
+        }
+
+        if (query.offset != null || query.maxRowCount != null) {
+            +" LIMIT "
+            this(query.maxRowCount ?: Integer.MAX_VALUE)
+            +" OFFSET "
+            this(query.offset ?: 0)
+        }
     }
+}
+
+internal fun <E : DbEntity<E, *>>
+buildCountQuery(query: EntityQueryImpl<E>): Sql {
+
+    return Sql().apply {
+        SELECT("COUNT(*)")
+        FROM(query.baseTable)
+        WHERE(query.filters)
+    }
+}
+
+internal fun <E : DbEntity<E, *>>
+buildDeleteQuery(query: DeleteQueryImpl<E>): Sql {
+
+    return Sql().apply {
+        raw("DELETE FROM ")
+        raw(query.baseTable.table.quotedDbName)
+        WHERE(query.filters ?: throw RuntimeException("Missing filters"))
+    }
+}
+
+
+private fun <E : DbEntity<E, ID>, ID: Any>
+createUpdateQuery(table: TableInQuery<E>, values: EntityValues<E>, filter: ExprBoolean?): Sql? {
+    if (values.isEmpty())
+        return null
+
+    return Sql().apply {
+        +"UPDATE "
+        raw(table.table.quotedDbName)
+        +" SET "
+        tuple(values) { column ->
+            raw(column.quotedFieldName)
+            +"="
+            emitValue(column, values, this)
+        }
+        WHERE(filter)
+    }
+}
+
+private fun <E : DbEntity<E, ID>, ID: Any> createInsertQuery(table: DbTable<E, ID>, values: EntityValues<E>): Sql {
+    return Sql().apply {
+        +"INSERT INTO "
+        raw(table.quotedDbName)
+        paren {
+            tuple(values) {
+                column -> raw(column.quotedFieldName)
+            }
+        }
+        +" VALUES "
+        paren {
+            tuple(values) {
+                emitValue(it, values, this)
+            }
+        }
+    }
+}
+
+
+private fun <E : DbEntity<E, *>, T: Any> emitValue(column: Column<E, T>, values: EntityValues<E>, sb: Sql) {
+    val value = values.getExpr(column)
+    if (value == null) {
+        sb.raw("NULL")
+    } else {
+        value.toSql(sb, true)
+    }
+}
+
+
+internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, private val conn: DbConnection, private val delayedExecScheduler: DelayedExecScheduler) {
+    internal val masterIndex = MasterIndex()
+    private var scheduled: Boolean = false // whether the delayed loading is already scheduled
+    private val queue = LinkedList<suspend (DbConnection)->Unit>()
 
     private fun scheduleDelayedExec() {
         if (scheduled)
@@ -51,7 +138,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
         }
     }
 
-    internal fun addToQueue(op: suspend (SQLConnection)->Unit) {
+    internal fun addToQueue(op: suspend (DbConnection)->Unit) {
         scheduleDelayedExec()
         queue.add(op)
     }
@@ -64,7 +151,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
             while (true) {
                 if (queue.isNotEmpty()) {
                     any = true
-                    queue.removeFirst()(_dbConnection)
+                    queue.removeFirst()(conn)
                     continue@startOver
                 }
 
@@ -92,113 +179,101 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
         }
     }
 
-    internal suspend fun <E : DbEntity<E, ID>, ID: Any>
-    loadDelayedTable(index: EntityIndex<E, ID>): Boolean {
-        val ids = index.getAndClearIdsToLoad() ?: return false
-
-        // TODO: split large lists into chunks
-
-        val table = index.metainfo
-        val idField = table.idField
-
-        logger.debug("Querying {} for ids {}", table.dbName, ids)
-
-        val result: List<E>
-        try {
-            result = queryNow(table, idField oneOf ids)
-        } catch (e : Exception) {
-            logger.error("Failed to query by IDs", e)
-            index.reportError(ids, e)
-            return true
-        }
-
-        for (entity: E in result)
-            ids.remove(entity.id)
-
-        if (!ids.isEmpty())
-            index.reportNull(ids)
-
+    internal suspend fun <E : DbEntity<E, *>>
+    loadDelayedTable(mainIndex: EntityIndex<E>): Boolean {
+        val indexAndKeys = mainIndex.getAndClearKeysToLoad() ?: return false
+        loadDelayedTableInIndex(indexAndKeys)
         return true
     }
 
-    internal suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    loadDelayedToManyRel(index: ToManyIndex<FROM, FROMID, TO, TOID>): Boolean {
-        val fromIds = index.getAndClearIdsToLoad() ?: return false
+    private suspend fun <T: Any, E: DbEntity<E, *>>
+    loadDelayedTableInIndex(indexAndKeys: IndexAndKeys<E, T>) {
+        // TODO: split large lists into chunks
+
+        val index = indexAndKeys.index
+        val keys: MutableSet<T> = indexAndKeys.keys
+        val table: DbTable<E, *> = index.table
+        val keyDef: UniqueKeyDef<E, T> = index.keyDef
+
+        logger.debug("Querying {} for keys {}", table.dbName, indexAndKeys.keys)
+
+        val result: List<E>
+        try {
+            result = queryNow(table) { keyDef oneOf keys }
+        } catch (e : Exception) {
+            logger.error("Failed to query by IDs", e)
+            index.reportError(keys, e)
+            return
+        }
+
+        for (entity: E in result)
+            keys.remove(keyDef(entity))
+
+        if (!keys.isEmpty())
+            index.reportNull(keys)
+    }
+
+    private suspend fun <E : DbEntity<E, *>>
+    queryNow(entities: EntityIndex<E>, sb: Sql): List<E> {
+        val res = ArrayList<E>()
+
+        for (row in queryNow(sb)) {
+            val entity: E = entities.rowLoaded(publicDb, row)
+            res.add(entity)
+        }
+
+        return res
+    }
+
+    internal suspend fun <FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *>>
+    loadDelayedToManyRel(index: ToManyIndex<FROM, FROM_KEY, TO>): Boolean {
+        val fromKeys = index.getAndClearKeysToLoad() ?: return false
 
         // TODO: split large lists into chunks
 
         val rel = index.relation
 
         val manyTable = rel.targetTable
-        val condition = rel.createCondition(fromIds)
 
-        logger.debug { "Querying toMany ${rel.sourceTable.dbName} -> ${rel.targetTable.dbName} for source ids $fromIds" }
+        logger.debug { "Querying toMany ${rel.sourceTable.dbName} -> ${rel.targetTable.dbName} for source keys $fromKeys" }
 
         val result = try {
-            queryNow(manyTable, condition)
+            queryNow(manyTable) { rel.createCondition(fromKeys, currentTable()) }
         } catch (e: Throwable) {
-            index.reportError(fromIds, e)
+            index.reportError(fromKeys, e)
             return true
         }
 
-        val mapped = LinkedHashMap<FROMID, ArrayList<TO>>()
+        val mapped = LinkedHashMap<FROM_KEY, ArrayList<TO>>()
         for (to in result) {
             val fromId = rel.reverseMap(to)!!
-            mapped.computeIfAbsent(fromId, { _ -> ArrayList() }).add(to)
+            mapped.computeIfAbsent(fromId) { _ -> ArrayList() }.add(to)
         }
 
         for ((key, value) in mapped) {
             index[key].handleResult(value)
         }
 
-        fromIds.removeAll(mapped.keys)
-        for (id in fromIds)
-            index[id].handleResult(emptyList())
+        fromKeys.removeAll(mapped.keys)
+        if (fromKeys.isNotEmpty())
+            index.reportNull(fromKeys)
 
         return true
     }
 
-    private suspend fun <E : DbEntity<E, ID>, ID: Any>
-    queryNow(entities: EntityIndex<E, ID>, sb: Sql): List<E> {
-        val table = entities.metainfo
-
-        val res = ArrayList<E>()
-        for (json in queryNow(sb).results) {
-            val row = json.list
-
-            val id = table.createId(row)
-            val info = entities[id]
-
-            val entity: E
-            if (info.state == EntityState.LOADED) {
-                val entityMaybe = info.value
-                if (entityMaybe != null) {
-                    entity = entityMaybe
-                } else {
-                    entity = table.create(publicDb, id, row)
-                    info.replaceResult(entity)
-                }
-            } else {
-                entity = table.create(publicDb, id, row)
-                logger.trace { "Added entity with $id to ${table.dbName}" }
-                info.handleResult(entity)
-                if (entities.removeIdToLoad(id))
-                    logger.trace { "Removed id to load $id" }
-            }
-
-            res.add(entity)
-        }
-        return res
-    }
-
-    private suspend fun <E : DbEntity<E, ID>, ID: Any>
-    queryNow(table: DbTable<E, ID>, filter: ExprBoolean<E>): List<E> {
+    private suspend fun <E : DbEntity<E, *>>
+    queryNow(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> ExprBoolean): List<E> {
         val entities = masterIndex[table]
 
+        val query = SimpleSelectQueryImpl()
+        val boundTable = BaseTableInQuery(query, table)
+        val filterBuilder = TableInQueryBoundFilterBuilder(boundTable)
+        val filterExpr = filterBuilder.filter()
+
         val sb = Sql().apply {
-            SELECT(table.columnNames)
-            FROM(table)
-            WHERE(filter)
+            SELECT(table.defaultColumnNames)
+            FROM(boundTable)
+            WHERE(filterExpr)
         }
 
         return queryNow(entities, sb)
@@ -208,11 +283,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
         val sql = sqlBuilder.getSql()
         val params = sqlBuilder.params
 
-        return vx { handler -> _dbConnection.queryWithParams(sql, params, handler) }
-    }
-
-    fun close() {
-        _dbConnection.close()
+        return vx { handler -> conn.queryWithParams(sql, params, handler) }
     }
 
     internal suspend fun <E : DbEntity<E, ID>, ID: Any>
@@ -229,11 +300,11 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
                     masterIndex.flushRelated(table)
 
                     val keys = updateResult.keys
-                    if (keys != null && !keys.isEmpty && table.keyIsAutogenerated) {
+                    if (keys != null && keys.isNotEmpty() && table.keyIsAutogenerated) {
                         @Suppress("UNCHECKED_CAST")
-                        val idColumn = table.idField as Column<E, ID>
+                        val idColumn = table.primaryKey.getColumn(1) as Column<E, ID>
 
-                        id = idColumn.sqlType.fromJson(keys.getValue(0))
+                        id = idColumn.sqlType.parseRowDataValue(keys[0])
                     } else {
                         id = explicitId ?: throw IllegalStateException("ID missing")
                     }
@@ -260,7 +331,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
                     // TODO: use specificIdx to not destroy so much cache
                     masterIndex.flushRelated(table)
 
-                    continuation.resume(updateResult.updated.toLong())
+                    continuation.resume(updateResult.updated)
                 } catch (t: Throwable) {
                     continuation.resumeWithException(t)
                 }
@@ -280,10 +351,10 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
                 try {
                     val updateResult = vx<UpdateResult> { conn.updateWithParams(sql, params, it) }
 
-                    // TODO: use specificIdx to not destroy so much cache
+                    // TODO: use specificIds to not destroy so much cache
                     masterIndex.flushRelated(table)
 
-                    continuation.resume(updateResult.updated.toLong())
+                    continuation.resume(updateResult.updated)
                 } catch (t: Throwable) {
                     continuation.resumeWithException(t)
                 }
@@ -293,12 +364,19 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
 
     internal suspend fun <E : DbEntity<E, ID>, ID : Any>
     find(table: DbTable<E, ID>, id: ID): E? {
+        return find(table.primaryKey, id)
+    }
+
+    internal suspend fun <E : DbEntity<E, *>, KEY : Any>
+    find(keyDef: UniqueKeyDef<E, KEY>, key: KEY): E? {
+        val table = keyDef.table
         val entities = masterIndex[table]
-        val entityInfo = entities[id]
+        val index = entities.getSingleKeyIndex(keyDef)
+        val entityInfo = index[key]
 
         when (entityInfo.state) {
             EntityState.LOADED -> {
-                logger.trace("Id {} of table {} was already loaded", id, entities.metainfo.dbName)
+                logger.trace("Key {} of table {} was already loaded", key, table.dbName)
                 return entityInfo.value
             }
 
@@ -308,18 +386,19 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
             }
 
             EntityState.INITIAL -> {
-                logger.trace("Adding id {} of table {} to list for loading and initiating load", id, entities.metainfo.dbName)
+                logger.trace("Adding key {} of table {} to list for loading and initiating load", key, table.dbName)
                 scheduleDelayedExec()
-                entities.addIdToLoad(id)
+                index.addKeyToLoad(key)
                 return suspendCoroutine(entityInfo::startedLoading)
             }
         }
     }
 
-    internal suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    load(from: FROM, relation: RelToMany<FROM, TO>): List<TO> {
-        val relInfo = masterIndex[relation]
-        val loadState = relInfo[from.id]
+    internal suspend fun <FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *>>
+    load(from: FROM, relation: RelToManyImpl<FROM, FROM_KEY, TO>): List<TO> {
+        val relInfo = masterIndex.get<FROM, FROM_KEY, TO>(relation)
+        val fromKey = relation.info.oneKey(from)
+        val loadState = relInfo[fromKey]
 
         return when (loadState.state) {
             EntityState.LOADED -> {
@@ -332,14 +411,14 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
 
             EntityState.INITIAL -> {
                 scheduleDelayedExec()
-                relInfo.addIdToLoad(from.id)
+                relInfo.addKeyToLoad(fromKey)
                 suspendCoroutine(loadState::startedLoading)
             }
         }
     }
 
-    internal suspend fun <E : DbEntity<E, ID>, ID: Any>
-    enqueueQuery(table: DbTable<E, ID>, sb: Sql): List<E> {
+    internal suspend fun <E : DbEntity<E, *>>
+    enqueueQuery(table: DbTable<E, *>, sb: Sql): List<E> {
         val entities = masterIndex[table]
 
         return suspendCoroutine { continuation ->
@@ -356,12 +435,8 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, conn: SQLCon
     companion object : KLogging()
 }
 
-class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecScheduler) : DbConn, AutoCloseable {
+class DbLoaderImpl(conn: DbConnection, delayedExecScheduler: DelayedExecScheduler, override val requestTime: RequestTime) : DbConn {
     private val db = DbLoaderInternal(this, conn, delayedExecScheduler)
-
-    override fun close() {
-        db.close()
-    }
 
     override suspend fun
     query(sqlBuilder: Sql): ResultSet {
@@ -383,92 +458,65 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
 
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeInsert(table: DbTable<E, ID>, values: EntityValues<E>): ID {
-        val explicitId: ID? = table.idField.extract(values)
-        if (explicitId == null && !table.idField.isAutoGenerated) {
+    executeInsert(table: TableInQuery<E>, values: EntityValues<E>): ID {
+        @Suppress("UNCHECKED_CAST")
+        val dbTable = table.table as DbTable<E, ID>
+
+        val explicitId: ID? = dbTable.primaryKey.extract(values)
+        if (explicitId == null && !dbTable.primaryKey.isAutoGenerated) {
             throw IllegalArgumentException("Missing the ID")
         }
 
-        val sqlBuilder = createInsertQuery(table, values)
+        val sqlBuilder = createInsertQuery(dbTable, values)
 
-        return db.enqueueInsert(table, sqlBuilder, explicitId)
+        return db.enqueueInsert(dbTable, sqlBuilder, explicitId)
     }
 
-    private fun <E : DbEntity<E, ID>, ID: Any> createInsertQuery(table: DbTable<E, ID>, values: EntityValues<E>): Sql {
-        return Sql().apply {
-            +"INSERT INTO "
-            +table
-            paren {
-                tuple(values) {
-                    column -> +column
-                }
-            }
-            +" VALUES "
-            paren {
-                tuple(values) {
-                    emitValue(it, values, this)
-                }
-            }
-        }
-    }
 
-    private fun <E : DbEntity<E, *>, T: Any> emitValue(column: Column<E, T>, values: EntityValues<E>, sb: Sql) {
-        val value = values.getExpr(column)
-        if (value == null) {
-            sb.raw("NULL")
-        } else {
-            value.toSql(sb, true)
-        }
-    }
+
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeUpdate(table: DbTable<E, ID>, filter: ExprBoolean<E>?, values: EntityValues<E>, specificIds: Set<ID>?): Long {
-        val sqlBuilder = createUpdateQuery(table, values, filter) ?: return 0
-        return db.enqueueUpdateQuery(table, sqlBuilder, specificIds)
+    executeUpdate(table: TableInQuery<E>, filters: ExprBoolean?, values: EntityValues<E>, specificIds: Set<ID>?): Long {
+        val sqlBuilder = createUpdateQuery(table, values, filters) ?: return 0
+
+        @Suppress("UNCHECKED_CAST")
+        return db.enqueueUpdateQuery(table.table as DbTable<E, ID>, sqlBuilder, specificIds)
     }
 
-    private fun <E : DbEntity<E, ID>, ID: Any>
-    createUpdateQuery(table: DbTable<E, ID>, values: EntityValues<E>, filter: ExprBoolean<E>?): Sql? {
-        if (values.isEmpty())
-            return null
+    override suspend fun <E : DbEntity<E, *>>
+    executeDelete(deleteQuery: DeleteQuery<E>): Long {
+        deleteQuery as DeleteQueryImpl<E>
+        val sql = buildDeleteQuery(deleteQuery)
 
-        return Sql().apply {
-            +"UPDATE "
-            +table
-            +" SET "
-            tuple(values) { column ->
-                +column
-                +"="
-                emitValue(column, values, this)
-            }
-            WHERE(filter)
-        }
+        return deleteQuery.table.callEnqueueDeleteQuery(db, sql, null)
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID : Any>
-    find(table: DbTable<E, ID>, id: ID?): E? {
+    findById(table: DbTable<E, ID>, id: ID?): E? {
         if (id == null)
             return null
 
         return db.find(table, id)
     }
 
-    override suspend fun <E : DbEntity<E, ID>, ID : Any>
-    load(table: DbTable<E, ID>, id: ID): E {
-        return find(table, id) ?: throw NoSuchEntity("No ${table.dbName} with id $id")
+    override suspend fun <E: DbEntity<E, *>, KEY: Any>
+    findByKey(keyDef: UniqueKeyDef<E, KEY>, key: KEY): E? {
+        return db.find(keyDef, key)
     }
 
-    override suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    loadForAll(ref: RelToOne<FROM, TO>, sources: Collection<FROM>?): Map<FROM, TO?> {
-        if (sources == null || sources.isEmpty())
-            return emptyMap()
+    override suspend fun <E : DbEntity<E, ID>, ID : Any>
+    loadById(table: DbTable<E, ID>, id: ID): E {
+        return findById(table, id) ?: throw NoSuchEntity("No ${table.dbName} with id $id")
+    }
 
-        @Suppress("UNCHECKED_CAST")
-        val rel = ref as RelToOneImpl<FROM, FROMID, TO, TOID>
+    override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
+    loadForAll(ref: RelToOne<FROM, TO>, sources: Collection<FROM>): Map<FROM, TO?> {
+        if (sources.isEmpty())
+            return emptyMap()
 
         val futures = LinkedHashMap<FROM, Deferred<TO?>>()
         for (source in sources)
-            futures.put(source, findAsync(source, rel))
+            futures[source] = defer { find(source, ref) }
 
         val result = LinkedHashMap<FROM, TO?>()
         for ((source, future) in futures)
@@ -477,110 +525,92 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         return result
     }
 
+    override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
+    loadForAll(ref: RelToMany<FROM, TO>, sources: Collection<FROM>): Map<FROM, List<TO>> {
+        if (sources.isEmpty())
+            return emptyMap()
 
-    override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    count(table: DbTable<E, ID>, filter: ExprBoolean<E>?): Long {
-        val sb = Sql().SELECT("COUNT(*)").FROM(table).WHERE(filter)
+        val futures = LinkedHashMap<FROM, Deferred<List<TO>>>()
+        for (source in sources)
+            futures[source] = defer { load(source, ref) }
 
-        return query(sb).results[0].getLong(0)
+        val result = LinkedHashMap<FROM, List<TO>>()
+        for ((source, future) in futures)
+            result[source] = future.await()
+
+        return result
     }
 
-    override suspend fun <E : DbEntity<E, ID>, ID : Any>
-    countAll(table: DbTable<E, ID>): Long {
-        return count(table, null)
+
+    override suspend fun <E : DbEntity<E, *>>
+    count(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
+        val entityQuery = EntityQueryImpl(table, this)
+        entityQuery.filter(filter)
+
+        val queryResult = query(buildCountQuery(entityQuery))
+        val firstRow = queryResult[0]
+        val firstColumn = firstRow[0] as Number
+        return firstColumn.toLong()
     }
 
-    override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    query(table: DbTable<E, ID>, filter: ExprBoolean<E>): List<E> {
-        val sb = Sql().apply {
-            SELECT(table.columnNames)
-            FROM(table)
-            WHERE(filter)
-        }
+    override suspend fun <E : DbEntity<E,*>>
+    executeSelect(query: EntityQuery<E>): List<E> {
+        query as EntityQueryImpl<E>
 
-        return db.enqueueQuery(table, sb)
+        return db.enqueueQuery(query.table, buildSelectQuery(query))
     }
 
-    override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    queryAll(table: DbTable<E, ID>): List<E> {
-        val sb = Sql().SELECT(table.columnNames).FROM(table)
+    override suspend fun <E : DbEntity<E, *>>
+    executeCount(query: EntityQuery<E>): Long {
+        query as EntityQueryImpl<E>
 
-        return db.enqueueQuery(table, sb)
+        val queryResult = query(buildCountQuery(query))
+        val firstRow = queryResult[0]
+        val firstColumn = firstRow[0] as Number
+        return firstColumn.toLong()
     }
 
-    override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    query(query: EntityQuery<E>): List<E> {
-        @Suppress("UNCHECKED_CAST")
-        query as EntityQueryImpl<E, ID>
-
-        val sb = Sql().apply {
-            SELECT(query.table.columnNames)
-            FROM(query.table)
-            WHERE(query.filter)
-
-            if (!query.orderBy.isEmpty()) {
-                +" ORDER BY "
-                tuple(query.orderBy) {
-                    +it.expr
-                    if (!it.isAscending)
-                        +" DESC"
-                }
-            }
-
-            if (query.offset != null || query.maxRowCount != null) {
-                +" LIMIT "
-                this(query.maxRowCount ?: Integer.MAX_VALUE)
-                +" OFFSET "
-                this(query.offset ?: 0)
-            }
-        }
-
-        return db.enqueueQuery(query.table, sb)
-    }
-
-    override suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
+    override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     find(from: FROM, relation: RelToOne<FROM, TO>): TO? {
-        @Suppress("UNCHECKED_CAST")
-        relation as RelToOneImpl<FROM, FROMID, TO, TOID>
-
-        val toId: TOID? = relation.mapId(from)
-        return if (toId != null) {
-            load(relation.targetTable, toId)
-        } else {
-            null
-        }
+        relation as RelToOneImpl<FROM, TO, *>
+        return relation.callFindByRelation(this, from)
     }
 
-    override suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
+    override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     load(from: FROM, relation: RelToOne<FROM, TO>): TO {
-        @Suppress("UNCHECKED_CAST")
-        relation as RelToOneImpl<FROM, FROMID, TO, TOID>
-
-        val toId: TOID = relation.mapId(from)
-                ?: throw NoSuchEntity("${from.metainfo.dbName} ${from.id} has no reference to ${relation.targetTable.dbName}")
-
-        return load(relation.targetTable, toId)
+        return find(from, relation) ?: throw NoSuchEntity("${from.metainfo.dbName} ${from.id} has no key/entity for ${relation.targetTable.dbName}")
     }
 
-    override suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
+    internal suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, KEY: Any>
+    findByRelation(from: FROM, relation: RelToOneImpl<FROM, TO, KEY>): TO? {
+        val keyDef: UniqueKeyDef<TO, KEY> = relation.info.oneKey
+        val key: KEY = relation.mapKey(from) ?: return null
+        return db.find(keyDef, key)
+    }
+
+    override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     load(from: FROM, relation: RelToMany<FROM, TO>): List<TO> {
-        return db.load(from, relation)
+        relation as RelToManyImpl<FROM, *, TO>
+        return relation.callLoad(db, from)
     }
 
-    override suspend fun <FROM : DbEntity<FROM, FROMID>, FROMID: Any, TO : DbEntity<TO, TOID>, TOID: Any>
-    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBoolean<TO>?): List<TO> {
-        if (filter == null)
-            return load(from, relation)
+    override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
+    load(from: FROM, relation: RelToMany<FROM, TO>, filter: FilterBuilder<TO>.()->ExprBoolean): List<TO> {
+        relation as RelToManyImpl<FROM, *, TO>
+        return relation.callLoadToManyWithFilter(this, from, filter)
+    }
 
-        val fromIds = setOf(from.id)
+    internal suspend fun <FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO: DbEntity<TO, *>>
+    loadToManyWithFilter(from: FROM, relation: RelToManyImpl<FROM, FROM_KEY, TO>, filter: FilterBuilder<TO>.()->ExprBoolean): List<TO> {
+        val fromKeys = setOf(relation.info.oneKey(from))
 
-        @Suppress("UNCHECKED_CAST")
-        val rel = relation as RelToManyImpl<FROM, FROMID, TO, TOID>
+        val manyTable = relation.targetTable
+        val query = manyTable.newQuery(this)
 
-        val manyTable = rel.targetTable
-        val condition = rel.createCondition(fromIds)
+        query.filter { relation.createCondition(fromKeys, query.baseTable) }
+        query.filter(filter)
 
-        return query(manyTable, condition.and(filter))
+        return query.run()
     }
 
     override suspend fun rollback() {
@@ -636,9 +666,9 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    findMany(table: DbTable<E, ID>, ids: Iterable<ID>): Map<ID, E?> {
+    findByIds(table: DbTable<E, ID>, ids: Iterable<ID>): Map<ID, E?> {
         @Suppress("NAME_SHADOWING")
-        val ids = ids.toMutableSet()
+        val ids = ids.toSet()
 
         if (ids.isEmpty())
             return emptyMap()
@@ -647,18 +677,18 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         val futures = ArrayList<Deferred<E?>>(ids.size)
 
         for (id in ids) {
-            result.put(id, null)
-            futures.add(findAsync(table, id))
+            result[id] = null
+            futures.add(defer { findById(table, id) })
         }
 
         futures.mapNotNull { it.await() }
-               .forEach { result.put(it.id, it) }
+               .forEach { result[it.id] = it }
 
         return result
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    loadMany(table: DbTable<E, ID>, ids: Iterable<ID>): Map<ID, E> {
+    loadByIds(table: DbTable<E, ID>, ids: Iterable<ID>): Map<ID, E> {
         @Suppress("NAME_SHADOWING")
         val ids = ids.toMutableSet()
 
@@ -669,36 +699,20 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         val futures = ArrayList<Deferred<E>>(ids.size)
 
         for (id in ids)
-            futures.add(loadAsync(table, id))
+            futures.add( defer { loadById(table, id) })
 
         futures.map { it.await() }
-               .forEach { result.put(it.id, it) }
+               .forEach { result[it.id] = it }
 
         return result
     }
 
-    override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    delete(entity: E): Boolean {
-        return delete(entity.metainfo, setOf(entity.id)) > 0
-    }
+
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    delete(table: Z, filter: Z.() -> ExprBoolean<E>): Long {
-        return db.enqueueDeleteQuery(table, Sql().raw("DELETE").FROM(table).WHERE(table.filter()), null)
-    }
-
-    override suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    delete(table: Z, ids: Set<ID>): Long {
-        if (ids.isEmpty())
-            return 0L
-
-        return db.enqueueDeleteQuery(table, Sql().raw("DELETE").FROM(table).WHERE(table.idField oneOf ids), ids)
-    }
-
-    override suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.delete(id: ID): Boolean {
+    Z.deleteById(id: ID): Boolean {
         val table: Z = this // we're extension
-        return db.enqueueDeleteQuery(table, Sql().raw("DELETE").FROM(table).WHERE(table.idField eq id), setOf(id)) > 0
+        return deleteByIds(table, setOf(id)) > 0
     }
 
 
@@ -717,17 +731,17 @@ class DbLoaderImpl(conn: SQLConnection, delayedExecScheduler: DelayedExecSchedul
         }
     }
 
-    override fun <E : DbEntity<E, ID>, ID : Any> importJson(table: DbTable<E, ID>, json: JsonObject) {
-        val list: List<Any?> = table.importFromJson(json)
+    override fun <E : DbEntity<E, ID>, ID : Any>
+    importJson(table: DbTable<E, ID>, json: JsonObject): E {
+        val decoded = table.importFromJson(json)
+
         for (column in table.columns) {
-            val value = list[column.indexInRow]
-            if (value == null) {
-                if (column.nonNull)
-                    throw IllegalArgumentException("Missing value for column ${column.fieldName}")
-            } else {
-                column.sqlType.fromJson(value)
-            }
+            val value = decoded[column.indexInRow]
+            if (value == null && column.nonNull)
+                throw IllegalArgumentException("Missing value for column ${column.fieldName}")
         }
+
+        return db.masterIndex[table].rowLoaded(this, decoded)
     }
 
     companion object : KLogging()

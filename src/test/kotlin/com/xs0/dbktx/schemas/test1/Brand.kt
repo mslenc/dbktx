@@ -1,42 +1,44 @@
 package com.xs0.dbktx.schemas.test1
 
+import com.github.mslenc.asyncdb.common.RowData
 import com.xs0.dbktx.composite.CompositeId2
 import com.xs0.dbktx.conn.DbConn
 import com.xs0.dbktx.fieldprops.BIGINT
+import com.xs0.dbktx.fieldprops.BINARY
 import com.xs0.dbktx.fieldprops.DATETIME
 import com.xs0.dbktx.fieldprops.VARCHAR
 import com.xs0.dbktx.schema.*
-import java.math.BigDecimal
 import java.time.LocalDateTime
+import java.util.*
 
-class Brand(db: DbConn, id: Brand.Id, private val row: List<Any?>)
+class Brand(db: DbConn, id: Brand.Id, private val row: RowData)
     : DbEntity<Brand, Brand.Id>(db, id) {
 
-    override val metainfo get() = TABLE
+    override val metainfo get() = Brand
 
     val key: String get() = id.key
-    val companyId: Long get() = id.companyId
+    val companyId: UUID get() = id.companyId
 
     val name: String get() = NAME(row)
     val tagLine: String? get() = TAG_LINE(row)
     val timeCreated: LocalDateTime get() = T_CREATED(row)
     val timeUpdated: LocalDateTime get() = T_UPDATED(row)
 
-    class Id : CompositeId2<Brand, String, Long, Id> {
-        constructor(key: String, companyId: Long) : super(key, companyId)
-        constructor(row: List<Any?>) : super(row)
+    class Id : CompositeId2<Brand, String, UUID, Id> {
+        constructor(key: String, companyId: UUID) : super(key, companyId)
+        constructor(row: RowData) : super(row)
 
         override val column1 get() = KEY
         override val column2 get() = COMPANY_ID
 
         val key: String get() = component1
-        val companyId: Long get() = component2
+        val companyId: UUID get() = component2
 
-        override val tableMetainfo get() = TABLE
+        override val tableMetainfo get() = Brand
     }
 
-    companion object TABLE : DbTableC<Brand, Brand.Id>(TestSchema1, "brands", Brand::class, Id::class) {
-        val COMPANY_ID = b.nonNullLong("company_id", BIGINT(), Brand::companyId, references = Company::class)
+    companion object : DbTableC<Brand, Brand.Id>(TestSchema1, "brands", Brand::class, Id::class) {
+        val COMPANY_ID = b.nonNullUUID("company_id", VARCHAR(36), Brand::companyId)
         val KEY = b.nonNullString("key", VARCHAR(255), Brand::key)
 
         val NAME = b.nonNullString("name", VARCHAR(255), Brand::name)
@@ -44,7 +46,7 @@ class Brand(db: DbConn, id: Brand.Id, private val row: List<Any?>)
         val T_CREATED = b.nonNullDateTime("t_created", DATETIME(), Brand::timeCreated)
         val T_UPDATED = b.nonNullDateTime("t_updated", DATETIME(), Brand::timeUpdated)
 
-        val ID = b.compositeId(::Id)
+        val ID = b.primaryKey(::Id)
 
         val COMPANY_REF = b.relToOne(COMPANY_ID, Company::class)
         val ITEMS_SET = b.relToMany { Item.BRAND_REF }

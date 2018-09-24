@@ -1,14 +1,14 @@
 package com.xs0.dbktx.schema
 
+import com.xs0.dbktx.crud.FilterBuilder
 import com.xs0.dbktx.expr.ExprBoolean
 
 interface RelToMany<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>> {
-    fun contains(setFilter: ExprBoolean<TO>): ExprBoolean<FROM>
+    val targetTable: DbTable<TO, *>
 
-    fun <Z : DbTable<TO, *>>
-    contains(table: Z, filter: Z.()->ExprBoolean<TO>): ExprBoolean<FROM> {
-        return contains(table.filter())
-    }
+    suspend operator fun invoke(from: FROM): List<TO>
+    suspend operator fun invoke(from: FROM, block: FilterBuilder<TO>.() -> ExprBoolean): List<TO>
 
-    operator suspend fun invoke(from: FROM, filter: ExprBoolean<TO>? = null): List<TO>
+    suspend fun countAll(from: FROM): Long
+    suspend fun count(from: FROM, block: FilterBuilder<TO>.() -> ExprBoolean): Long
 }

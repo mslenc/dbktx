@@ -1,5 +1,10 @@
 package com.xs0.dbktx.util
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import joptsimple.OptionParser
+import joptsimple.OptionSpec
+import org.slf4j.LoggerFactory
+import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
@@ -11,17 +16,89 @@ import java.sql.Connection
 import java.sql.DriverManager
 import kotlin.collections.ArrayList
 
-fun main(args: Array<String>) {
-    val conn: Connection = DriverManager.getConnection("jdbc:mysql://localhost/e_klub?characterEncoding=utf8&serverTimezone=UTC", "root", "root")
-    val codeGen = CodeGen(conn)
+class CodeGenConf {
+    var jdbcUrl: String? = null
+    var username: String? = null
+    var password: String? = null
 
-    println(codeGen.handleTable("s_poste"))
+    val `package`: String? = null
+    val schemaClassName: String? = null
+    val baseDir: String? = null
 }
 
+object CodeGen {
+    private val log = LoggerFactory.getLogger(CodeGen::class.java)
 
-internal class CodeGen(private val conn: Connection) {
+    private val optionParser: OptionParser
+    private val configFileOpt: OptionSpec<File>
+    private val helpOpt: OptionSpec<*>
 
-    private class Col internal constructor(val name: String, nullable: String, colType: String, colKey: String, val comment: String) {
+    init {
+        optionParser = OptionParser()
+        configFileOpt = optionParser.accepts("config", "Path to JSON configuration file").withRequiredArg().ofType(File::class.java)
+        helpOpt = optionParser.acceptsAll(listOf("h", "?", "help"), "Show help").forHelp()
+    }
+
+    fun fail(error: String): Nothing {
+        log.error(error)
+        System.exit(1)
+        throw RuntimeException("Unreachable")
+    }
+
+    @JvmStatic
+    fun main(args: Array<String>) {
+        val cmdLine = optionParser.parse(*args)
+        if (cmdLine.has(helpOpt)) {
+            optionParser.printHelpOn(System.out)
+            return
+        }
+
+        val conf: CodeGenConf
+        if (cmdLine.has(configFileOpt)) {
+            val configFile = cmdLine.valueOf(configFileOpt)
+            if (configFile.isFile && configFile.canRead()) {
+                log.info("Reading config from {}", configFile)
+                conf = ObjectMapper().readValue(configFile, CodeGenConf::class.java)
+            } else {
+                fail(configFile.toString() + " is not a readable file")
+            }
+        } else {
+            conf = findConfFile()
+        }
+
+        if (conf.baseDir == null) fail("Missing baseDir in configuration")
+        if (conf.jdbcUrl == null) fail("Missing jdbcUrl in configuration")
+        if (conf.username == null) fail("Missing username in configuration")
+        if (conf.password == null) fail("Missing password in configuration")
+        if (conf.schemaClassName == null) fail("Missing schemaClassName in configuration")
+        if (conf.`package` == null) fail("Missing package in configuration")
+
+        val conn: Connection = DriverManager.getConnection(conf.jdbcUrl, conf.username, conf.password)
+        val codeGen = CodeGenerator(conn, conf)
+
+        println(codeGen.handleTable("trg_artikli_cene"))
+    }
+
+    fun findConfFile(): CodeGenConf {
+        val rootDir = Paths.get(".").toAbsolutePath().normalize()
+        var dir = rootDir
+
+        while (dir != null) {
+            val filePath = dir.resolve("db-codegen-conf.json")
+            if (Files.isRegularFile(filePath)) {
+                return ObjectMapper().readValue(filePath.toFile(), CodeGenConf::class.java)
+            } else {
+                dir = dir.parent
+            }
+        }
+
+        throw RuntimeException("Couldn't find db-codegen-conf.json in $rootDir or any of its parent directories")
+    }
+}
+
+internal class CodeGenerator(private val conn: Connection, private val conf: CodeGenConf) {
+
+    private class Col internal constructor(val name: String, nullable: String, colType: String, colKey: String, val comment: String, val extra: String) {
         val nullable: Boolean
         val colType: String
         val partOfPrimary: Boolean
@@ -36,6 +113,7 @@ internal class CodeGen(private val conn: Connection) {
         var primaryIndex: Int = 0
         val unsigned: Boolean
         val javaTypeWithNull: String
+        val autoIncrement: Boolean
 
         init {
             var colType = colType
@@ -44,6 +122,7 @@ internal class CodeGen(private val conn: Connection) {
             colType = stripUnsigned(colType)
             this.colType = colType
             this.partOfPrimary = "PRI" == colKey
+            this.autoIncrement = extra.toLowerCase().contains("auto_increment")
 
             val niceName = niceName(name)
             this.fieldName = niceName
@@ -108,6 +187,10 @@ internal class CodeGen(private val conn: Connection) {
                 this.javaType = "Float"
                 this.columnMaker = "Float"
                 this.typeDef = colType.toUpperCase() + "()"
+            } else if (colType.startsWith("double")) {
+                this.javaType = "Double"
+                this.columnMaker = "Double"
+                this.typeDef = colType.toUpperCase() + "()"
             } else {
                 this.javaType = "??? ($name)"
                 this.columnMaker = "??? ($name)"
@@ -133,9 +216,8 @@ internal class CodeGen(private val conn: Connection) {
     }
 
     private fun createTableClass(table: String): ClassRes {
-        conn.prepareStatement("select * from information_schema.columns where table_schema=? and table_name=?").use { stmt ->
-            stmt.setString(1, "e_klub")
-            stmt.setString(2, table)
+        conn.prepareStatement("select * from information_schema.columns where table_schema=database() and table_name=?").use { stmt ->
+            stmt.setString(1, table)
             stmt.executeQuery().use { res ->
                 val cols = ArrayList<Col>()
                 while (res.next()) {
@@ -144,10 +226,12 @@ internal class CodeGen(private val conn: Connection) {
                         res.getString("IS_NULLABLE"),
                         res.getString("COLUMN_TYPE"),
                         res.getString("COLUMN_KEY"),
-                        res.getString("COLUMN_COMMENT")
+                        res.getString("COLUMN_COMMENT"),
+                        res.getString("EXTRA")
+
                     ))
                 }
-                return generate(table, cols, GEN_PACKAGE, GEN_SCHEMA_CLASS)
+                return generate(table, cols, conf.`package`!!, conf.schemaClassName!!)
             }
         }
     }
@@ -155,7 +239,10 @@ internal class CodeGen(private val conn: Connection) {
     internal class ClassRes(val code: String, val className: String, val tableField: String, val idClass: String, val tableName: String)
 
     fun handleTables(generateFiles: Boolean, overwriteExisting: Boolean): String {
-        val baseDir = Paths.get("/home/mitja/eteam-graphql/src/main/kotlin")
+        val GEN_PACKAGE = conf.`package`!!
+        val GEN_SCHEMA_CLASS = conf.schemaClassName!!
+
+        val baseDir = Paths.get(conf.baseDir)
         var tmpDir = baseDir
         for (part in GEN_PACKAGE.split("[.]".toRegex()))
             tmpDir = tmpDir.resolve(part)
@@ -176,24 +263,20 @@ internal class CodeGen(private val conn: Connection) {
         Files.createDirectories(outDir)
 
         val sb = StringBuilder()
-        sb.append("package $GEN_PACKAGE;\n\n")
-        sb.append("import si.datastat.db.api.DbSchema;\n")
-        sb.append("import si.datastat.db.api.DbTable;\n")
+        sb.append("package $GEN_PACKAGE\n\n")
+        sb.append("import com.xs0.dbktx.schema.DbSchema\n")
         sb.append("\n")
         sb.append("object $GEN_SCHEMA_CLASS : DbSchema() {\n")
-        sb.append("\n")
 
         for (res in results) {
-            sb.append("    public static final DbTable<" + res.className + ", " + res.idClass + "> " + res.tableField + " = " + res.className + "." + res.tableField + ";\n")
+            sb.append("    val " + res.tableField + " = " + res.className + "\n")
             if (generateFiles) {
                 saveFile(outDir, res.className, res.code, overwriteExisting)
             }
         }
 
         sb.append("\n")
-        sb.append("    init {\n")
-        sb.append("        finishInit();\n")
-        sb.append("    }\n")
+        sb.append("    init { this.finishInit() }\n")
         sb.append("}\n")
 
         if (generateFiles) {
@@ -204,7 +287,7 @@ internal class CodeGen(private val conn: Connection) {
     }
 
     private fun saveFile(outDir: Path, className: String, code: String, overwrite: Boolean) {
-        val file = outDir.resolve(className + ".java")
+        val file = outDir.resolve("$className.kt")
         if (Files.isRegularFile(file) && !overwrite)
             return
 
@@ -294,11 +377,14 @@ internal class CodeGen(private val conn: Connection) {
             if (numPrimary == 1 && col.partOfPrimary) {
                 sb.append(", primaryKey=true")
             }
+            if (col.autoIncrement) {
+                sb.append(", autoIncrement=true")
+            }
             sb.append(")\n")
         }
 
         if (numPrimary > 1)
-            sb.appendln("\n        val $ID = b.compositeId(::Id)")
+            sb.appendln("\n        val $ID = b.primaryKey(::Id)")
 
         sb.appendln()
         sb.appendln("        init {")
@@ -365,9 +451,6 @@ internal class CodeGen(private val conn: Connection) {
 
             return name
         }
-
-        val GEN_PACKAGE = "si.datastat.eteam.db"
-        val GEN_SCHEMA_CLASS = "ETeamDB"
 
         fun javaName(table: String, capitalizeFirst: Boolean): String {
             val tmp = table.split("_".toRegex()).toTypedArray()

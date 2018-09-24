@@ -1,0 +1,9 @@
+{
+  "jdbcUrl": "jdbc:mysql://localhost/judobase?characterEncoding=utf8&serverTimezone=UTC",
+  "username": "root",
+  "password": "******",
+
+  "package": "org.ijf.judogql.db",
+  "schemaClassName": "JudoDB",
+  "baseDir": "c:\\proj\\judo\\judo-gql\\src\\main\\kotlin"
+}
