@@ -33,5 +33,7 @@ enum class SqlTypeKind {
     LONGBLOB,
 
     ENUM,
-    SET
+    SET,
+
+    JSON
 }

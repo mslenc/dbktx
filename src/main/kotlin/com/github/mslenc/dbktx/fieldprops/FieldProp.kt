@@ -139,8 +139,12 @@ fun ENUM(vararg posibs: String): SqlTypeDef {
     return SqlTypeDef(SqlTypeKind.ENUM)
 }
 
+fun JSON(): SqlTypeDef {
+    return SqlTypeDef(SqlTypeKind.JSON)
+}
+
 class SqlTypeDef internal constructor(
-        val sqlTypeKind: SqlTypeKind,
-        val param1: Int? = null,
-        val param2: Int? = null
+    val sqlTypeKind: SqlTypeKind,
+    val param1: Int? = null,
+    val param2: Int? = null
 )

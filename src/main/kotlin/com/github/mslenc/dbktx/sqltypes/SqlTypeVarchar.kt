@@ -21,7 +21,8 @@ class SqlTypeVarchar(
 
             SqlTypeKind.MEDIUMTEXT -> this.maxSize = 16777215
 
-            SqlTypeKind.LONGTEXT -> this.maxSize = Integer.MAX_VALUE
+            SqlTypeKind.LONGTEXT,
+            SqlTypeKind.JSON -> this.maxSize = Integer.MAX_VALUE
 
             SqlTypeKind.CHAR -> {
                 if (size == null)
