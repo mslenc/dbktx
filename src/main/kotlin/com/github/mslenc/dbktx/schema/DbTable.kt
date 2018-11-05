@@ -1,6 +1,7 @@
 package com.github.mslenc.dbktx.schema
 
 import com.github.mslenc.asyncdb.DbRow
+import com.github.mslenc.dbktx.aggr.AggregateBuilder
 import com.github.mslenc.dbktx.composite.CompositeId
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderInternal
@@ -179,6 +180,10 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
 
     internal suspend fun callEnqueueDeleteQuery(db: DbLoaderInternal, sql: Sql, specificIds: Set<ID>?): Long {
         return db.enqueueDeleteQuery(this, sql, specificIds)
+    }
+
+    fun aggregateQuery(db: DbConn, builder: AggregateBuilder<E>.()->Unit): AggregateQuery<E> {
+
     }
 }
 

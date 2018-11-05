@@ -14,19 +14,19 @@ interface FilterBuilder<E: DbEntity<E, *>> {
     fun <T: Any> bind(prop: RowProp<E, T>): Expr<E, T>
 
     infix fun <T: Any> Expr<E, T>.eq(other: Expr<E, T>): ExprBoolean {
-        return ExprBinary(this, ExprBinary.Op.EQ, other)
+        return ExprCmp(this, ExprCmp.Op.EQ, other)
     }
 
     infix fun <T: Any> RowProp<E, T>.eq(other: T): ExprBoolean {
-        return ExprBinary(bind(this), ExprBinary.Op.EQ, this.makeLiteral(other))
+        return ExprCmp(bind(this), ExprCmp.Op.EQ, this.makeLiteral(other))
     }
 
     infix fun <T: Any> Expr<E, T>.neq(other: Expr<E, T>): ExprBoolean {
-        return ExprBinary(this, ExprBinary.Op.NEQ, other)
+        return ExprCmp(this, ExprCmp.Op.NEQ, other)
     }
 
     infix fun <T: Any> RowProp<E, T>.neq(other: T): ExprBoolean {
-        return ExprBinary(bind(this), ExprBinary.Op.NEQ, this.makeLiteral(other))
+        return ExprCmp(bind(this), ExprCmp.Op.NEQ, this.makeLiteral(other))
     }
 
     infix fun <T: Any> RowProp<E, T>.oneOf(values: Set<T>): ExprBoolean {
@@ -49,51 +49,51 @@ interface FilterBuilder<E: DbEntity<E, *>> {
     }
 
     infix fun <T> Expr<E, T>.lt(value: Expr<E, T>): ExprBoolean {
-        return ExprBinary(this, ExprBinary.Op.LT, value)
+        return ExprCmp(this, ExprCmp.Op.LT, value)
     }
 
     infix fun <T : Comparable<T>> OrderedProp<E, T>.lt(value: T): ExprBoolean {
-        return ExprBinary(bind(this), ExprBinary.Op.LT, makeLiteral(value))
+        return ExprCmp(bind(this), ExprCmp.Op.LT, makeLiteral(value))
     }
 
     infix fun <T : Comparable<T>> OrderedProp<E, T>.lt(value: Expr<E, T>): ExprBoolean {
-        return ExprBinary(bind(this), ExprBinary.Op.LT, value)
+        return ExprCmp(bind(this), ExprCmp.Op.LT, value)
     }
 
     infix fun <T> Expr<E, T>.lte(value: Expr<E, T>): ExprBoolean {
-        return ExprBinary(this, ExprBinary.Op.LTE, value)
+        return ExprCmp(this, ExprCmp.Op.LTE, value)
     }
 
     infix fun <T : Comparable<T>> OrderedProp<E, T>.lte(value: T): ExprBoolean {
-        return ExprBinary(bind(this), ExprBinary.Op.LTE, makeLiteral(value))
+        return ExprCmp(bind(this), ExprCmp.Op.LTE, makeLiteral(value))
     }
 
     infix fun <T : Comparable<T>> OrderedProp<E, T>.lte(value: Expr<E, T>): ExprBoolean {
-        return ExprBinary(bind(this), ExprBinary.Op.LTE, value)
+        return ExprCmp(bind(this), ExprCmp.Op.LTE, value)
     }
 
     infix fun <T> Expr<E, T>.gt(value: Expr<E, T>): ExprBoolean {
-        return ExprBinary(this, ExprBinary.Op.GT, value)
+        return ExprCmp(this, ExprCmp.Op.GT, value)
     }
 
     infix fun <T : Comparable<T>> OrderedProp<E, T>.gt(value: T): ExprBoolean {
-        return ExprBinary(bind(this), ExprBinary.Op.GT, makeLiteral(value))
+        return ExprCmp(bind(this), ExprCmp.Op.GT, makeLiteral(value))
     }
 
     infix fun <T : Comparable<T>> OrderedProp<E, T>.gt(value: Expr<E, T>): ExprBoolean {
-        return ExprBinary(bind(this), ExprBinary.Op.GT, value)
+        return ExprCmp(bind(this), ExprCmp.Op.GT, value)
     }
 
     infix fun <T> Expr<E, T>.gte(value: Expr<E, T>): ExprBoolean {
-        return ExprBinary(this, ExprBinary.Op.GTE, value)
+        return ExprCmp(this, ExprCmp.Op.GTE, value)
     }
 
     infix fun <T : Comparable<T>> OrderedProp<E, T>.gte(value: T): ExprBoolean {
-        return ExprBinary(bind(this), ExprBinary.Op.GTE, makeLiteral(value))
+        return ExprCmp(bind(this), ExprCmp.Op.GTE, makeLiteral(value))
     }
 
     infix fun <T : Comparable<T>> OrderedProp<E, T>.gte(value: Expr<E, T>): ExprBoolean {
-        return ExprBinary(bind(this), ExprBinary.Op.GTE, value)
+        return ExprCmp(bind(this), ExprCmp.Op.GTE, value)
     }
 
     fun <T : Comparable<T>> Expr<E, T>.between(minimum: Expr<E, T>, maximum: Expr<E, T>): ExprBoolean {
@@ -320,6 +320,12 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return ExprFilterContainsChild(currentTable(), relImpl.info, null, dstTable)
     }
 
+    fun <TO: DbEntity<TO, *>> RelToMany<E, TO>.isEmpty(): ExprBoolean {
+        val dstTable = currentTable().forcedSubQuery(this)
+        val relImpl = this as RelToManyImpl<E, *, TO>
+
+        return ExprFilterContainsChild(currentTable(), relImpl.info, null, dstTable, negated = true)
+    }
 
     fun <TO: DbEntity<TO, *>> RelToMany<E, TO>.contains(block: FilterBuilder<TO>.() -> ExprBoolean): ExprBoolean {
         val dstTable = currentTable().forcedSubQuery(this)

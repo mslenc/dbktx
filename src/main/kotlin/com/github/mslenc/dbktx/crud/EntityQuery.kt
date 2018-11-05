@@ -69,12 +69,16 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
         val filter = filterBuilder.block()
         val finalFilter = if (negate) !filter else filter
 
+        addFilter(finalFilter)
+    }
+
+    internal fun addFilter(filter: ExprBoolean) {
         val existing = this.filters
 
         if (existing != null) {
-            this.filters = ExprBools.create(existing, ExprBools.Op.AND, finalFilter)
+            this.filters = ExprBools.create(existing, ExprBools.Op.AND, filter)
         } else {
-            this.filters = finalFilter
+            this.filters = filter
         }
     }
 

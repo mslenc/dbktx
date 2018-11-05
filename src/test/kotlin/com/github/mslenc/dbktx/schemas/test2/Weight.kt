@@ -19,6 +19,8 @@ class Weight(db: DbConn, id: Int, row: DbRow)
         val ID_WEIGHT = b.nonNullInt("id_weight", INT(), Weight::id, primaryKey = true, autoIncrement = true)
         val NAME = b.nonNullString("name", VARCHAR(255), Weight::name)
 
+        val ENTRIES_SET = b.relToMany { CompEntry.REF_WEIGHT }
+
         init {
             b.build(::Weight)
         }

@@ -3,7 +3,7 @@ package com.github.mslenc.dbktx.expr
 import com.github.mslenc.dbktx.crud.TableRemapper
 import com.github.mslenc.dbktx.util.Sql
 
-internal class ExprBinary<E, T>(private val left: Expr<in E, T>, private val op: Op, private val right: Expr<in E, T>) : ExprBoolean {
+internal class ExprCmp<E, T>(private val left: Expr<in E, T>, private val op: Op, private val right: Expr<in E, T>) : ExprBoolean {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.expr(topLevel) {
             +left
@@ -13,7 +13,7 @@ internal class ExprBinary<E, T>(private val left: Expr<in E, T>, private val op:
     }
 
     override fun remap(remapper: TableRemapper): ExprBoolean {
-        return ExprBinary(left.remap(remapper), op, right.remap(remapper))
+        return ExprCmp(left.remap(remapper), op, right.remap(remapper))
     }
 
     internal enum class Op(val sql: String) {
@@ -27,12 +27,12 @@ internal class ExprBinary<E, T>(private val left: Expr<in E, T>, private val op:
 
     override fun not(): ExprBoolean {
         return when (op) {
-            ExprBinary.Op.LT -> ExprBinary(left, Op.GTE, right)
-            ExprBinary.Op.LTE -> ExprBinary(left, Op.GT, right)
-            ExprBinary.Op.GT -> ExprBinary(left, Op.LTE, right)
-            ExprBinary.Op.GTE -> ExprBinary(left, Op.LT, right)
-            ExprBinary.Op.EQ -> ExprBinary(left, Op.NEQ, right)
-            ExprBinary.Op.NEQ -> ExprBinary(left, Op.EQ, right)
+            ExprCmp.Op.LT -> ExprCmp(left, Op.GTE, right)
+            ExprCmp.Op.LTE -> ExprCmp(left, Op.GT, right)
+            ExprCmp.Op.GT -> ExprCmp(left, Op.LTE, right)
+            ExprCmp.Op.GTE -> ExprCmp(left, Op.LT, right)
+            ExprCmp.Op.EQ -> ExprCmp(left, Op.NEQ, right)
+            ExprCmp.Op.NEQ -> ExprCmp(left, Op.EQ, right)
         }
     }
 
