@@ -16,16 +16,26 @@ import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.defer
 import com.github.mslenc.dbktx.util.testing.MockResultSet
 import com.github.mslenc.dbktx.util.testing.toLDT
+import com.github.mslenc.dbktx.util.vertxDispatcher
+import io.vertx.ext.unit.junit.RunTestOnContext
+import io.vertx.ext.unit.junit.VertxUnitRunner
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
 
 import org.junit.Assert.*
+import org.junit.Rule
+import org.junit.runner.RunWith
 import java.util.*
 import java.util.concurrent.CompletableFuture
 
+@RunWith(VertxUnitRunner::class)
 class DbLoaderTest {
+    @Rule
+    @JvmField
+    var rule = RunTestOnContext()
+
     @Before
     fun loadSchema() {
         assertNotNull(TestSchema1)
@@ -46,7 +56,7 @@ class DbLoaderTest {
     }
 
     @Test
-    fun testBatchedLoadingEntities() = runBlocking {
+    fun testBatchedLoadingEntities() = runBlocking(vertxDispatcher()) {
         var called = false
 
         val companyId1 = UUID.randomUUID()
@@ -119,7 +129,7 @@ class DbLoaderTest {
     }
 
     @Test
-    fun testBatchedLoadingToMany() = runBlocking {
+    fun testBatchedLoadingToMany() = runBlocking(vertxDispatcher()) {
         val delayedExec = DelayedExec()
         var called = false
         var theSql = ""
@@ -148,9 +158,9 @@ class DbLoaderTest {
         val db = DbLoaderImpl(conn, delayedExec, RequestTime.forTesting())
 
 
-        val com0 = Company(db, comId0, FakeRowData.of(Company, comId0.toString(), "company", "2017-06-01T19:51:22".toLDT(), "2017-06-13T04:23:50".toLDT()))
-        val com1 = Company(db, comId1, FakeRowData.of(Company, comId1.toString(), "corporation", "2017-06-02T12:23:34".toLDT(), "2017-06-12T19:30:01".toLDT()))
-        val com2 = Company(db, comId2, FakeRowData.of(Company, comId2.toString(), "organization", "2017-06-03T00:00:01".toLDT(), "2017-06-11T22:12:21".toLDT()))
+        val com0 = Company(db, comId0, FakeRowData.of(Company, comId0, "company", "2017-06-01T19:51:22".toLDT(), "2017-06-13T04:23:50".toLDT()))
+        val com1 = Company(db, comId1, FakeRowData.of(Company, comId1, "corporation", "2017-06-02T12:23:34".toLDT(), "2017-06-12T19:30:01".toLDT()))
+        val com2 = Company(db, comId2, FakeRowData.of(Company, comId2, "organization", "2017-06-03T00:00:01".toLDT(), "2017-06-11T22:12:21".toLDT()))
 
         val futures = arrayOf (
             defer { db.load(com2, Company.BRANDS_SET) },
@@ -187,7 +197,7 @@ class DbLoaderTest {
     }
 
     @Test
-    fun testBatchedLoadingToManyMultiField() = runBlocking {
+    fun testBatchedLoadingToManyMultiField() = runBlocking(vertxDispatcher()) {
         val delayedExec = DelayedExec()
 
         var called = false
@@ -204,7 +214,7 @@ class DbLoaderTest {
                 theSql = sql
                 theParams = args
 
-                val result = MockResultSet.Builder("company_id", "key", "name", "tag_line", "t_created", "t_updated")
+                val result = MockResultSet.Builder("company_id", "sku", "brand_key", "name", "price", "t_created", "t_updated")
                 result.addRow(id1.companyId.toString(), "SHP001", id1.key, "A white sheep", "412.50", "2017-04-27T20:56:56".toLDT(), "2017-05-27T11:22:33".toLDT())
                 result.addRow(id1.companyId.toString(), "SHP010", id1.key, "A black sheep", "999.95", "2017-03-27T21:57:57".toLDT(), "2017-04-27T22:11:00".toLDT())
                 result.addRow(id1.companyId.toString(), "TOO001", id1.key, "A fine wool trimmer", "111.11", "2017-04-27T22:58:58".toLDT(), "2017-05-27T00:01:02".toLDT())
@@ -218,9 +228,9 @@ class DbLoaderTest {
 
         assertEquals("B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated", TestSchema1.BRAND.defaultColumnNames)
 
-        val brand0 = Brand(db, id0, FakeRowData.of(Brand, id0.companyId.toString(), id0.key, "Abc (tm)", "We a-b-c for you!", "2017-04-27T12:21:13".toLDT(), "2017-05-27T01:02:03".toLDT()))
-        val brand1 = Brand(db, id1, FakeRowData.of(Brand, id1.companyId.toString(), id1.key, "Sheeps Inc.", "Wool and stool!", "2017-02-25T13:31:14".toLDT(), "2017-03-27T02:03:04".toLDT()))
-        val brand2 = Brand(db, id2, FakeRowData.of(Brand, id2.companyId.toString(), id2.key, "Gooey Phooey", "Tee hee mee bee", "2017-03-26T14:41:15".toLDT(), "2017-04-27T03:04:05".toLDT()))
+        val brand0 = Brand(db, id0, FakeRowData.of(Brand, id0.companyId, id0.key, "Abc (tm)", "We a-b-c for you!", "2017-04-27T12:21:13".toLDT(), "2017-05-27T01:02:03".toLDT()))
+        val brand1 = Brand(db, id1, FakeRowData.of(Brand, id1.companyId, id1.key, "Sheeps Inc.", "Wool and stool!", "2017-02-25T13:31:14".toLDT(), "2017-03-27T02:03:04".toLDT()))
+        val brand2 = Brand(db, id2, FakeRowData.of(Brand, id2.companyId, id2.key, "Gooey Phooey", "Tee hee mee bee", "2017-03-26T14:41:15".toLDT(), "2017-04-27T03:04:05".toLDT()))
 
         // these should contain the order of the following async call
         val idxof0 = 2

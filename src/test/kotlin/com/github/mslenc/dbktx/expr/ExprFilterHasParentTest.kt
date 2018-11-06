@@ -10,17 +10,27 @@ import com.github.mslenc.dbktx.util.testing.DelayedExec
 import com.github.mslenc.dbktx.util.defer
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
+import com.github.mslenc.dbktx.util.vertxDispatcher
+import io.vertx.ext.unit.junit.RunTestOnContext
+import io.vertx.ext.unit.junit.VertxUnitRunner
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
 import java.util.concurrent.atomic.AtomicBoolean
 
 import org.junit.Assert.*
+import org.junit.Rule
+import org.junit.runner.RunWith
 import java.util.concurrent.CompletableFuture
 
+@RunWith(VertxUnitRunner::class)
 class ExprFilterHasParentTest {
+    @Rule
+    @JvmField
+    var rule = RunTestOnContext()
+
     @Test
-    fun testParentQuery() = runBlocking {
+    fun testParentQuery() = runBlocking(vertxDispatcher()) {
         val called = AtomicBoolean(false)
         var theSql: String? = null
         var theParams: List<Any?> = emptyList()

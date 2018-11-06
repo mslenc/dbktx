@@ -6,7 +6,7 @@ import org.junit.Assert.*
 
 class UtilsTest {
     @Test
-    fun testTscapeSqlLikePattern() {
+    fun testEscapeSqlLikePattern() {
         assertEquals("", escapeSqlLikePattern("", '|'))
         assertEquals("abc", escapeSqlLikePattern("abc", '|'))
         assertEquals("abc||def||ghi||jkl", escapeSqlLikePattern("abc|def|ghi|jkl", '|'))
