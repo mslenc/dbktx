@@ -11,11 +11,8 @@ import com.github.mslenc.dbktx.util.defer
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
 import com.github.mslenc.dbktx.util.vertxDispatcher
-import com.xs0.dbktx.util.com.github.mslenc.dbktx.runAsyncTest
 import io.vertx.ext.unit.TestContext
 import io.vertx.ext.unit.junit.VertxUnitRunner
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
