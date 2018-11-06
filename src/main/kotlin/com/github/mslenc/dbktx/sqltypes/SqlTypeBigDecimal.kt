@@ -1,5 +1,7 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueBigDecimal
 import com.github.mslenc.dbktx.util.Sql
 import java.math.BigDecimal
 import kotlin.reflect.KClass
@@ -21,11 +23,12 @@ class SqlTypeBigDecimal(concreteType: SqlTypeKind,
             throw IllegalArgumentException("Invalid scale")
     }
 
-    override fun parseRowDataValue(value: Any): BigDecimal {
-        if (value is BigDecimal)
-            return value
+    override fun parseDbValue(value: DbValue): BigDecimal {
+        return value.asBigDecimal()
+    }
 
-        throw IllegalStateException("Not a BigDecimal value - $value")
+    override fun makeDbValue(value: BigDecimal): DbValue {
+        return DbValueBigDecimal(value)
     }
 
     override fun encodeForJson(value: BigDecimal): Any {

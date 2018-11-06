@@ -1,13 +1,13 @@
 package schema1
 
-import com.github.mslenc.asyncdb.vertx.MySQLDbClient
+import com.github.mslenc.asyncdb.DbConfig
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbConnectorImpl
 import com.github.mslenc.dbktx.conn.TimeProviderFromClock
+import com.github.mslenc.dbktx.util.vertxDispatcher
 import io.vertx.core.Vertx
-import io.vertx.core.json.JsonObject
-import kotlinx.coroutines.experimental.Unconfined
-import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import java.time.Clock
 
 fun main(args: Array<String>) {
@@ -15,21 +15,20 @@ fun main(args: Array<String>) {
     val server = vertx.createHttpServer()
     println("${TestSchema.numberOfTables} tables initialized")
 
-    val mySQLClientConfig =
-            JsonObject(mapOf(
-                "host" to "127.0.0.1",
-                "port" to 3306,
-                "username" to "eteam",
-                "password" to "eteam",
-                "database" to "eteam"
-            ))
+    val dbConfig =
+        DbConfig.newBuilder(DbConfig.DbType.MYSQL).
+            setHost("127.0.0.1", 3306).
+            setDefaultCredentials("eteam", "eteam").
+            setDefaultDatabase("eteam").
+            setEventLoopGroup(vertx.nettyEventLoopGroup()).
+        build()
 
-    val mySqlClient = MySQLDbClient.createShared(vertx, mySQLClientConfig, "test")
+    val mySqlClient = dbConfig.makeDataSource()
 
     val dbConnector = DbConnectorImpl(mySqlClient, timeProvider = TimeProviderFromClock(Clock.systemDefaultZone()))
 
     server.requestHandler { request ->
-        launch(Unconfined) {
+        GlobalScope.launch(vertxDispatcher()) {
             val start = System.currentTimeMillis()
             var response = "!!!"
 

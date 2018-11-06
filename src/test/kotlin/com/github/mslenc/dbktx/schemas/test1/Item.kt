@@ -1,6 +1,6 @@
 package com.github.mslenc.dbktx.schemas.test1
 
-import com.github.mslenc.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.composite.CompositeId2
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.*
@@ -10,8 +10,8 @@ import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.*
 
-class Item(db: DbConn, id: Item.Id, private val row: RowData)
-    : DbEntity<Item, Item.Id>(db, id) {
+class Item(db: DbConn, id: Item.Id, row: DbRow)
+    : DbEntity<Item, Item.Id>(db, id, row) {
 
     override val metainfo get() = Item
 
@@ -32,7 +32,7 @@ class Item(db: DbConn, id: Item.Id, private val row: RowData)
         val sku:String get() = component2
 
         constructor(companyId: UUID, sku: String) : super(companyId, sku)
-        constructor(row: RowData) : super(row)
+        constructor(row: DbRow) : super(row)
 
         override val tableMetainfo get() = Item
     }

@@ -1,9 +1,10 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueString
 import com.github.mslenc.dbktx.util.JSON
 import com.github.mslenc.dbktx.util.Sql
 import kotlin.reflect.KClass
-import kotlin.reflect.full.cast
 
 class SqlTypeStringJson<T: Any>(
         private val concreteType: SqlTypeKind,
@@ -17,14 +18,12 @@ class SqlTypeStringJson<T: Any>(
         // TODO: check concreteType is varchar/text, maximum length, etc..
     }
 
-    override fun parseRowDataValue(value: Any): T {
-        if (kotlinType.isInstance(value))
-            return kotlinType.cast(value)
+    override fun parseDbValue(value: DbValue): T {
+        return JSON.parse(value.asString(), kotlinType)
+    }
 
-        if (value is CharSequence)
-            return JSON.parse(value.toString(), kotlinType)
-
-        throw IllegalStateException("Expected a string (JSON) value: " + value.javaClass)
+    override fun makeDbValue(value: T): DbValue {
+        return DbValueString(JSON.stringify(value))
     }
 
     override fun encodeForJson(value: T): Any {
@@ -32,7 +31,10 @@ class SqlTypeStringJson<T: Any>(
     }
 
     override fun decodeFromJson(value: Any): T {
-        return parseRowDataValue(value)
+        if (value is String)
+            return JSON.parse(value, kotlinType)
+
+        throw IllegalArgumentException("Not a string: $value")
     }
 
     override fun toSql(value: T, sql: Sql) {

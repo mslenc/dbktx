@@ -1,18 +1,18 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueString
 import com.github.mslenc.dbktx.util.Sql
+import java.lang.IllegalArgumentException
 import kotlin.reflect.KClass
-import kotlin.reflect.full.cast
 
 class SqlTypeEnumString<ENUM : Enum<ENUM>>(override val kotlinType: KClass<ENUM>, private val toDbRep: (ENUM)->String, private val fromDbRep: (String)->ENUM, isNotNull: Boolean, override val dummyValue: ENUM) : SqlType<ENUM>(isNotNull = isNotNull) {
-    override fun parseRowDataValue(value: Any): ENUM {
-        if (value is CharSequence)
-            return fromDbRep(value.toString())
+    override fun parseDbValue(value: DbValue): ENUM {
+        return fromDbRep(value.asString())
+    }
 
-        if (kotlinType.isInstance(value))
-            return kotlinType.cast(value)
-
-        throw IllegalStateException("Expected a string (CharSequence), but got ${value::class}")
+    override fun makeDbValue(value: ENUM): DbValue {
+        return DbValueString(toDbRep(value))
     }
 
     override fun encodeForJson(value: ENUM): Any {
@@ -20,7 +20,10 @@ class SqlTypeEnumString<ENUM : Enum<ENUM>>(override val kotlinType: KClass<ENUM>
     }
 
     override fun decodeFromJson(value: Any): ENUM {
-        return parseRowDataValue(value)
+        if (value is String)
+            return fromDbRep(value)
+
+        throw IllegalArgumentException("Not a string: $value")
     }
 
     override fun toSql(value: ENUM, sql: Sql) {

@@ -1,7 +1,7 @@
 package com.github.mslenc.dbktx.schema
 
-import com.github.mslenc.asyncdb.common.RowData
-import com.github.mslenc.asyncdb.common.ULong
+import com.github.mslenc.asyncdb.DbRow
+import com.github.mslenc.asyncdb.util.ULong
 import com.github.mslenc.dbktx.composite.CompositeId
 import com.github.mslenc.dbktx.sqltypes.SqlTypes
 import java.math.BigDecimal
@@ -22,7 +22,7 @@ internal constructor(
 
     private var primaryKeyInitialized: Boolean = false
 
-    fun build(factory: (DbConn, ID, RowData) -> E): DbTable<E, ID> {
+    fun build(factory: (DbConn, ID, DbRow) -> E): DbTable<E, ID> {
         table.factory = factory
 
         val columnNames = StringBuilder()
@@ -586,7 +586,7 @@ internal constructor(
     // TODO: boolean?
 
 
-    internal fun dummyRow(): RowData {
+    internal fun dummyRow(): DbRow {
         return dummyRow(table.columns)
     }
 
@@ -742,7 +742,7 @@ internal constructor(
     }
 
     fun <T: CompositeId<E, T>>
-    uniqueKey(keyBuilder: (RowData)->T, keyExtractor: (E)->T): MultiColumnKeyDef<E, T> {
+    uniqueKey(keyBuilder: (DbRow)->T, keyExtractor: (E)->T): MultiColumnKeyDef<E, T> {
         if (!primaryKeyInitialized)
             throw IllegalStateException("Must first set primary key, before other keys in table " + table.dbName)
 
@@ -762,7 +762,7 @@ internal constructor(
         const val PRIORITY_REL_TO_ONE = 1
         const val PRIORITY_REL_TO_MANY = 2
 
-        internal fun <E : DbEntity<E, *>> dummyRow(columns: ArrayList<Column<E, *>>): RowData {
+        internal fun <E : DbEntity<E, *>> dummyRow(columns: ArrayList<Column<E, *>>): DbRow {
             val res = FakeRowData()
 
             for (column in columns)

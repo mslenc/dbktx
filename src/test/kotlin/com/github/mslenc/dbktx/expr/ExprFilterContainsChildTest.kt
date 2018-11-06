@@ -1,7 +1,6 @@
 package com.github.mslenc.dbktx.expr
 
-import com.github.mslenc.asyncdb.common.ResultSet
-import com.github.mslenc.asyncdb.vertx.DbConnection
+import com.github.mslenc.asyncdb.DbResultSet
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.schemas.test1.Brand.Companion.ITEMS_SET
@@ -11,33 +10,28 @@ import com.github.mslenc.dbktx.util.testing.DelayedExec
 import com.github.mslenc.dbktx.util.defer
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
-import io.vertx.core.AsyncResult
-import io.vertx.core.Future
-import io.vertx.core.Handler
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
 import java.util.Arrays
 import java.util.concurrent.atomic.AtomicBoolean
 
 import org.junit.Assert.*
+import java.util.concurrent.CompletableFuture
 
 class ExprFilterContainsChildTest {
     @Test
     fun testChildQuery() = runBlocking {
         val called = AtomicBoolean(false)
         var theSql: String? = null
-        var theParams: List<Any> = emptyList()
+        var theParams: List<Any?> = emptyList()
 
         val connection = object : MockDbConnection() {
-            override fun queryWithParams(sql: String, params: List<Any>, resultHandler: Handler<AsyncResult<ResultSet>>): DbConnection {
+            override fun executeQuery(sql: String, values: MutableList<Any?>): CompletableFuture<DbResultSet> {
                 theSql = sql
-                theParams = params
-
-                resultHandler.handle(Future.succeededFuture(MockResultSet(arrayOf())))
-
+                theParams = values
                 called.set(true)
-                return this
+                return CompletableFuture.completedFuture(MockResultSet.Builder().build())
             }
         }
         val delayedExec = DelayedExec()

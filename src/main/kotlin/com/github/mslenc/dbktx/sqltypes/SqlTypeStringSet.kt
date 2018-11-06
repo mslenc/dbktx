@@ -1,8 +1,11 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueString
 import com.github.mslenc.dbktx.util.Sql
 import com.github.mslenc.dbktx.util.StringSet
 import com.github.mslenc.dbktx.util.toStringSet
+import java.lang.IllegalArgumentException
 import kotlin.reflect.KClass
 
 class SqlTypeStringSet(private val concreteType: SqlTypeKind,
@@ -14,22 +17,26 @@ class SqlTypeStringSet(private val concreteType: SqlTypeKind,
         // TODO: check concreteType is varchar or an actual SET, maximum length, etc..
     }
 
-    override fun parseRowDataValue(value: Any): StringSet {
-        if (value is StringSet)
-            return value
+    override fun parseDbValue(value: DbValue): StringSet {
+        return processString(value.asString())
+    }
 
-        if (value !is CharSequence)
-            throw IllegalStateException("Not a string value: " + value.javaClass)
+    override fun makeDbValue(value: StringSet): DbValue {
+        return DbValueString(encodeForJson(value))
+    }
 
-        var str = value.toString()
+    private fun processString(str: String): StringSet {
+        val finalStr =
+            if (surroundedWithCommas && str.startsWith(",") && str.endsWith(",")) {
+                str.substring(1, str.length - 1)
+            } else {
+                str
+            }
 
-        if (surroundedWithCommas && str.startsWith(",") && str.endsWith(","))
-            str = str.substring(1, str.length - 1)
-
-        if (str.isEmpty())
+        if (finalStr.isEmpty())
             return StringSet()
 
-        return str.split(",").toSet().toStringSet()
+        return finalStr.split(",").toSet().toStringSet()
     }
 
     override fun encodeForJson(value: StringSet): String {
@@ -57,7 +64,10 @@ class SqlTypeStringSet(private val concreteType: SqlTypeKind,
     }
 
     override fun decodeFromJson(value: Any): StringSet {
-        return parseRowDataValue(value)
+        if (value is String)
+            return processString(value)
+
+        throw IllegalArgumentException("Not a string: $value")
     }
 
     override val dummyValue: StringSet

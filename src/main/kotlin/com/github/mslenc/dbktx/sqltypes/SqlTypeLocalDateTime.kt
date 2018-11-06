@@ -1,5 +1,7 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueLocalDateTime
 import com.github.mslenc.dbktx.util.Sql
 
 import java.time.LocalDateTime
@@ -13,11 +15,12 @@ class SqlTypeLocalDateTime(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlT
             throw IllegalArgumentException("Unsupported type $concreteType")
     }
 
-    override fun parseRowDataValue(value: Any): LocalDateTime {
-        if (value is LocalDateTime)
-            return value
+    override fun parseDbValue(value: DbValue): LocalDateTime {
+        return value.asLocalDateTime()
+    }
 
-        throw IllegalArgumentException("Not a valid LocalDateTime value - $value")
+    override fun makeDbValue(value: LocalDateTime): DbValue {
+        return DbValueLocalDateTime(value)
     }
 
     override fun encodeForJson(value: LocalDateTime): Any {

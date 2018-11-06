@@ -1,5 +1,7 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueByteArray
 import com.github.mslenc.dbktx.util.Sql
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
@@ -10,7 +12,6 @@ class SqlTypeBinaryString(concreteType: SqlTypeKind, size: Int?, isNotNull: Bool
     private val maxSize: Int
 
     init {
-
         when (concreteType) {
             SqlTypeKind.TINYBLOB -> this.maxSize = 255
 
@@ -43,14 +44,12 @@ class SqlTypeBinaryString(concreteType: SqlTypeKind, size: Int?, isNotNull: Bool
             throw IllegalArgumentException("Invalid size, must be at least 1")
     }
 
-    override fun parseRowDataValue(value: Any): String {
-        if (value is CharSequence)
-            return value.toString()
+    override fun parseDbValue(value: DbValue): String {
+        return value.asByteArray().toString(charset)
+    }
 
-        if (value is ByteArray)
-            return String(value, charset)
-
-        throw IllegalArgumentException("Not a byte[] or CharSequence value - " + value.javaClass)
+    override fun makeDbValue(value: String): DbValue {
+        return DbValueByteArray(value.toByteArray(charset))
     }
 
     override fun encodeForJson(value: String): Any {

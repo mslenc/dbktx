@@ -1,5 +1,7 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueFloat
 import com.github.mslenc.dbktx.util.Sql
 import kotlin.reflect.KClass
 
@@ -11,14 +13,12 @@ class SqlTypeFloat(concreteType: SqlTypeKind,
             throw IllegalArgumentException("Unsupported type $concreteType")
     }
 
-    override fun parseRowDataValue(value: Any): Float {
-        if (value is Float)
-            return value
+    override fun parseDbValue(value: DbValue): Float {
+        return value.asFloat()
+    }
 
-        if (value is Number)
-            return value.toFloat()
-
-        throw IllegalArgumentException("Not a float - " + value)
+    override fun makeDbValue(value: Float): DbValue {
+        return DbValueFloat(value)
     }
 
     override fun encodeForJson(value: Float): Any {
@@ -26,7 +26,10 @@ class SqlTypeFloat(concreteType: SqlTypeKind,
     }
 
     override fun decodeFromJson(value: Any): Float {
-        return parseRowDataValue(value)
+        if (value is Number)
+            return value.toFloat()
+
+        throw IllegalArgumentException("Not a number: $value")
     }
 
     override fun toSql(value: Float, sql: Sql) {

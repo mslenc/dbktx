@@ -1,5 +1,7 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueDuration
 import com.github.mslenc.dbktx.util.Sql
 import java.time.Duration
 import java.time.LocalTime
@@ -13,24 +15,12 @@ class SqlTypeLocalTime(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<
             throw IllegalArgumentException("Unsupported type $concreteType")
     }
 
-    override fun parseRowDataValue(value: Any): LocalTime {
-        if (value is LocalTime)
-            return value
+    override fun parseDbValue(value: DbValue): LocalTime {
+        return value.asLocalTime()
+    }
 
-        if (value !is Duration)
-            throw IllegalArgumentException("The value is neither LocalTime nor Duration")
-
-        if (value.isNegative)
-            throw IllegalArgumentException("The value is negative (duration), not representable in LocalTime")
-
-        if (value.seconds >= 24 * 60 * 60)
-            throw IllegalArgumentException("The value is too large (duration), not representable in LocalTime")
-
-        var seconds = value.seconds.toInt()
-        var minutes = seconds / 60; seconds %= 60
-        val hours = minutes / 60; minutes %= 60
-
-        return LocalTime.of(hours, minutes, seconds, value.nano)
+    override fun makeDbValue(value: LocalTime): DbValue {
+        return DbValueDuration(Duration.ofSeconds(value.toSecondOfDay().toLong(), value.nano.toLong()))
     }
 
     override fun decodeFromJson(value: Any): LocalTime {

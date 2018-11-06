@@ -1,5 +1,7 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueDouble
 import com.github.mslenc.dbktx.util.Sql
 import kotlin.reflect.KClass
 
@@ -28,14 +30,12 @@ class SqlTypeDouble(concreteType: SqlTypeKind,
         }
     }
 
-    override fun parseRowDataValue(value: Any): Double {
-        if (value is Double)
-            return value
+    override fun parseDbValue(value: DbValue): Double {
+        return value.asDouble()
+    }
 
-        if (value is Number)
-            return value.toDouble()
-
-        throw IllegalArgumentException("Not a double - $value")
+    override fun makeDbValue(value: Double): DbValue {
+        return DbValueDouble(value)
     }
 
     override fun encodeForJson(value: Double): Any {
@@ -43,7 +43,10 @@ class SqlTypeDouble(concreteType: SqlTypeKind,
     }
 
     override fun decodeFromJson(value: Any): Double {
-        return parseRowDataValue(value)
+        if (value is Number)
+            return value.toDouble()
+
+        throw IllegalArgumentException("Not a number: $value")
     }
 
     override fun toSql(value: Double, sql: Sql) {

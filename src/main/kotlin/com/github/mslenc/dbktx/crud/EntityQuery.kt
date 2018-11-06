@@ -11,7 +11,7 @@ import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.DelayedLoadState
 import com.github.mslenc.dbktx.util.OrderSpec
 import java.util.ArrayList
-import kotlin.coroutines.experimental.suspendCoroutine
+import kotlin.coroutines.suspendCoroutine
 
 interface Query {
 

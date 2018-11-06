@@ -1,5 +1,7 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueString
 import com.github.mslenc.dbktx.expr.Literal
 import com.github.mslenc.dbktx.util.Sql
 import kotlin.reflect.KClass
@@ -47,11 +49,12 @@ class SqlTypeVarchar(
             throw IllegalArgumentException("Invalid size, must be at least 1")
     }
 
-    override fun parseRowDataValue(value: Any): String {
-        if (value is CharSequence)
-            return value.toString()
+    override fun parseDbValue(value: DbValue): String {
+        return value.asString()
+    }
 
-        throw IllegalStateException("Not a string value: class " + value.javaClass)
+    override fun makeDbValue(value: String): DbValue {
+        return DbValueString(value)
     }
 
     override fun encodeForJson(value: String): Any {
@@ -59,7 +62,10 @@ class SqlTypeVarchar(
     }
 
     override fun decodeFromJson(value: Any): String {
-        return parseRowDataValue(value)
+        if (value is String)
+            return value
+
+        throw IllegalArgumentException("Not a string value: $value")
     }
 
     override fun toSql(value: String, sql: Sql) {

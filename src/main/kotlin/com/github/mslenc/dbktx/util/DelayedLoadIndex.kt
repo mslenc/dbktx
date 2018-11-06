@@ -1,6 +1,6 @@
 package com.github.mslenc.dbktx.util
 
-import com.github.mslenc.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderInternal
 import com.github.mslenc.dbktx.schema.DbEntity
@@ -121,7 +121,7 @@ internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>) {
         return dbLoaderImpl.loadDelayedTable(this)
     }
 
-    fun rowLoaded(db: DbConn, row: RowData): E {
+    fun rowLoaded(db: DbConn, row: DbRow): E {
         // first, we create/reuse the entity; then we go through all indexes and insert the entity in them..
 
         val entity: E = metainfo.callInsertAndResolveEntityInIndex(this, db, row)
@@ -135,7 +135,7 @@ internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>) {
     }
 
     internal fun <Z: DbEntity<Z, T>, T: Any>
-    insertAndResolveEntityInIndex(db: DbConn, metainfo: DbTable<Z, T>, row: RowData): Z {
+    insertAndResolveEntityInIndex(db: DbConn, metainfo: DbTable<Z, T>, row: DbRow): Z {
         @Suppress("UNCHECKED_CAST")
         val primaryIndex = indexes[0] as SingleKeyIndex<Z, T>
         val primaryId: T = primaryIndex.keyDef.invoke(row)

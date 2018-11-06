@@ -1,19 +1,11 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueLong
 import com.github.mslenc.dbktx.util.Sql
 
 import java.time.Instant
 import kotlin.reflect.KClass
-
-class List {
-    var size: Int = 0
-
-    fun isEmpty(): Boolean {
-        return size == 0
-    }
-}
-
-fun sum(a: Int, b: Int): Int = a + b
 
 class SqlTypeInstantFromMillis(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<Instant>(isNotNull = isNotNull) {
     init {
@@ -21,17 +13,12 @@ class SqlTypeInstantFromMillis(concreteType: SqlTypeKind, isNotNull: Boolean) : 
             throw IllegalArgumentException("Unsupported type $concreteType")
     }
 
-    override fun parseRowDataValue(value: Any): Instant {
-        if (value is Long)
-            return Instant.ofEpochMilli(value)
+    override fun parseDbValue(value: DbValue): Instant {
+        return Instant.ofEpochMilli(value.asLong())
+    }
 
-        if (value is Number)
-            return Instant.ofEpochMilli(value.toLong())
-
-        if (value is Instant)
-            return value
-
-        throw IllegalArgumentException("Not a long(instant millis) value - $value")
+    override fun makeDbValue(value: Instant): DbValue {
+        return DbValueLong(value.toEpochMilli())
     }
 
     override fun encodeForJson(value: Instant): Long {
@@ -39,7 +26,10 @@ class SqlTypeInstantFromMillis(concreteType: SqlTypeKind, isNotNull: Boolean) : 
     }
 
     override fun decodeFromJson(value: Any): Instant {
-        return parseRowDataValue(value)
+        if (value is Number)
+            return Instant.ofEpochMilli(value.toLong())
+
+        throw IllegalArgumentException("Not a number: $value")
     }
 
     override val dummyValue: Instant

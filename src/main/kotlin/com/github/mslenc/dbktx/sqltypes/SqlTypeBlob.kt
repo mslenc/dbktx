@@ -1,5 +1,7 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueByteArray
 import com.github.mslenc.dbktx.util.Sql
 
 import java.util.Base64
@@ -12,7 +14,6 @@ class SqlTypeBlob(concreteType: SqlTypeKind, size: Int, isNotNull: Boolean) : Sq
     private val maxSize: Int
 
     init {
-
         when (concreteType) {
             SqlTypeKind.TINYBLOB -> this.maxSize = 255
 
@@ -41,11 +42,12 @@ class SqlTypeBlob(concreteType: SqlTypeKind, size: Int, isNotNull: Boolean) : Sq
             throw IllegalArgumentException("Invalid size, must be at least 1")
     }
 
-    override fun parseRowDataValue(value: Any): ByteArray {
-        if (value is ByteArray)
-            return value
+    override fun parseDbValue(value: DbValue): ByteArray {
+        return value.asByteArray()
+    }
 
-        throw IllegalArgumentException("Not a byte[] value - ${value.javaClass}")
+    override fun makeDbValue(value: ByteArray): DbValue {
+        return DbValueByteArray(value)
     }
 
     override fun decodeFromJson(value: Any): ByteArray {

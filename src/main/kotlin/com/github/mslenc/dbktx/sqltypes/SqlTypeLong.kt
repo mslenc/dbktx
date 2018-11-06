@@ -1,5 +1,7 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueLong
 import com.github.mslenc.dbktx.util.Sql
 import kotlin.reflect.KClass
 
@@ -28,14 +30,12 @@ class SqlTypeLong(
         }
     }
 
-    override fun parseRowDataValue(value: Any): Long {
-        if (value is Long)
-            return value
+    override fun parseDbValue(value: DbValue): Long {
+        return value.asLong()
+    }
 
-        if (value is Number)
-            return value.toLong()
-
-        throw IllegalArgumentException("Not a long - $value")
+    override fun makeDbValue(value: Long): DbValue {
+        return DbValueLong(value)
     }
 
     override fun encodeForJson(value: Long): Any {
@@ -43,7 +43,10 @@ class SqlTypeLong(
     }
 
     override fun decodeFromJson(value: Any): Long {
-        return parseRowDataValue(value)
+        if (value is Number)
+            return value.toLong()
+
+        throw IllegalArgumentException("Not a number: $value")
     }
 
     override fun toSql(value: Long, sql: Sql) {

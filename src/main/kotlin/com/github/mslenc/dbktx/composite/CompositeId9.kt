@@ -1,6 +1,6 @@
 package com.github.mslenc.dbktx.composite
 
-import com.github.mslenc.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.NonNullColumn
 import com.github.mslenc.dbktx.util.Sql
@@ -28,7 +28,7 @@ abstract class CompositeId9<E : DbEntity<E, ID>, T1: Any, T2: Any, T3: Any, T4: 
     lateinit var component8: T8 private set
     lateinit var component9: T9 private set
 
-    protected constructor(row: RowData) : this() {
+    protected constructor(row: DbRow) : this() {
         this.component1 = column1(row)
         this.component2 = column2(row)
         this.component3 = column3(row)

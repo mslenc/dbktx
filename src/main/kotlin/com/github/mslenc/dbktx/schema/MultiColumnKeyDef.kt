@@ -1,6 +1,6 @@
 package com.github.mslenc.dbktx.schema
 
-import com.github.mslenc.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.composite.CompositeId
 import com.github.mslenc.dbktx.crud.BoundMultiColumnForSelect
 import com.github.mslenc.dbktx.expr.*
@@ -11,7 +11,7 @@ import com.github.mslenc.dbktx.util.FakeRowData
 class MultiColumnKeyDef<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(
         override val table: DbTable<E, *>,
         override val indexInTable: Int,
-        private val constructor: (RowData) -> ID,
+        private val constructor: (DbRow) -> ID,
         private val extractor: (E) -> ID,
         private val prototype: ID,
         override val isPrimaryKey: Boolean) : UniqueKeyDef<E, ID> {
@@ -27,7 +27,7 @@ class MultiColumnKeyDef<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(
         return prototype.getColumn(index)
     }
 
-    override operator fun invoke(row: RowData): ID {
+    override operator fun invoke(row: DbRow): ID {
         return constructor(row)
     }
 

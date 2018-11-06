@@ -1,11 +1,11 @@
 package com.github.mslenc.dbktx.schema
 
-import com.github.mslenc.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.composite.CompositeId
 import kotlin.reflect.KClass
 
 class DbTableBuilderC<E : DbEntity<E, ID>, ID : CompositeId<E, ID>> internal constructor(table: DbTable<E, ID>) : DbTableBuilder<E, ID>(table) {
-    fun primaryKey(constructor: (RowData)->ID): MultiColumnKeyDef<E, ID> {
+    fun primaryKey(constructor: (DbRow)->ID): MultiColumnKeyDef<E, ID> {
         val id = constructor(dummyRow())
 
         checkColumns(id)

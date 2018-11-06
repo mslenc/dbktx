@@ -1,6 +1,6 @@
 package com.github.mslenc.dbktx.conn
 
-import com.github.mslenc.asyncdb.vertx.DbConnection
+import com.github.mslenc.asyncdb.DbConnection
 import java.time.*
 
 interface TimeProvider {

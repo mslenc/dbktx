@@ -1,6 +1,6 @@
 package com.github.mslenc.dbktx.schemas.test2
 
-import com.github.mslenc.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.composite.CompositeId3
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.INT
@@ -8,8 +8,8 @@ import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 
 
-class CompResult(db: DbConn, id: Int, private val row: RowData)
-    : DbEntity<CompResult, Int>(db, id) {
+class CompResult(db: DbConn, id: Int, row: DbRow)
+    : DbEntity<CompResult, Int>(db, id, row) {
 
     override val metainfo get() = CompResult
 
@@ -31,7 +31,7 @@ class CompResult(db: DbConn, id: Int, private val row: RowData)
         val idWeight: Int get() = component3
 
         constructor(idPerson: Int, idCountry: Int, idWeight: Int) : super(idPerson, idCountry, idWeight)
-        constructor(row: RowData) : super(row)
+        constructor(row: DbRow) : super(row)
 
         override val tableMetainfo get() = CompResult
     }

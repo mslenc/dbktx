@@ -1,6 +1,6 @@
 package com.github.mslenc.dbktx.schemas.test2
 
-import com.github.mslenc.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.INT
 import com.github.mslenc.dbktx.fieldprops.VARCHAR
@@ -8,8 +8,8 @@ import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 
 
-class Competition(db: DbConn, id: Int, private val row: RowData)
-    : DbEntity<Competition, Int>(db, id) {
+class Competition(db: DbConn, id: Int, row: DbRow)
+    : DbEntity<Competition, Int>(db, id, row) {
 
     override val metainfo get() = Competition
 

@@ -1,16 +1,30 @@
 package com.github.mslenc.dbktx.util
 
-import com.github.mslenc.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.DbColumns
+import com.github.mslenc.asyncdb.DbRow
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueNull
 import com.github.mslenc.dbktx.schema.Column
 import com.github.mslenc.dbktx.schema.DbTable
 
-class FakeRowData : RowData {
-    private val valueByIndex = HashMap<Int, Any?>()
-    private val valueByName = HashMap<String, Any?>()
+class FakeRowData : DbRow {
+    private val valueByIndex = HashMap<Int, DbValue>()
+    private val valueByName = HashMap<String, DbValue>()
 
     fun <T: Any> put(column: Column<*, T>, value: T?) {
-        valueByIndex[column.indexInRow] = value
-        valueByName[column.fieldName] = value
+        if (value != null) {
+            val dbValue = column.sqlType.makeDbValue(value)
+            valueByIndex[column.indexInRow] = dbValue
+            valueByName[column.fieldName] = dbValue
+        }
+    }
+
+    override fun getValue(columnIndex: Int): DbValue {
+        return valueByIndex[columnIndex] ?: DbValueNull.instance()
+    }
+
+    override fun getValue(columnName: String?): DbValue {
+        return valueByName[columnName] ?: DbValueNull.instance()
     }
 
     fun <T: Any> insertDummyValue(column: Column<*, T>) {
@@ -29,8 +43,12 @@ class FakeRowData : RowData {
         return valueByName[columnName]
     }
 
-    override fun getRowNumber(): Int {
+    override fun getRowIndex(): Int {
         return 0
+    }
+
+    override fun getColumns(): DbColumns {
+        TODO("not implemented")
     }
 
     companion object {
@@ -41,7 +59,8 @@ class FakeRowData : RowData {
             val result = FakeRowData()
 
             for (index in values.indices) {
-                result.putConverted(dbTable.columns[index], values[index])
+                val column = dbTable.columns[index]
+                result.putConverted(column, values[index])
             }
 
             return result
@@ -49,7 +68,8 @@ class FakeRowData : RowData {
 
         private fun <T: Any> FakeRowData.putConverted(column: Column<*, T>, value: Any?) {
             if (value != null) {
-                put(column, column.sqlType.parseRowDataValue(value))
+                @Suppress("UNCHECKED_CAST")
+                put(column, value as T)
             }
         }
     }

@@ -1,6 +1,6 @@
 package com.github.mslenc.dbktx.schema
 
-import com.github.mslenc.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.crud.EntityValues
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.expr.Expr
@@ -60,7 +60,7 @@ internal class SingleColumnKeyDefImpl<E: DbEntity<E, *>, T: Any>(
         return column.bindForSelect(tableInQuery)
     }
 
-    override fun invoke(row: RowData): T {
+    override fun invoke(row: DbRow): T {
         return column(row)
     }
 

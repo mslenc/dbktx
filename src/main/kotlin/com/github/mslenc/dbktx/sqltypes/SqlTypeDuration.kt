@@ -1,5 +1,7 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueDuration
 import com.github.mslenc.dbktx.util.Sql
 import java.time.Duration
 import java.util.regex.Pattern
@@ -11,11 +13,12 @@ class SqlTypeDuration(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<D
             throw IllegalArgumentException("Unsupported type $concreteType")
     }
 
-    override fun parseRowDataValue(value: Any): Duration {
-        if (value is Duration)
-            return value
+    override fun parseDbValue(value: DbValue): Duration {
+        return value.asDuration()
+    }
 
-        throw IllegalArgumentException("Not a Duration value - $value")
+    override fun makeDbValue(value: Duration): DbValue {
+        return DbValueDuration(value)
     }
 
     override fun encodeForJson(value: Duration): String {

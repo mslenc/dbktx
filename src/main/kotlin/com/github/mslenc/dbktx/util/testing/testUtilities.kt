@@ -1,5 +1,10 @@
 package com.github.mslenc.dbktx.util.testing
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueInt
+import com.github.mslenc.asyncdb.impl.values.DbValueLocalDateTime
+import com.github.mslenc.asyncdb.impl.values.DbValueNull
+import com.github.mslenc.asyncdb.impl.values.DbValueString
 import com.github.mslenc.dbktx.schema.Column
 import com.github.mslenc.dbktx.schema.DbEntity
 import io.vertx.core.json.JsonObject
@@ -16,4 +21,18 @@ JsonObject.addSqlValue(column: Column<E, T>, value: T?) {
 
 fun CharSequence.toLDT(): LocalDateTime {
     return LocalDateTime.parse(this)
+}
+
+fun Any?.toDbValue(): DbValue {
+    if (this == null)
+        return DbValueNull.instance()
+
+    if (this is String)
+        return DbValueString(this)
+    if (this is Int)
+        return DbValueInt(this)
+    if (this is LocalDateTime)
+        return DbValueLocalDateTime(this)
+
+    TODO()
 }

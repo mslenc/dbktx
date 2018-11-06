@@ -1,8 +1,12 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueInstant
 import com.github.mslenc.dbktx.util.Sql
 
 import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import kotlin.reflect.KClass
 
 class SqlTypeInstant(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<Instant>(isNotNull = isNotNull) {
@@ -11,11 +15,12 @@ class SqlTypeInstant(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<In
             throw IllegalArgumentException("Unsupported type $concreteType")
     }
 
-    override fun parseRowDataValue(value: Any): Instant {
-        if (value is Instant)
-            return value
+    override fun parseDbValue(value: DbValue): Instant {
+        return value.asInstant()
+    }
 
-        throw IllegalArgumentException("Value is not an Instant")
+    override fun makeDbValue(value: Instant): DbValue {
+        return DbValueInstant(value, LocalDateTime.ofInstant(value, ZoneOffset.UTC))
     }
 
     override fun encodeForJson(value: Instant): Any {
@@ -26,7 +31,7 @@ class SqlTypeInstant(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<In
         if (value is CharSequence)
             return Instant.parse(value)
 
-        throw IllegalArgumentException("Not a string(instant) value - " + value)
+        throw IllegalArgumentException("Not a string(instant) value - $value")
     }
 
     override val dummyValue: Instant

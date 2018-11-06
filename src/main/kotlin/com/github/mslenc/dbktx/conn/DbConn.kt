@@ -1,7 +1,8 @@
 package com.github.mslenc.dbktx.conn
 
-import com.github.mslenc.asyncdb.common.ResultSet
-import com.github.mslenc.asyncdb.vertx.TransactionIsolation
+import com.github.mslenc.asyncdb.DbResultSet
+import com.github.mslenc.asyncdb.DbTxIsolation
+import com.github.mslenc.asyncdb.DbTxMode
 import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.expr.ExprBoolean
 import com.github.mslenc.dbktx.schema.*
@@ -15,15 +16,10 @@ import io.vertx.core.json.JsonObject
 interface DbConn {
     val requestTime: RequestTime
 
-    /**
-     * Sets the autocommit mode for this connection
-     */
-    suspend fun setAutoCommit(autoCommit: Boolean)
-
-    /**
-     * Sets the transaction isolation mode for this connection
-     */
-    suspend fun setTransactionIsolation(isolation: TransactionIsolation)
+    suspend fun startTransaction()
+    suspend fun startTransaction(isolation: DbTxIsolation)
+    suspend fun startTransaction(mode: DbTxMode)
+    suspend fun startTransaction(isolation: DbTxIsolation, mode: DbTxMode)
 
     /**
      * Commits any pending changes
@@ -47,7 +43,7 @@ interface DbConn {
      *
      * @see execute for non-SELECT statements
      */
-    suspend fun query(sqlBuilder: Sql): ResultSet
+    suspend fun query(sqlBuilder: Sql): DbResultSet
 
     /**
      * INTERNAL FUNCTION, use [EntityQuery.run] instead.

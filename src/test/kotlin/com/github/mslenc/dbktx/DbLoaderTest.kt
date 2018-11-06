@@ -1,7 +1,7 @@
 package com.github.mslenc.dbktx
 
-import com.github.mslenc.asyncdb.common.ResultSet
-import com.github.mslenc.asyncdb.vertx.DbConnection
+import com.github.mslenc.asyncdb.DbExecResult
+import com.github.mslenc.asyncdb.impl.DbQueryResultImpl
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
@@ -16,16 +16,14 @@ import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.defer
 import com.github.mslenc.dbktx.util.testing.MockResultSet
 import com.github.mslenc.dbktx.util.testing.toLDT
-import io.vertx.core.AsyncResult
-import io.vertx.core.Future
-import io.vertx.core.Handler
-import kotlinx.coroutines.experimental.Deferred
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
 
 import org.junit.Assert.*
 import java.util.*
+import java.util.concurrent.CompletableFuture
 
 class DbLoaderTest {
     @Before
@@ -33,14 +31,14 @@ class DbLoaderTest {
         assertNotNull(TestSchema1)
     }
 
-    private fun checkParams(array: List<Any>, vararg expected: Any) {
+    private fun checkParams(array: List<Any?>, vararg expected: Any) {
         val exp = LinkedHashMap<Any, Int>()
         for (e in expected)
             exp.compute(e) { _, b ->
                 if (b == null) 1 else 1 + b
             }
 
-        val actual = LinkedHashMap<Any, Int>()
+        val actual = LinkedHashMap<Any?, Int>()
         for (e in array)
             actual.compute(e) { _, b -> if (b == null) 1 else 1 + b }
 
@@ -60,24 +58,22 @@ class DbLoaderTest {
         val id3 = Item.Id(sku = "jkl", companyId = companyId2)
 
         var theSql = ""
-        var theParams: List<Any> = arrayListOf()
+        var theParams: List<Any?> = arrayListOf()
 
         val conn = object: MockDbConnection() {
-            override fun queryWithParams(sql: String, params: List<Any>, resultHandler: Handler<AsyncResult<ResultSet>>): DbConnection {
+            override fun execute(sql: String, args: List<Any?>): CompletableFuture<DbExecResult> {
                 called = true
 
                 theSql = sql
-                theParams = params
+                theParams = args
 
-                val result = MockResultSet(arrayOf("company_id", "sku", "brand_key", "name", "price", "t_created", "t_updated"))
+                val result = MockResultSet.Builder("company_id", "sku", "brand_key", "name", "price", "t_created", "t_updated")
 
-                result.addRow(arrayOf(companyId1.toString(), "abc", "bk1", "Item 1", "123.45", "2017-06-27T12:44:21".toLDT(), "2017-06-27T12:44:21".toLDT()))
-                result.addRow(arrayOf(companyId1.toString(), "def", "bk2", "Item 2", "432.45", "2017-06-26T11:59:09".toLDT(), "2017-06-27T12:44:21".toLDT()))
-                result.addRow(arrayOf(companyId2.toString(), "ghi", "bk3", "Item 3", "500.45", "2017-06-25T10:00:01".toLDT(), "2017-06-27T22:21:09".toLDT()))
+                result.addRow(companyId1.toString(), "abc", "bk1", "Item 1", "123.45", "2017-06-27T12:44:21".toLDT(), "2017-06-27T12:44:21".toLDT())
+                result.addRow(companyId1.toString(), "def", "bk2", "Item 2", "432.45", "2017-06-26T11:59:09".toLDT(), "2017-06-27T12:44:21".toLDT())
+                result.addRow(companyId2.toString(), "ghi", "bk3", "Item 3", "500.45", "2017-06-25T10:00:01".toLDT(), "2017-06-27T22:21:09".toLDT())
 
-                resultHandler.handle(Future.succeededFuture(result))
-
-                return this
+                return CompletableFuture.completedFuture(DbQueryResultImpl(0, null, result.build(), emptyList()))
             }
         }
 
@@ -127,7 +123,7 @@ class DbLoaderTest {
         val delayedExec = DelayedExec()
         var called = false
         var theSql = ""
-        var theParams: List<Any> = emptyList()
+        var theParams: List<Any?> = emptyList()
 
         val comId0 = UUID.randomUUID()
         val comId1 = UUID.randomUUID()
@@ -135,18 +131,17 @@ class DbLoaderTest {
 
 
         val conn = object: MockDbConnection() {
-            override fun queryWithParams(sql: String, params: List<Any>, resultHandler: Handler<AsyncResult<ResultSet>>): DbConnection {
+            override fun execute(sql: String, args: List<Any?>): CompletableFuture<DbExecResult> {
                 called = true
                 theSql = sql
-                theParams = params
+                theParams = args
 
-                val result = MockResultSet(arrayOf("company_id", "key", "name", "tag_line", "t_created", "t_updated"))
-                result.addRow(arrayOf(comId1.toString(), "abc", "Abc (tm)", "We a-b-c for you!", "2017-04-27T14:41:14".toLDT(), "2017-05-27T08:22:12".toLDT()))
-                result.addRow(arrayOf(comId2.toString(), "baa", "Sheeps Inc.", "Wool and stool!", "2017-02-25T12:21:12".toLDT(), "2017-03-27T09:41:21".toLDT()))
-                result.addRow(arrayOf(comId1.toString(), "goo", "Gooey Phooey", "Tee hee mee bee", "2017-03-26T16:51:14".toLDT(), "2017-04-27T10:50:00".toLDT()))
+                val result = MockResultSet.Builder("company_id", "key", "name", "tag_line", "t_created", "t_updated")
+                result.addRow(comId1.toString(), "abc", "Abc (tm)", "We a-b-c for you!", "2017-04-27T14:41:14".toLDT(), "2017-05-27T08:22:12".toLDT())
+                result.addRow(comId2.toString(), "baa", "Sheeps Inc.", "Wool and stool!", "2017-02-25T12:21:12".toLDT(), "2017-03-27T09:41:21".toLDT())
+                result.addRow(comId1.toString(), "goo", "Gooey Phooey", "Tee hee mee bee", "2017-03-26T16:51:14".toLDT(), "2017-04-27T10:50:00".toLDT())
 
-                resultHandler.handle(Future.succeededFuture(result))
-                return this
+                return CompletableFuture.completedFuture(DbQueryResultImpl(0, null, result.build(), emptyList()))
             }
         }
 
@@ -202,21 +197,20 @@ class DbLoaderTest {
         val id2 = Brand.Id("goo", UUID.randomUUID())
 
         var theSql: String? = null
-        var theParams: List<Any> = emptyList()
+        var theParams: List<Any?> = emptyList()
         val conn = object : MockDbConnection() {
-            override fun queryWithParams(sql: String, params: List<Any>, resultHandler: Handler<AsyncResult<ResultSet>>): DbConnection {
+            override fun execute(sql: String, args: List<Any?>): CompletableFuture<DbExecResult> {
                 called = true
                 theSql = sql
-                theParams = params
+                theParams = args
 
-                val resultSet = MockResultSet(arrayOf("company_id", "key", "name", "tag_line", "t_created", "t_updated"))
-                resultSet.addRow(arrayOf(id1.companyId.toString(), "SHP001", id1.key, "A white sheep", "412.50", "2017-04-27T20:56:56".toLDT(), "2017-05-27T11:22:33".toLDT()))
-                resultSet.addRow(arrayOf(id1.companyId.toString(), "SHP010", id1.key, "A black sheep", "999.95", "2017-03-27T21:57:57".toLDT(), "2017-04-27T22:11:00".toLDT()))
-                resultSet.addRow(arrayOf(id1.companyId.toString(), "TOO001", id1.key, "A fine wool trimmer", "111.11", "2017-04-27T22:58:58".toLDT(), "2017-05-27T00:01:02".toLDT()))
-                resultSet.addRow(arrayOf(id2.companyId.toString(), "GOO",    id2.key, "The Goo", "4.50", "2016-01-01T23:59:59".toLDT(), "2016-01-01T01:02:03".toLDT()))
+                val result = MockResultSet.Builder("company_id", "key", "name", "tag_line", "t_created", "t_updated")
+                result.addRow(id1.companyId.toString(), "SHP001", id1.key, "A white sheep", "412.50", "2017-04-27T20:56:56".toLDT(), "2017-05-27T11:22:33".toLDT())
+                result.addRow(id1.companyId.toString(), "SHP010", id1.key, "A black sheep", "999.95", "2017-03-27T21:57:57".toLDT(), "2017-04-27T22:11:00".toLDT())
+                result.addRow(id1.companyId.toString(), "TOO001", id1.key, "A fine wool trimmer", "111.11", "2017-04-27T22:58:58".toLDT(), "2017-05-27T00:01:02".toLDT())
+                result.addRow(id2.companyId.toString(), "GOO",    id2.key, "The Goo", "4.50", "2016-01-01T23:59:59".toLDT(), "2016-01-01T01:02:03".toLDT())
 
-                resultHandler.handle(Future.succeededFuture(resultSet))
-                return this
+                return CompletableFuture.completedFuture(DbQueryResultImpl(0, null, result.build(), emptyList()))
             }
         }
 

@@ -1,6 +1,6 @@
 package com.github.mslenc.dbktx.schema
 
-import com.github.mslenc.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.composite.CompositeId
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderInternal
@@ -31,7 +31,7 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
     internal val columns = ArrayList<Column<E, *>>()
     internal val columnsByDbName = HashMap<String, Column<E, *>>()
 
-    internal lateinit var factory: (DbConn, ID, RowData) -> E
+    internal lateinit var factory: (DbConn, ID, DbRow) -> E
     lateinit var primaryKey: UniqueKeyDef<E, ID>
         internal set
 
@@ -61,11 +61,11 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return this
     }
 
-    fun createId(row: RowData): ID {
+    fun createId(row: DbRow): ID {
         return primaryKey(row)
     }
 
-    fun create(db: DbConn, id: ID, row: RowData): E {
+    fun create(db: DbConn, id: ID, row: DbRow): E {
         return factory(db, id, row)
     }
 
@@ -100,7 +100,7 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         }
     }
 
-    internal fun importFromJson(jsonObject: JsonObject): RowData {
+    internal fun importFromJson(jsonObject: JsonObject): DbRow {
         val result = FakeRowData()
 
         for (column in columns) {
@@ -173,7 +173,7 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return update
     }
 
-    internal fun callInsertAndResolveEntityInIndex(entityIndex: EntityIndex<E>, db: DbConn, row: RowData): E {
+    internal fun callInsertAndResolveEntityInIndex(entityIndex: EntityIndex<E>, db: DbConn, row: DbRow): E {
         return entityIndex.insertAndResolveEntityInIndex(db, this, row)
     }
 

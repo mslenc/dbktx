@@ -1,6 +1,6 @@
 package com.github.mslenc.dbktx.sqltypes
 
-import com.github.mslenc.asyncdb.common.ULong
+import com.github.mslenc.asyncdb.util.ULong
 import com.github.mslenc.dbktx.sqltypes.SqlTypeKind.*
 import com.github.mslenc.dbktx.util.StringSet
 import java.math.BigDecimal

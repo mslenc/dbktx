@@ -1,5 +1,7 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.impl.values.DbValueByteArray
+import com.github.mslenc.asyncdb.impl.values.DbValueString
 import org.junit.Test
 
 import java.util.UUID
@@ -80,7 +82,7 @@ class SqlTypeUUIDTest {
             val bubu = sqlType.decodeFromJson("")
             assertSame(emptyUUID, bubu)
 
-            val baba = sqlType.parseRowDataValue("")
+            val baba = sqlType.parseDbValue(DbValueString(""))
             assertSame(emptyUUID, baba)
         }
 
@@ -94,7 +96,7 @@ class SqlTypeUUIDTest {
             val bubu = sqlType.decodeFromJson("")
             assertSame(emptyUUID, bubu)
 
-            val baba = sqlType.parseRowDataValue(byteArrayOf())
+            val baba = sqlType.parseDbValue(DbValueByteArray(byteArrayOf()))
             assertSame(emptyUUID, baba)
         }
     }

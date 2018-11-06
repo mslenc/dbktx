@@ -1,5 +1,7 @@
 package com.github.mslenc.dbktx.schema
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueNull
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.ExprBoolean
@@ -16,7 +18,7 @@ class ManyToOneInfo<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TO_KEY : Any
 
     val columnMappings: Array<ColumnMapping<FROM, TO, *>>) {
 
-    private val mappingToOneId = HashMap<Int, (FROM)->Any?>()
+    private val mappingToOneId = HashMap<Int, (FROM)->DbValue?>()
 
     init {
         for (mapping in columnMappings) {
@@ -32,11 +34,16 @@ class ManyToOneInfo<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TO_KEY : Any
         }
     }
 
-    private fun <T : Any> doMapping(mapping: ColumnMapping<FROM, TO, T>, source: FROM): Any? {
+    private fun <T : Any> doMapping(mapping: ColumnMapping<FROM, TO, T>, source: FROM): DbValue? {
         return if (mapping.columnFromKind == ColumnInMappingKind.COLUMN) {
-            mapping.rawColumnFrom(source)
+            val value = mapping.rawColumnFrom(source)
+            if (value == null) {
+                DbValueNull.instance()
+            } else {
+                mapping.rawColumnTo.makeDbValue(value)
+            }
         } else {
-            mapping.rawLiteralFromValue
+            mapping.rawColumnTo.makeDbValue(mapping.rawLiteralFromValue)
         }
     }
 

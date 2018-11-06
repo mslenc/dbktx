@@ -1,5 +1,7 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueYear
 import com.github.mslenc.dbktx.util.Sql
 
 import java.time.Year
@@ -11,11 +13,12 @@ class SqlTypeYear(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<Year>
             throw IllegalArgumentException("Unsupported type $concreteType")
     }
 
-    override fun parseRowDataValue(value: Any): Year {
-        if (value is Year)
-            return value
+    override fun parseDbValue(value: DbValue): Year {
+        return value.asYear()
+    }
 
-        throw IllegalArgumentException("Not a year value - $value")
+    override fun makeDbValue(value: Year): DbValue {
+        return DbValueYear(value)
     }
 
     override fun encodeForJson(value: Year): Any {

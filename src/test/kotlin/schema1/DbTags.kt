@@ -1,13 +1,13 @@
 package schema1
 
-import com.github.mslenc.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 import com.github.mslenc.dbktx.fieldprops.*
 
-class DbTags(db: DbConn, id: Int, private val row: RowData)
-    : DbEntity<DbTags, Int>(db, id) {
+class DbTags(db: DbConn, id: Int, row: DbRow)
+    : DbEntity<DbTags, Int>(db, id, row) {
 
     override val metainfo = TABLE
 

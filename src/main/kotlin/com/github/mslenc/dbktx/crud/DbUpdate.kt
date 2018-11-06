@@ -2,7 +2,7 @@ package com.github.mslenc.dbktx.crud
 
 import com.github.mslenc.dbktx.util.defer
 import com.github.mslenc.dbktx.schema.DbEntity
-import kotlinx.coroutines.experimental.Deferred
+import kotlinx.coroutines.Deferred
 
 interface DbUpdate<E : DbEntity<E, *>> : DbMutation<E> {
     suspend fun execute(): Long

@@ -1,7 +1,6 @@
 package com.github.mslenc.dbktx.expr
 
-import com.github.mslenc.asyncdb.common.ResultSet
-import com.github.mslenc.asyncdb.vertx.DbConnection
+import com.github.mslenc.asyncdb.DbResultSet
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.schemas.test1.Brand.Companion.COMPANY_REF
@@ -10,29 +9,29 @@ import com.github.mslenc.dbktx.schemas.test1.TestSchema1
 import com.github.mslenc.dbktx.util.testing.DelayedExec
 import com.github.mslenc.dbktx.util.defer
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
-import io.vertx.core.AsyncResult
-import io.vertx.core.Handler
-import kotlinx.coroutines.experimental.runBlocking
+import com.github.mslenc.dbktx.util.testing.MockResultSet
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
 import java.util.concurrent.atomic.AtomicBoolean
 
 import org.junit.Assert.*
+import java.util.concurrent.CompletableFuture
 
 class ExprFilterHasParentTest {
     @Test
     fun testParentQuery() = runBlocking {
         val called = AtomicBoolean(false)
         var theSql: String? = null
-        var theParams: List<Any> = emptyList()
+        var theParams: List<Any?> = emptyList()
 
         val connection = object : MockDbConnection() {
-            override fun queryWithParams(sql: String, params: List<Any>, resultHandler: Handler<AsyncResult<ResultSet>>): DbConnection {
+            override fun executeQuery(sql: String, values: MutableList<Any?>): CompletableFuture<DbResultSet> {
                 called.set(true)
                 theSql = sql
-                theParams = params
+                theParams = values
 
-                return this
+                return CompletableFuture.completedFuture(MockResultSet.Builder().build())
             }
         }
 
@@ -62,15 +61,15 @@ class ExprFilterHasParentTest {
     fun testParentQueryInPresenceOfJoins() = runBlocking {
         val called = AtomicBoolean(false)
         var theSql: String? = null
-        var theParams: List<Any> = emptyList()
+        var theParams: List<Any?> = emptyList()
 
         val connection = object : MockDbConnection() {
-            override fun queryWithParams(sql: String, params: List<Any>, resultHandler: Handler<AsyncResult<ResultSet>>): DbConnection {
+            override fun executeQuery(sql: String, values: MutableList<Any?>): CompletableFuture<DbResultSet> {
                 called.set(true)
                 theSql = sql
-                theParams = params
+                theParams = values
 
-                return this
+                return CompletableFuture.completedFuture(MockResultSet.Builder().build())
             }
         }
 

@@ -1,6 +1,6 @@
 package com.github.mslenc.dbktx.schemas.test1
 
-import com.github.mslenc.asyncdb.common.RowData
+import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.composite.CompositeId2
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.DATETIME
@@ -9,8 +9,8 @@ import com.github.mslenc.dbktx.schema.*
 import java.time.LocalDateTime
 import java.util.*
 
-class Brand(db: DbConn, id: Brand.Id, private val row: RowData)
-    : DbEntity<Brand, Brand.Id>(db, id) {
+class Brand(db: DbConn, id: Brand.Id, row: DbRow)
+    : DbEntity<Brand, Brand.Id>(db, id, row) {
 
     override val metainfo get() = Brand
 
@@ -24,7 +24,7 @@ class Brand(db: DbConn, id: Brand.Id, private val row: RowData)
 
     class Id : CompositeId2<Brand, String, UUID, Id> {
         constructor(key: String, companyId: UUID) : super(key, companyId)
-        constructor(row: RowData) : super(row)
+        constructor(row: DbRow) : super(row)
 
         override val column1 get() = KEY
         override val column2 get() = COMPANY_ID

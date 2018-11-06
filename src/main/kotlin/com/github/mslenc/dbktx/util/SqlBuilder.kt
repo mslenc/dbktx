@@ -1,6 +1,6 @@
 package com.github.mslenc.dbktx.util
 
-import com.github.mslenc.asyncdb.common.ULong
+import com.github.mslenc.asyncdb.util.ULong
 import com.github.mslenc.dbktx.crud.BoundColumnForSelect
 import com.github.mslenc.dbktx.crud.JoinType
 import com.github.mslenc.dbktx.crud.TableInQuery

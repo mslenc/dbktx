@@ -1,5 +1,8 @@
 package com.github.mslenc.dbktx.sqltypes
 
+import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.asyncdb.impl.values.DbValueByteArray
+import com.github.mslenc.asyncdb.impl.values.DbValueString
 import com.github.mslenc.dbktx.util.*
 import com.github.mslenc.dbktx.util.SpecialValues.emptyUUID
 import java.util.UUID
@@ -29,19 +32,22 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
     }
 
     private class VarcharHex(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
-        override fun parseRowDataValue(value: Any): UUID {
-            if (value is UUID)
-                return value
+        override fun parseDbValue(value: DbValue): UUID {
+            val str = value.asString()
 
-            if (value is CharSequence) {
-                return if (value.isNotEmpty()) {
-                    bytesFromHex(value.toString()).toUUID()
-                } else {
-                    emptyUUID
-                }
+            return if (str.isNotEmpty()) {
+                bytesFromHex(str).toUUID()
+            } else {
+                emptyUUID
             }
+        }
 
-            throw IllegalArgumentException("Expected a 32-character hex string")
+        override fun makeDbValue(value: UUID): DbValue {
+            if (value === emptyUUID) {
+                return DbValueString("")
+            } else {
+                return DbValueString(toHexString(value.toBytes()))
+            }
         }
 
         override fun toSql(value: UUID, sql: Sql) {
@@ -54,18 +60,22 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
     }
 
     private class VarcharFullString(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
-        override fun parseRowDataValue(value: Any): UUID {
-            if (value is UUID)
-                return value
+        override fun parseDbValue(value: DbValue): UUID {
+            val str = value.asString()
 
-            if (value is CharSequence) {
-                return if (value.isNotEmpty())
-                    UUID.fromString(value.toString())
-                else
-                    emptyUUID
+            return if (str.isNotEmpty()) {
+                UUID.fromString(str)
+            } else {
+                emptyUUID
             }
+        }
 
-            throw IllegalArgumentException("Expected a 36-character UUID string")
+        override fun makeDbValue(value: UUID): DbValue {
+            if (value === emptyUUID) {
+                return DbValueString("")
+            } else {
+                return DbValueString(value.toString())
+            }
         }
 
         override fun toSql(value: UUID, sql: Sql) {
@@ -78,44 +88,52 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
     }
 
     private class BinaryRawChars(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
-        override fun parseRowDataValue(value: Any): UUID {
-            if (value is UUID)
-                return value
+        override fun parseDbValue(value: DbValue): UUID {
+            val bytes = value.asByteArray()
 
-            if (value is ByteArray) {
-                return if (value.size == 0) {
-                    emptyUUID
-                } else {
-                    value.toUUID()
-                }
+            return if (bytes.isEmpty()) {
+                emptyUUID
+            } else {
+                bytes.toUUID()
             }
+        }
 
-            throw IllegalArgumentException("Expected 16 bytes of UUID")
+        override fun makeDbValue(value: UUID): DbValue {
+            if (value === emptyUUID) {
+                return DbValueByteArray(byteArrayOf())
+            } else {
+                return DbValueByteArray(value.toBytes())
+            }
         }
 
         override fun toSql(value: UUID, sql: Sql) {
             if (value === emptyUUID) {
                 sql.raw("''")
             } else {
-                sql(value.toBytes())
+                sql.invoke(value.toBytes())
             }
         }
     }
 
     private class BinaryFullString(isNotNull: Boolean) : SqlTypeUUID(isNotNull) {
-        override fun parseRowDataValue(value: Any): UUID {
-            if (value is UUID)
-                return value
+        override fun parseDbValue(value: DbValue): UUID {
+            val bytes = value.asByteArray()
 
-            if (value is ByteArray) {
-                if (value.size == 0)
-                    return emptyUUID
+            if (bytes.isEmpty())
+                return emptyUUID
 
-                if (value.size == 36)
-                    return UUID.fromString(String(value, ISO_8859_1))
-            }
+            if (bytes.size == 36)
+                return UUID.fromString(bytes.toString(ISO_8859_1))
 
             throw IllegalArgumentException("Expected 36 bytes of UUID in string form")
+        }
+
+        override fun makeDbValue(value: UUID): DbValue {
+            if (value === emptyUUID) {
+                return DbValueByteArray(byteArrayOf())
+            } else {
+                return DbValueByteArray(value.toString().toByteArray(ISO_8859_1))
+            }
         }
 
         override fun toSql(value: UUID, sql: Sql) {
