@@ -70,7 +70,7 @@ internal class AggregateBuilderImpl<E: DbEntity<E, *>>(val query: AggregateQuery
     }
 
     override fun <T : Any> groupBy(column: Column<E, T>): BoundAggregateExpr<T> {
-        return query.addSelectAndGroupBy(column.bindForSelect(tableInQuery), column.sqlType)
+        return query.addSelectAndGroupBy(column.bindForSelect(tableInQuery))
     }
 
     override fun <T : Any> select(expr: AggregateExpr<E, T>): BoundAggregateExpr<T> {

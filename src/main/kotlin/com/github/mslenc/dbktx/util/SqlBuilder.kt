@@ -166,6 +166,8 @@ class Sql {
             if (joinType == JoinType.SUB_QUERY)
                 continue
 
+            
+
             val rel = joinedTable.incomingJoin.relToOne as RelToOneImpl<*,*,*>
             val sourceTable = joinedTable.prevTable
             val targetTable = rel.targetTable

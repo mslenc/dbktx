@@ -26,12 +26,26 @@ enum class JoinType {
     SUB_QUERY
 }
 
-data class Join(var joinType: JoinType, val relToOne: RelToOne<*, *>) {
-    fun combineWithJoinType(joinType: JoinType) {
+abstract sealed class Join(var joinType: JoinType) {
+    abstract fun combineWithJoinType(joinType: JoinType)
+}
+
+class JoinToOne(joinType: JoinType, val relToOne: RelToOne<*, *>) : Join(joinType) {
+    override fun combineWithJoinType(joinType: JoinType) {
         if (this.joinType == joinType)
             return
 
         // all three possible pairs combine into INNER_JOIN..
+        this.joinType = JoinType.INNER_JOIN
+    }
+}
+
+class JoinToMany(joinType: JoinType, val relToMany: RelToMany<*, *>): Join(joinType) {
+    override fun combineWithJoinType(joinType: JoinType) {
+        if (this.joinType == joinType)
+            return
+
+        // only one possible pair, which combines into INNER_JOIN..
         this.joinType = JoinType.INNER_JOIN
     }
 }
@@ -67,6 +81,14 @@ sealed class TableInQuery<E : DbEntity<E, *>>(val query: QueryImpl, val tableAli
         return join(JoinType.INNER_JOIN, rel)
     }
 
+    fun <R: DbEntity<R, *>> leftJoin(rel: RelToMany<E, R>): TableInQuery<R> {
+        return join(JoinType.LEFT_JOIN, rel)
+    }
+
+    fun <R: DbEntity<R, *>> innerJoin(rel: RelToMany<E, R>): TableInQuery<R> {
+        return join(JoinType.INNER_JOIN, rel)
+    }
+
     fun <R: DbEntity<R, *>> subQueryOrJoin(rel: RelToOne<E, R>): TableInQuery<R> {
         return join(JoinType.SUB_QUERY, rel)
     }
@@ -74,7 +96,7 @@ sealed class TableInQuery<E : DbEntity<E, *>>(val query: QueryImpl, val tableAli
 
     private fun <R: DbEntity<R, *>> join(joinType: JoinType, rel: RelToOne<E, R>): TableInQuery<R> {
 
-        val existing = joins.firstOrNull { it.incomingJoin.relToOne === rel }
+        val existing = joins.firstOrNull { (it.incomingJoin as? JoinToOne)?.relToOne === rel }
 
         @Suppress("UNCHECKED_CAST")
         if (existing != null) {
@@ -82,7 +104,25 @@ sealed class TableInQuery<E : DbEntity<E, *>>(val query: QueryImpl, val tableAli
             return existing as TableInQuery<R>
         }
 
-        val join = Join(joinType, rel)
+        val join = JoinToOne(joinType, rel)
+        val alias = generateAliasTo(query, rel.targetTable)
+        val joinedTable = JoinedTableInQuery(query, alias, rel.targetTable, this, join)
+        query.registerTableInQuery(joinedTable)
+        joins.add(joinedTable)
+        return joinedTable
+    }
+
+    private fun <R: DbEntity<R, *>> join(joinType: JoinType, rel: RelToMany<E, R>): TableInQuery<R> {
+
+        val existing = joins.firstOrNull { (it.incomingJoin as? JoinToMany)?.relToMany === rel }
+
+        @Suppress("UNCHECKED_CAST")
+        if (existing != null) {
+            existing.incomingJoin.combineWithJoinType(joinType)
+            return existing as TableInQuery<R>
+        }
+
+        val join = JoinToMany(joinType, rel)
         val alias = generateAliasTo(query, rel.targetTable)
         val joinedTable = JoinedTableInQuery(query, alias, rel.targetTable, this, join)
         query.registerTableInQuery(joinedTable)

@@ -51,6 +51,8 @@ interface Column<E: DbEntity<E, *>, T : Any> : RowProp<E, T> {
 
     operator fun invoke(entity: E): T?
 
+    override fun bindForSelect(tableInQuery: TableInQuery<E>): BoundColumnForSelect<E, T>
+
     fun min(): AggregateExpr<E, T>
     fun max(): AggregateExpr<E, T>
     fun sum(): AggregateExpr<E, T>
@@ -105,7 +107,7 @@ abstract class ColumnImpl<E : DbEntity<E, *>, T: Any>(
         return getter(entity)
     }
 
-    override fun bindForSelect(tableInQuery: TableInQuery<E>): Expr<E, T> {
+    override fun bindForSelect(tableInQuery: TableInQuery<E>): BoundColumnForSelect<E, T> {
         return BoundColumnForSelect(this, tableInQuery)
     }
 
@@ -174,7 +176,7 @@ abstract class OrderedColumnImpl<E : DbEntity<E, *>, T: Comparable<T>>(
         return getter(entity)
     }
 
-    override fun bindForSelect(tableInQuery: TableInQuery<E>): Expr<E, T> {
+    override fun bindForSelect(tableInQuery: TableInQuery<E>): BoundColumnForSelect<E, T> {
         return BoundColumnForSelect(this, tableInQuery)
     }
 
@@ -245,7 +247,7 @@ sealed class StringColumnImpl<E : DbEntity<E, *>>(
         return getter(entity)
     }
 
-    override fun bindForSelect(tableInQuery: TableInQuery<E>): Expr<E, String> {
+    override fun bindForSelect(tableInQuery: TableInQuery<E>): BoundColumnForSelect<E, String> {
         return BoundColumnForSelect(this, tableInQuery)
     }
 
@@ -314,7 +316,7 @@ sealed class StringSetColumnImpl<E : DbEntity<E, *>>(
         return getter(entity)
     }
 
-    override fun bindForSelect(tableInQuery: TableInQuery<E>): Expr<E, StringSet> {
+    override fun bindForSelect(tableInQuery: TableInQuery<E>): BoundColumnForSelect<E, StringSet> {
         return BoundColumnForSelect(this, tableInQuery)
     }
 

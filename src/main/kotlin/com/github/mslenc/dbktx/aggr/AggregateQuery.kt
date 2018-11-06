@@ -3,6 +3,7 @@ package com.github.mslenc.dbktx.aggr
 import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.crud.BaseTableInQuery
+import com.github.mslenc.dbktx.crud.BoundColumnForSelect
 import com.github.mslenc.dbktx.crud.FilterableQueryImpl
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.expr.Expr
@@ -39,21 +40,21 @@ internal class AggregateQueryImpl<E : DbEntity<E, *>>(table: DbTable<E, *>, db: 
     private var bindings = ArrayList<BoundAggregateExpr<*>>()
     private var sourceBindings = HashMap<Any, BoundAggregateExpr<*>>()
 
-    internal fun <Z: DbEntity<Z, *>, T : Any> addSelectAndGroupBy(expr: Expr<Z, T>, type: SqlType<T>): BoundAggregateExpr<T> {
-        val binding = AggregateBinding<Z, T>(type, bindings.size)
+    internal fun <Z: DbEntity<Z, *>, T : Any> addSelectAndGroupBy(boundColumn: BoundColumnForSelect<Z, T>): BoundAggregateExpr<T> {
+        val binding = BoundColumnExpr(boundColumn, selects.size)
 
         bindings.add(binding)
-        selects.add(expr)
-        groupBy.add(expr)
+        selects.add(binding)
+        groupBy.add(boundColumn)
 
-        if (!sourceBindings.containsKey(expr))
-            sourceBindings[expr] = binding
+        if (!sourceBindings.containsKey(boundColumn.column))
+            sourceBindings[boundColumn.column] = binding
 
         return binding
     }
 
-    internal fun <Z : DbEntity<Z, *>, T : Any> addSelect(expr: AggregateExpr<Z, T>, table: TableInQuery<Z>): AggregateBinding<T> {
-        val binding = expr.bind(table, bindings.size)
+    internal fun <Z : DbEntity<Z, *>, T : Any> addSelect(expr: AggregateExpr<Z, T>, table: TableInQuery<Z>): BoundAggregateExpr<T> {
+        val binding = expr.bind(table, selects.size)
 
         bindings.add(binding)
         selects.add(binding)

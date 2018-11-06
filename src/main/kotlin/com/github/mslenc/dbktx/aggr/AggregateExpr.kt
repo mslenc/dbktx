@@ -1,5 +1,6 @@
 package com.github.mslenc.dbktx.aggr
 
+import com.github.mslenc.dbktx.crud.BoundColumnForSelect
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.SqlEmitter
@@ -14,6 +15,21 @@ interface AggregateExpr<E : DbEntity<E, *>, T : Any> {
 
 interface BoundAggregateExpr<T : Any>: SqlEmitter {
     operator fun invoke(row: AggregateRow): T?
+}
+
+class BoundColumnExpr<T: Any>(val boundColumn: BoundColumnForSelect<*, T>, val indexInRow: Int) : BoundAggregateExpr<T> {
+    override fun toSql(sql: Sql, topLevel: Boolean) {
+        boundColumn.toSql(sql, topLevel)
+    }
+
+    override fun invoke(row: AggregateRow): T? {
+        val dbValue = row[indexInRow]
+        val sqlType = boundColumn.column.sqlType
+        if (dbValue.isNull || sqlType.isNullDbValue(dbValue))
+            return null
+
+        return sqlType.parseDbValue(dbValue)
+    }
 }
 
 class BoundColumnAggrExpr<T: Any>(val boundColumn: Expr<*, T>, val sqlType: SqlType<T>, val indexInRow: Int, val type: ColumnAggrExpr.Type) : BoundAggregateExpr<T> {
