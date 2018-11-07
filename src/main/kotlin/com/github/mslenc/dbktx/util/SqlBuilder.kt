@@ -2,6 +2,7 @@ package com.github.mslenc.dbktx.util
 
 import com.github.mslenc.asyncdb.util.ULong
 import com.github.mslenc.dbktx.crud.*
+import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.ExprBoolean
 import com.github.mslenc.dbktx.expr.SqlEmitter
 import com.github.mslenc.dbktx.schema.*
@@ -247,6 +248,17 @@ class Sql {
         return this
     }
 
+    fun GROUP_BY(groupBy: List<Expr<*, *>>) {
+        if (groupBy.isEmpty())
+            return
+
+        raw(" GROUP BY ")
+        for ((index, group) in groupBy.withIndex()) {
+            if (index > 0)
+                raw(", ")
+            group.toSql(this, true)
+        }
+    }
 
     inline fun paren(showParens: Boolean = true, block: Sql.() -> Unit) {
         if (showParens) raw("(")

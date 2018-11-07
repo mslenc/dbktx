@@ -2,6 +2,7 @@ package com.github.mslenc.dbktx.schema
 
 import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.aggr.AggregateBuilder
+import com.github.mslenc.dbktx.aggr.AggregateBuilderImpl
 import com.github.mslenc.dbktx.aggr.AggregateQuery
 import com.github.mslenc.dbktx.aggr.AggregateQueryImpl
 import com.github.mslenc.dbktx.composite.CompositeId
@@ -13,6 +14,9 @@ import com.github.mslenc.dbktx.util.EntityIndex
 import com.github.mslenc.dbktx.util.FakeRowData
 import com.github.mslenc.dbktx.util.Sql
 import io.vertx.core.json.JsonObject
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 import kotlin.reflect.KClass
 
 private fun createPrefixForTableName(tableName: String): String {

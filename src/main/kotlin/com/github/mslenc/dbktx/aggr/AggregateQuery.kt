@@ -28,37 +28,37 @@ internal class AggregateQueryImpl<E : DbEntity<E, *>>(table: DbTable<E, *>, db: 
 
     private val queryState = DelayedLoadState<List<AggregateRow>>()
 
-    private var selects = ArrayList<SqlEmitter>()
-    private var groupBy = ArrayList<Expr<*, *>>()
-    private var bindings = ArrayList<BoundAggregateExpr<*>>()
-    private var sourceBindings = HashMap<Any, BoundAggregateExpr<*>>()
+    internal var selects = ArrayList<SqlEmitter>()
+    internal var groupBy = ArrayList<Expr<*, *>>()
+    internal var bindings = HashMap<Any, BoundAggregateExpr<*>>()
 
     override fun expand(builder: AggregateBuilder<E>.() -> Unit): AggregateQuery<E> {
+        checkModifiable()
         AggregateBuilderImpl(this, baseTable).builder()
         return this
     }
 
     internal fun <Z: DbEntity<Z, *>, T : Any> addSelectAndGroupBy(boundColumn: BoundColumnForSelect<Z, T>): BoundAggregateExpr<T> {
+        checkModifiable()
         val binding = BoundColumnExpr(boundColumn, selects.size)
 
-        bindings.add(binding)
         selects.add(binding)
         groupBy.add(boundColumn)
 
-        if (!sourceBindings.containsKey(boundColumn.column))
-            sourceBindings[boundColumn.column] = binding
+        if (!bindings.containsKey(boundColumn.column))
+            bindings[boundColumn.column] = binding
 
         return binding
     }
 
     internal fun <Z : DbEntity<Z, *>, T : Any> addSelect(expr: AggregateExpr<Z, T>, table: TableInQuery<Z>): BoundAggregateExpr<T> {
+        checkModifiable()
         val binding = expr.bind(table, selects.size)
 
-        bindings.add(binding)
         selects.add(binding)
 
-        if (!sourceBindings.containsKey(expr))
-            sourceBindings[expr] = binding
+        if (!bindings.containsKey(expr))
+            bindings[expr] = binding
 
         return binding
     }
@@ -67,7 +67,7 @@ internal class AggregateQueryImpl<E : DbEntity<E, *>>(table: DbTable<E, *>, db: 
         return when (queryState.state) {
             LOADED  -> queryState.value
             LOADING -> suspendCoroutine(queryState::addReceiver)
-            INITIAL -> queryState.startLoading({ loader.executeSelect(this) })
+            INITIAL -> queryState.startLoading { loader.executeSelect(this, bindings) }
         }
     }
 

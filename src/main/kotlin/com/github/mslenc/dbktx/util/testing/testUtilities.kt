@@ -1,10 +1,7 @@
 package com.github.mslenc.dbktx.util.testing
 
 import com.github.mslenc.asyncdb.DbValue
-import com.github.mslenc.asyncdb.impl.values.DbValueInt
-import com.github.mslenc.asyncdb.impl.values.DbValueLocalDateTime
-import com.github.mslenc.asyncdb.impl.values.DbValueNull
-import com.github.mslenc.asyncdb.impl.values.DbValueString
+import com.github.mslenc.asyncdb.impl.values.*
 import com.github.mslenc.dbktx.schema.Column
 import com.github.mslenc.dbktx.schema.DbEntity
 import io.vertx.core.json.JsonObject
@@ -33,6 +30,8 @@ fun Any?.toDbValue(): DbValue {
         return DbValueInt(this)
     if (this is LocalDateTime)
         return DbValueLocalDateTime(this)
+    if (this is Double)
+        return DbValueDouble(this)
 
-    TODO()
+    TODO(this.javaClass.toString())
 }

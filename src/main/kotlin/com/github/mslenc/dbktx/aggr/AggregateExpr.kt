@@ -14,10 +14,11 @@ interface AggregateExpr<E : DbEntity<E, *>, T : Any> {
 }
 
 interface BoundAggregateExpr<T : Any>: SqlEmitter {
+    val indexInRow: Int
     operator fun invoke(row: AggregateRow): T?
 }
 
-class BoundColumnExpr<T: Any>(val boundColumn: BoundColumnForSelect<*, T>, val indexInRow: Int) : BoundAggregateExpr<T> {
+class BoundColumnExpr<T: Any>(val boundColumn: BoundColumnForSelect<*, T>, override val indexInRow: Int) : BoundAggregateExpr<T> {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         boundColumn.toSql(sql, topLevel)
     }
@@ -32,7 +33,7 @@ class BoundColumnExpr<T: Any>(val boundColumn: BoundColumnForSelect<*, T>, val i
     }
 }
 
-class BoundColumnAggrExpr<T: Any>(val boundColumn: Expr<*, T>, val sqlType: SqlType<T>, val indexInRow: Int, val type: ColumnAggrExpr.Type) : BoundAggregateExpr<T> {
+class BoundColumnAggrExpr<T: Any>(val boundColumn: Expr<*, T>, val sqlType: SqlType<T>, override val indexInRow: Int, val type: ColumnAggrExpr.Type) : BoundAggregateExpr<T> {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.raw(type.name).raw("(")
         boundColumn.toSql(sql, true)
@@ -63,7 +64,7 @@ class ColumnAggrExpr<E : DbEntity<E, *>, T : Any>(val column: Column<E, T>, val 
     }
 }
 
-class BoundCountColumnExpr(val boundColumn: Expr<*, *>, val indexInRow: Int, val type: CountColumnExpr.Type) : BoundAggregateExpr<Long> {
+class BoundCountColumnExpr(val boundColumn: Expr<*, *>, override val indexInRow: Int, val type: CountColumnExpr.Type) : BoundAggregateExpr<Long> {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.raw(when(type) {
             CountColumnExpr.Type.COUNT -> "COUNT ("
