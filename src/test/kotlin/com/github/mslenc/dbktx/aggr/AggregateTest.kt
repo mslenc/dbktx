@@ -6,6 +6,7 @@ import com.github.mslenc.dbktx.schemas.test2.CompResult
 import com.github.mslenc.dbktx.schemas.test2.Weight
 
 fun testApi(db: DbConn) {
+    val query =
     Weight.aggregateQuery(db) {
         +Weight.NAME
 
@@ -21,5 +22,11 @@ fun testApi(db: DbConn) {
                 +CompResult.PLACE.avg()
             }
         }
+    }
+
+    query.orderBy(Weight.NAME)
+
+    query.expand {
+        +Weight.NAME
     }
 }
