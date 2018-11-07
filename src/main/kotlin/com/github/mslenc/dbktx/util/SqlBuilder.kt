@@ -1,15 +1,11 @@
 package com.github.mslenc.dbktx.util
 
 import com.github.mslenc.asyncdb.util.ULong
-import com.github.mslenc.dbktx.crud.BoundColumnForSelect
-import com.github.mslenc.dbktx.crud.JoinType
-import com.github.mslenc.dbktx.crud.TableInQuery
+import com.github.mslenc.dbktx.crud.*
+import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.ExprBoolean
 import com.github.mslenc.dbktx.expr.SqlEmitter
-import com.github.mslenc.dbktx.schema.Column
-import com.github.mslenc.dbktx.schema.ColumnInMappingKind
-import com.github.mslenc.dbktx.schema.DbTable
-import com.github.mslenc.dbktx.schema.RelToOneImpl
+import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.sqltypes.toHexString
 import java.math.BigDecimal
 import java.time.*
@@ -166,37 +162,82 @@ class Sql {
             if (joinType == JoinType.SUB_QUERY)
                 continue
 
-            val rel = joinedTable.incomingJoin.relToOne as RelToOneImpl<*,*,*>
-            val sourceTable = joinedTable.prevTable
-            val targetTable = rel.targetTable
+            when (val join = joinedTable.incomingJoin) {
+                is JoinToOne -> {
+                    buildJoinToOne(joinedTable, join)
+                }
 
-            if (joinType == JoinType.INNER_JOIN) {
-                raw(" INNER JOIN ")
-            } else {
-                raw(" LEFT JOIN ")
-            }
-
-            raw(targetTable.quotedDbName).raw(" AS ").raw(joinedTable.tableAlias).raw(" ON ")
-
-            tuple(rel.info.columnMappings, separator = " AND ") { colMap ->
-                when (colMap.columnFromKind) {
-                    ColumnInMappingKind.COLUMN -> {
-                        columnForSelect(SqlBuilderHelpers.forceBindColumnTo(colMap, joinedTable))
-                        raw(" = ")
-                        columnForSelect(SqlBuilderHelpers.forceBindColumnFrom(colMap, sourceTable))
-                    }
-
-                    ColumnInMappingKind.CONSTANT,
-                    ColumnInMappingKind.PARAMETER -> {
-                        columnForSelect(SqlBuilderHelpers.forceBindColumnTo(colMap, joinedTable))
-                        raw(" = ")
-                        colMap.columnFromLiteral.toSql(this)
-                    }
+                is JoinToMany -> {
+                    buildJoinToMany(joinedTable, join)
                 }
             }
-
-            buildJoins(joinedTable)
         }
+    }
+
+    private fun buildJoinToOne(joinedTable: JoinedTableInQuery<*>, incomingJoin: JoinToOne) {
+        val rel = incomingJoin.relToOne as RelToOneImpl<*,*,*>
+        val sourceTable = joinedTable.prevTable
+        val targetTable = rel.targetTable
+
+        if (incomingJoin.joinType == JoinType.INNER_JOIN) {
+            raw(" INNER JOIN ")
+        } else {
+            raw(" LEFT JOIN ")
+        }
+
+        raw(targetTable.quotedDbName).raw(" AS ").raw(joinedTable.tableAlias).raw(" ON ")
+
+        tuple(rel.info.columnMappings, separator = " AND ") { colMap ->
+            when (colMap.columnFromKind) {
+                ColumnInMappingKind.COLUMN -> {
+                    columnForSelect(SqlBuilderHelpers.forceBindColumnTo(colMap, joinedTable))
+                    raw(" = ")
+                    columnForSelect(SqlBuilderHelpers.forceBindColumnFrom(colMap, sourceTable))
+                }
+
+                ColumnInMappingKind.CONSTANT,
+                ColumnInMappingKind.PARAMETER -> {
+                    columnForSelect(SqlBuilderHelpers.forceBindColumnTo(colMap, joinedTable))
+                    raw(" = ")
+                    colMap.columnFromLiteral.toSql(this)
+                }
+            }
+        }
+
+        buildJoins(joinedTable)
+    }
+
+    private fun buildJoinToMany(joinedTable: JoinedTableInQuery<*>, incomingJoin: JoinToMany) {
+        val rel = incomingJoin.relToMany as RelToManyImpl<*, *, *>
+        val sourceTable = joinedTable.prevTable
+        val targetTable = rel.targetTable
+
+        if (incomingJoin.joinType == JoinType.INNER_JOIN) {
+            raw(" INNER JOIN ")
+        } else {
+            raw(" LEFT JOIN ")
+        }
+
+        raw(targetTable.quotedDbName).raw(" AS ").raw(joinedTable.tableAlias).raw(" ON ")
+
+        tuple(rel.info.columnMappings, separator = " AND ") { colMap ->
+            when (colMap.columnFromKind) {
+                ColumnInMappingKind.COLUMN -> {
+                    columnForSelect(SqlBuilderHelpers.forceBindColumnTo(colMap, sourceTable))
+                    raw(" = ")
+                    columnForSelect(SqlBuilderHelpers.forceBindColumnFrom(colMap, joinedTable))
+                }
+
+                ColumnInMappingKind.CONSTANT,
+                ColumnInMappingKind.PARAMETER -> {
+                    columnForSelect(SqlBuilderHelpers.forceBindColumnTo(colMap, sourceTable))
+                    raw(" = ")
+                    colMap.columnFromLiteral.toSql(this)
+                }
+            }
+        }
+
+        buildJoins(joinedTable)
     }
 
     fun WHERE(filter: ExprBoolean?): Sql {
@@ -207,6 +248,17 @@ class Sql {
         return this
     }
 
+    fun GROUP_BY(groupBy: List<Expr<*, *>>) {
+        if (groupBy.isEmpty())
+            return
+
+        raw(" GROUP BY ")
+        for ((index, group) in groupBy.withIndex()) {
+            if (index > 0)
+                raw(", ")
+            group.toSql(this, true)
+        }
+    }
 
     inline fun paren(showParens: Boolean = true, block: Sql.() -> Unit) {
         if (showParens) raw("(")

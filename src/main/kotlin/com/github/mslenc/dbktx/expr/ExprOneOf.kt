@@ -35,7 +35,7 @@ class ExprOneOf<TABLE, T>(private val needle: Expr<TABLE, T>, private val haysta
                 throw IllegalArgumentException("Empty list supplied to oneOf")
 
             if (haystack.size == 1)
-                return ExprBinary(needle, ExprBinary.Op.EQ, haystack[0])
+                return ExprCmp(needle, ExprCmp.Op.EQ, haystack[0])
 
             return ExprOneOf(needle, haystack)
         }

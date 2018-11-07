@@ -42,11 +42,13 @@ object MockResultSet {
             return this
         }
 
-        fun addRow(vararg values: Any?) {
+        fun addRow(vararg values: Any?): Builder {
             if (values.size != columns.size)
                 throw IllegalArgumentException("Mismatch in number of columns")
 
             rows.add(DbRowImpl.copyFrom(values.map(Any?::toDbValue), dbColumns, rows.size))
+
+            return this
         }
 
         fun build(): DbResultSet {

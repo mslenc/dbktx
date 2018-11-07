@@ -16,6 +16,8 @@ class CompEntry(db: DbConn, id: Int, row: DbRow)
     val idPerson: Int get() = ID_PERSON(row)
     val idCountry: Int get() = ID_COUNTRY(row)
     val idWeight: Int get() = ID_WEIGHT(row)
+    val finalScore: Int? get() = FINAL_SCORE(row)
+    val idCompetition: Int get() = ID_COMPETITION(row)
 
     val dataId: DataId get() = DataId(row)
 
@@ -38,14 +40,18 @@ class CompEntry(db: DbConn, id: Int, row: DbRow)
         val ID_ENTRY = b.nonNullInt("id_entry", INT(), CompEntry::id, primaryKey = true, autoIncrement = true)
 
         val ID_PERSON = b.nonNullInt("id_person", INT(), CompEntry::idPerson)
-        val ID_WEIGHT = b.nonNullInt("id_weight", INT(), CompEntry::idWeight)
+        val ID_WEIGHT = b.nonNullInt("weight_id", INT(), CompEntry::idWeight)
         val ID_COUNTRY = b.nonNullInt("id_country", INT(), CompEntry::idCountry)
+        val ID_COMPETITION = b.nonNullInt("id_comp", INT(), CompEntry::idCompetition)
+
+        val FINAL_SCORE = b.nullableInt("score", INT(), CompEntry::finalScore)
 
         val KEY_DATA = b.uniqueKey(::DataId, CompEntry::dataId)
 
         val REF_PERSON = b.relToOne(ID_PERSON, Person::class)
         val REF_WEIGHT = b.relToOne(ID_WEIGHT, Weight::class)
         val REF_COUNTRY = b.relToOne(ID_COUNTRY, Country::class)
+        val REF_COMPETITION = b.relToOne(ID_COMPETITION, Competition::class)
 
         val REF_RESULT = b.relToOne(ID_PERSON, ID_COUNTRY, ID_WEIGHT) { CompResult.KEY_DATA }
 

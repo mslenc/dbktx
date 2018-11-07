@@ -5,9 +5,14 @@ import com.github.mslenc.asyncdb.DbResultSet
 import com.github.mslenc.asyncdb.DbTxIsolation
 import com.github.mslenc.asyncdb.DbTxMode
 import com.github.mslenc.asyncdb.impl.values.DbValueLong
+import com.github.mslenc.dbktx.aggr.AggregateQuery
+import com.github.mslenc.dbktx.aggr.AggregateQueryImpl
+import com.github.mslenc.dbktx.aggr.AggregateRow
+import com.github.mslenc.dbktx.aggr.BoundAggregateExpr
 import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.schema.Column
 import com.github.mslenc.dbktx.expr.ExprBoolean
+import com.github.mslenc.dbktx.expr.SqlEmitter
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.*
 import io.vertx.core.json.JsonObject
@@ -31,6 +36,38 @@ buildSelectQuery(query: EntityQueryImpl<E>): Sql {
         SELECT(query.table.defaultColumnNames)
         FROM(query.baseTable)
         WHERE(query.filters)
+
+        if (!query.orderBy.isEmpty()) {
+            +" ORDER BY "
+            tuple(query.orderBy) {
+                +it.expr
+                if (!it.isAscending)
+                    +" DESC"
+            }
+        }
+
+        if (query.offset != null || query.maxRowCount != null) {
+            +" LIMIT "
+            this(query.maxRowCount ?: Integer.MAX_VALUE)
+            +" OFFSET "
+            this(query.offset ?: 0)
+        }
+    }
+}
+
+internal fun <E : DbEntity<E, *>>
+buildAggregateQuery(query: AggregateQueryImpl<E>): Sql {
+    return Sql().apply {
+        raw("SELECT ")
+        for ((idx: Int, selectable: SqlEmitter) in query.selects.withIndex()) {
+            if (idx > 0)
+                raw(", ")
+            selectable.toSql(this, true)
+        }
+
+        FROM(query.baseTable)
+        WHERE(query.filters)
+        GROUP_BY(query.groupBy)
 
         if (!query.orderBy.isEmpty()) {
             +" ORDER BY "
@@ -562,6 +599,14 @@ class DbLoaderImpl(conn: DbConnection, delayedExecScheduler: DelayedExecSchedule
         query as EntityQueryImpl<E>
 
         return db.enqueueQuery(query.table, buildSelectQuery(query))
+    }
+
+    override suspend fun <E : DbEntity<E,*>>
+    executeSelect(query: AggregateQuery<E>, bindings: Map<Any, BoundAggregateExpr<*>>): List<AggregateRow> {
+        query as AggregateQueryImpl<E>
+
+        val sql = buildAggregateQuery(query)
+        return query(sql).map { AggregateRow(it, bindings) }
     }
 
     override suspend fun <E : DbEntity<E, *>>

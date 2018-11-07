@@ -36,7 +36,7 @@ class CompResult(db: DbConn, id: Int, row: DbRow)
         override val tableMetainfo get() = CompResult
     }
 
-    companion object : DbTable<CompResult, Int>(TestSchema2, "comp_entries", CompResult::class, Int::class) {
+    companion object : DbTable<CompResult, Int>(TestSchema2, "comp_results", CompResult::class, Int::class) {
         val ID_ENTRY = b.nonNullInt("id_entry", INT(), CompResult::id, primaryKey = true, autoIncrement = true)
 
         val ID_PERSON = b.nonNullInt("id_person", INT(), CompResult::idPerson)

@@ -3,7 +3,7 @@ package com.github.mslenc.dbktx.schema
 import com.github.mslenc.dbktx.crud.BoundColumnForSelect
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.expr.Expr
-import com.github.mslenc.dbktx.expr.ExprBinary
+import com.github.mslenc.dbktx.expr.ExprCmp
 import com.github.mslenc.dbktx.expr.ExprBoolean
 import com.github.mslenc.dbktx.expr.ExprDummy
 
@@ -69,7 +69,7 @@ class ColumnMappingActualColumn<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, 
         get() = throw IllegalStateException("Not a literal")
 
     override fun makeEqRef(ref: TO, tableInQuery: TableInQuery<FROM>): ExprBoolean {
-        return ExprBinary(rawColumnFrom.bindForSelect(tableInQuery), ExprBinary.Op.EQ, rawColumnFrom.makeLiteral(rawColumnTo(ref)))
+        return ExprCmp(rawColumnFrom.bindForSelect(tableInQuery), ExprCmp.Op.EQ, rawColumnFrom.makeLiteral(rawColumnTo(ref)))
     }
 }
 

@@ -2,6 +2,9 @@ package com.github.mslenc.dbktx.schema
 
 import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.asyncdb.DbValue
+import com.github.mslenc.dbktx.aggr.AggregateExpr
+import com.github.mslenc.dbktx.aggr.ColumnAggrExpr
+import com.github.mslenc.dbktx.aggr.CountColumnExpr
 import com.github.mslenc.dbktx.crud.BoundColumnForSelect
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.Literal
@@ -47,6 +50,15 @@ interface Column<E: DbEntity<E, *>, T : Any> : RowProp<E, T> {
     }
 
     operator fun invoke(entity: E): T?
+
+    override fun bindForSelect(tableInQuery: TableInQuery<E>): BoundColumnForSelect<E, T>
+
+    fun min(): AggregateExpr<E, T>
+    fun max(): AggregateExpr<E, T>
+    fun sum(): AggregateExpr<E, T>
+    fun avg(): AggregateExpr<E, T>
+    fun count(): AggregateExpr<E, Long>
+    fun count_distinct(): AggregateExpr<E, Long>
 }
 
 interface NonNullColumn<E: DbEntity<E, *>, T: Any>: Column<E, T>, NonNullRowProp<E, T> {
@@ -95,9 +107,23 @@ abstract class ColumnImpl<E : DbEntity<E, *>, T: Any>(
         return getter(entity)
     }
 
-    override fun bindForSelect(tableInQuery: TableInQuery<E>): Expr<E, T> {
+    override fun bindForSelect(tableInQuery: TableInQuery<E>): BoundColumnForSelect<E, T> {
         return BoundColumnForSelect(this, tableInQuery)
     }
+
+    private val _min = ColumnAggrExpr(this, ColumnAggrExpr.Type.MIN)
+    private val _max = ColumnAggrExpr(this, ColumnAggrExpr.Type.MAX)
+    private val _avg = ColumnAggrExpr(this, ColumnAggrExpr.Type.AVG)
+    private val _sum = ColumnAggrExpr(this, ColumnAggrExpr.Type.SUM)
+    private val _count = CountColumnExpr(this, CountColumnExpr.Type.COUNT)
+    private val _countDistinct = CountColumnExpr(this, CountColumnExpr.Type.COUNT_DISTINCT)
+
+    override fun min() = _min
+    override fun max() = _max
+    override fun sum() = _sum
+    override fun avg() = _avg
+    override fun count() = _count
+    override fun count_distinct() = _countDistinct
 }
 
 class NonNullColumnImpl<E : DbEntity<E, *>, T: Any>(
@@ -150,9 +176,23 @@ abstract class OrderedColumnImpl<E : DbEntity<E, *>, T: Comparable<T>>(
         return getter(entity)
     }
 
-    override fun bindForSelect(tableInQuery: TableInQuery<E>): Expr<E, T> {
+    override fun bindForSelect(tableInQuery: TableInQuery<E>): BoundColumnForSelect<E, T> {
         return BoundColumnForSelect(this, tableInQuery)
     }
+
+    private val _min = ColumnAggrExpr(this, ColumnAggrExpr.Type.MIN)
+    private val _max = ColumnAggrExpr(this, ColumnAggrExpr.Type.MAX)
+    private val _avg = ColumnAggrExpr(this, ColumnAggrExpr.Type.AVG)
+    private val _sum = ColumnAggrExpr(this, ColumnAggrExpr.Type.SUM)
+    private val _count = CountColumnExpr(this, CountColumnExpr.Type.COUNT)
+    private val _countDistinct = CountColumnExpr(this, CountColumnExpr.Type.COUNT_DISTINCT)
+
+    override fun min() = _min
+    override fun max() = _max
+    override fun sum() = _sum
+    override fun avg() = _avg
+    override fun count() = _count
+    override fun count_distinct() = _countDistinct
 }
 
 class NonNullOrderedColumnImpl<E : DbEntity<E, *>, T: Comparable<T>>(
@@ -207,9 +247,23 @@ sealed class StringColumnImpl<E : DbEntity<E, *>>(
         return getter(entity)
     }
 
-    override fun bindForSelect(tableInQuery: TableInQuery<E>): Expr<E, String> {
+    override fun bindForSelect(tableInQuery: TableInQuery<E>): BoundColumnForSelect<E, String> {
         return BoundColumnForSelect(this, tableInQuery)
     }
+
+    private val _min = ColumnAggrExpr(this, ColumnAggrExpr.Type.MIN)
+    private val _max = ColumnAggrExpr(this, ColumnAggrExpr.Type.MAX)
+    private val _avg = ColumnAggrExpr(this, ColumnAggrExpr.Type.AVG)
+    private val _sum = ColumnAggrExpr(this, ColumnAggrExpr.Type.SUM)
+    private val _count = CountColumnExpr(this, CountColumnExpr.Type.COUNT)
+    private val _countDistinct = CountColumnExpr(this, CountColumnExpr.Type.COUNT_DISTINCT)
+
+    override fun min() = _min
+    override fun max() = _max
+    override fun sum() = _sum
+    override fun avg() = _avg
+    override fun count() = _count
+    override fun count_distinct() = _countDistinct
 }
 
 class NonNullStringColumnImpl<E : DbEntity<E, *>>(
@@ -262,9 +316,23 @@ sealed class StringSetColumnImpl<E : DbEntity<E, *>>(
         return getter(entity)
     }
 
-    override fun bindForSelect(tableInQuery: TableInQuery<E>): Expr<E, StringSet> {
+    override fun bindForSelect(tableInQuery: TableInQuery<E>): BoundColumnForSelect<E, StringSet> {
         return BoundColumnForSelect(this, tableInQuery)
     }
+
+    private val _min = ColumnAggrExpr(this, ColumnAggrExpr.Type.MIN)
+    private val _max = ColumnAggrExpr(this, ColumnAggrExpr.Type.MAX)
+    private val _avg = ColumnAggrExpr(this, ColumnAggrExpr.Type.AVG)
+    private val _sum = ColumnAggrExpr(this, ColumnAggrExpr.Type.SUM)
+    private val _count = CountColumnExpr(this, CountColumnExpr.Type.COUNT)
+    private val _countDistinct = CountColumnExpr(this, CountColumnExpr.Type.COUNT_DISTINCT)
+
+    override fun min() = _min
+    override fun max() = _max
+    override fun sum() = _sum
+    override fun avg() = _avg
+    override fun count() = _count
+    override fun count_distinct() = _countDistinct
 }
 
 class NonNullStringSetColumnImpl<E : DbEntity<E, *>>(

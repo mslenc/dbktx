@@ -69,12 +69,16 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
         val filter = filterBuilder.block()
         val finalFilter = if (negate) !filter else filter
 
+        addFilter(finalFilter)
+    }
+
+    internal fun addFilter(filter: ExprBoolean) {
         val existing = this.filters
 
         if (existing != null) {
-            this.filters = ExprBools.create(existing, ExprBools.Op.AND, finalFilter)
+            this.filters = ExprBools.create(existing, ExprBools.Op.AND, filter)
         } else {
-            this.filters = finalFilter
+            this.filters = filter
         }
     }
 
@@ -109,26 +113,28 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
     }
 }
 
-interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E> {
+interface OrderableQuery<E: DbEntity<E, *>> {
+    fun orderBy(order: Expr<in E, *>, ascending: Boolean = true): OrderableQuery<E>
+    fun <R: DbEntity<R, *>>
+        orderBy(ref: RelToOne<E, R>, order: Expr<in R, *>, ascending: Boolean = true): OrderableQuery<E>
+    fun <R1: DbEntity<R1, *>, R2: DbEntity<R2, *>>
+        orderBy(ref1: RelToOne<E, R1>, ref2: RelToOne<R1, R2>, order: Expr<R2, *>, ascending: Boolean = true): OrderableQuery<E>
+
+    fun orderBy(order: RowProp<E, *>, ascending: Boolean = true): OrderableQuery<E>
+    fun <R: DbEntity<R, *>>
+        orderBy(ref: RelToOne<E, R>, order: RowProp<R, *>, ascending: Boolean = true): OrderableQuery<E>
+    fun <R1: DbEntity<R1, *>, R2: DbEntity<R2, *>>
+        orderBy(ref1: RelToOne<E, R1>, ref2: RelToOne<R1, R2>, order: RowProp<R2, *>, ascending: Boolean = true): OrderableQuery<E>
+
+    fun offset(offset: Long): OrderableQuery<E>
+    fun maxRowCount(maxRowCount: Int): OrderableQuery<E>
+}
+
+interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E>, OrderableQuery<E> {
     val db: DbConn
 
     suspend fun run(): List<E>
     suspend fun countAll(): Long
-
-    fun orderBy(order: Expr<in E, *>, ascending: Boolean = true): EntityQuery<E>
-    fun <R: DbEntity<R, *>>
-        orderBy(ref: RelToOne<E, R>, order: Expr<in R, *>, ascending: Boolean = true): EntityQuery<E>
-    fun <R1: DbEntity<R1, *>, R2: DbEntity<R2, *>>
-        orderBy(ref1: RelToOne<E, R1>, ref2: RelToOne<R1, R2>, order: Expr<R2, *>, ascending: Boolean = true): EntityQuery<E>
-
-    fun orderBy(order: RowProp<E, *>, ascending: Boolean = true): EntityQuery<E>
-    fun <R: DbEntity<R, *>>
-        orderBy(ref: RelToOne<E, R>, order: RowProp<R, *>, ascending: Boolean = true): EntityQuery<E>
-    fun <R1: DbEntity<R1, *>, R2: DbEntity<R2, *>>
-        orderBy(ref1: RelToOne<E, R1>, ref2: RelToOne<R1, R2>, order: RowProp<R2, *>, ascending: Boolean = true): EntityQuery<E>
-
-    fun offset(offset: Long): EntityQuery<E>
-    fun maxRowCount(maxRowCount: Int): EntityQuery<E>
 
     fun copy(includeOffsetAndLimit: Boolean = false): EntityQuery<E>
     fun copyAndRemapFilters(dstTable: TableInQuery<E>): ExprBoolean?
@@ -144,19 +150,16 @@ class TableInQueryBoundFilterBuilder<E: DbEntity<E, *>>(val table: TableInQuery<
     }
 }
 
-internal class EntityQueryImpl<E : DbEntity<E, *>>(
+internal abstract class OrderableFilterableQueryImpl<E : DbEntity<E, *>>(
         table: DbTable<E, *>,
         loader: DbConn)
-    : FilterableQueryImpl<E>(table, loader), EntityQuery<E> {
+    : FilterableQueryImpl<E>(table, loader), OrderableQuery<E> {
 
     override fun makeBaseTable(table: DbTable<E, *>): TableInQuery<E> {
         return BaseTableInQuery(this, table)
     }
 
-    override val db: DbConn
-        get() = loader
-
-    private var  _orderBy: ArrayList<OrderSpec<*>>? = null
+    protected var  _orderBy: ArrayList<OrderSpec<*>>? = null
     internal val orderBy: List<OrderSpec<*>>
         get() {
             return _orderBy ?: emptyList()
@@ -164,6 +167,60 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
 
     internal var offset: Long? = null
     internal var maxRowCount: Int? = null
+
+
+    protected fun <R: DbEntity<R, *>>
+    addOrder(table: TableInQuery<R>, order: Expr<in R, *>, ascending: Boolean) {
+        checkModifiable()
+
+        if (order.isComposite) {
+            val comp = order as CompositeExpr
+            for (i in 1..comp.numParts) {
+                addOrder(table, comp.getPart(i), ascending)
+            }
+        } else {
+            if (_orderBy == null)
+                _orderBy = ArrayList()
+
+            _orderBy?.add(OrderSpec(table, order, ascending))
+        }
+    }
+
+    protected fun <R: DbEntity<R, *>>
+    addOrder(table: TableInQuery<R>, order: RowProp<R, *>, ascending: Boolean) {
+        addOrder(table, order.bindForSelect(table), ascending)
+    }
+
+    protected fun setOffset(offset: Long) {
+        checkModifiable()
+
+        if (offset < 0)
+            throw IllegalArgumentException("offset < 0")
+
+        this.offset = offset
+    }
+
+    protected fun setMaxRowCount(maxRowCount: Int) {
+        checkModifiable()
+
+        if (maxRowCount < 0)
+            throw IllegalArgumentException("maxRowCount < 0")
+
+        this.maxRowCount = maxRowCount
+    }
+}
+
+internal class EntityQueryImpl<E : DbEntity<E, *>>(
+        table: DbTable<E, *>,
+        loader: DbConn)
+    : OrderableFilterableQueryImpl<E>(table, loader), EntityQuery<E> {
+
+    override fun makeBaseTable(table: DbTable<E, *>): TableInQuery<E> {
+        return BaseTableInQuery(this, table)
+    }
+
+    override val db: DbConn
+        get() = loader
 
     private val queryState = DelayedLoadState<List<E>>()
     private val countState = DelayedLoadState<Long>()
@@ -190,7 +247,7 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
     }
 
     override fun
-    orderBy(order: Expr<in E, *>, ascending: Boolean): EntityQueryImpl<E> {
+    orderBy(order: Expr<in E, *>, ascending: Boolean): EntityQuery<E> {
         addOrder(baseTable, order, ascending)
         return this
     }
@@ -225,47 +282,13 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
         return this
     }
 
-    private fun <R: DbEntity<R, *>>
-    addOrder(table: TableInQuery<R>, order: Expr<in R, *>, ascending: Boolean) {
-        checkModifiable()
-
-        if (order.isComposite) {
-            val comp = order as CompositeExpr
-            for (i in 1..comp.numParts) {
-                addOrder(table, comp.getPart(i), ascending)
-            }
-        } else {
-            if (_orderBy == null)
-                _orderBy = ArrayList()
-
-            _orderBy?.add(OrderSpec(table, order, ascending))
-        }
-    }
-
-    private fun <R: DbEntity<R, *>>
-    addOrder(table: TableInQuery<R>, order: RowProp<R, *>, ascending: Boolean) {
-        addOrder(table, order.bindForSelect(table), ascending)
-    }
-
     override fun offset(offset: Long): EntityQuery<E> {
-        checkModifiable()
-
-        if (offset < 0)
-            throw IllegalArgumentException("offset < 0")
-
-        this.offset = offset
-
+        setOffset(offset)
         return this
     }
 
     override fun maxRowCount(maxRowCount: Int): EntityQuery<E> {
-        checkModifiable()
-
-        if (maxRowCount < 0)
-            throw IllegalArgumentException("maxRowCount < 0")
-
-        this.maxRowCount = maxRowCount
-
+        setMaxRowCount(maxRowCount)
         return this
     }
 

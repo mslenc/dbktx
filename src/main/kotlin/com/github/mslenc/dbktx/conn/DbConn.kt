@@ -3,6 +3,9 @@ package com.github.mslenc.dbktx.conn
 import com.github.mslenc.asyncdb.DbResultSet
 import com.github.mslenc.asyncdb.DbTxIsolation
 import com.github.mslenc.asyncdb.DbTxMode
+import com.github.mslenc.dbktx.aggr.AggregateQuery
+import com.github.mslenc.dbktx.aggr.AggregateRow
+import com.github.mslenc.dbktx.aggr.BoundAggregateExpr
 import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.expr.ExprBoolean
 import com.github.mslenc.dbktx.schema.*
@@ -50,6 +53,12 @@ interface DbConn {
      */
     suspend fun <E: DbEntity<E, *>>
     executeSelect(query: EntityQuery<E>): List<E>
+
+    /**
+     * INTERNAL FUNCTION, use [AggregateQuery.run] instead.
+     */
+    suspend fun <E: DbEntity<E, *>>
+    executeSelect(query: AggregateQuery<E>, bindings: Map<Any, BoundAggregateExpr<*>>): List<AggregateRow>
 
     /**
      * INTERNAL FUNCTION, use [EntityQuery.countAll] instead.
