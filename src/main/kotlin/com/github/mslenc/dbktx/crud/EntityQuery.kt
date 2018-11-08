@@ -1,5 +1,8 @@
 package com.github.mslenc.dbktx.crud
 
+import com.github.mslenc.dbktx.aggr.AggregateBuilder
+import com.github.mslenc.dbktx.aggr.AggregateQuery
+import com.github.mslenc.dbktx.aggr.AggregateQueryImpl
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.buildSelectQuery
 import com.github.mslenc.dbktx.util.EntityState.*
@@ -138,6 +141,9 @@ interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E>, OrderableQuery<E>
 
     fun copy(includeOffsetAndLimit: Boolean = false): EntityQuery<E>
     fun copyAndRemapFilters(dstTable: TableInQuery<E>): ExprBoolean?
+
+    fun toAggregateQuery(): AggregateQuery<E>
+    fun toAggregateQuery(builder: AggregateBuilder<E>.()->Unit): AggregateQuery<E>
 }
 
 class TableInQueryBoundFilterBuilder<E: DbEntity<E, *>>(val table: TableInQuery<E>) : FilterBuilder<E> {
@@ -318,6 +324,24 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
             remapper.addExplicitMapping(baseTable, dstTable)
             return it.remap(remapper)
         }
+    }
+
+    override fun toAggregateQuery(): AggregateQuery<E> {
+        val query = (table.aggregateQuery(db) { }) as AggregateQueryImpl<E>
+
+        filters?.let { oldFilters ->
+            val remapper = TableRemapper(query)
+            remapper.addExplicitMapping(baseTable, query.baseTable)
+            query.filter { oldFilters.remap(remapper) }
+        }
+
+        return query
+    }
+
+    override fun toAggregateQuery(builder: AggregateBuilder<E>.() -> Unit): AggregateQuery<E> {
+        val aggrQuery = toAggregateQuery()
+        aggrQuery.expand(builder)
+        return aggrQuery
     }
 
     override fun toString(): String {
