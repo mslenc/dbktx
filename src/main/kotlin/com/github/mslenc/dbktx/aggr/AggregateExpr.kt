@@ -67,8 +67,8 @@ class ColumnAggrExpr<E : DbEntity<E, *>, T : Any>(val column: Column<E, T>, val 
 class BoundCountColumnExpr(val boundColumn: Expr<*, *>, override val indexInRow: Int, val type: CountColumnExpr.Type) : BoundAggregateExpr<Long> {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.raw(when(type) {
-            CountColumnExpr.Type.COUNT -> "COUNT ("
-            CountColumnExpr.Type.COUNT_DISTINCT -> "COUNT (DISTINCT "
+            CountColumnExpr.Type.COUNT -> "COUNT("
+            CountColumnExpr.Type.COUNT_DISTINCT -> "COUNT(DISTINCT "
         })
         boundColumn.toSql(sql, true)
         sql.raw(")")

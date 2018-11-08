@@ -92,6 +92,8 @@ class AggregateTest {
                     innerJoin(CompEntry.REF_COMPETITION) {
                         innerJoin(Competition.REF_LOCALNAME("sl")) {
                             +LocalName.NAME
+                            +LocalName.ENTITY_ID.count()
+                            +LocalName.ENTITY_ID.count_distinct()
 
                             filter {
                                 LocalName.NAME.contains("prix")
@@ -123,7 +125,7 @@ class AggregateTest {
         val result = runBlocking { deferred.await() }
 
         assertEquals(
-            "SELECT W.name, AVG(CE.score), MIN(CE.score), LN.name, LN2.name, AVG(CR.place), W.id_weight, CE.id_country " +
+            "SELECT W.name, AVG(CE.score), MIN(CE.score), LN.name, LN2.name, COUNT(LN2.entity_id), COUNT(DISTINCT LN2.entity_id), AVG(CR.place), W.id_weight, CE.id_country " +
             "FROM weights AS W " +
             "INNER JOIN comp_entries AS CE ON W.id_weight = CE.weight_id " +
             "INNER JOIN competitions AS C ON C.id_competition = CE.id_comp " +
