@@ -7,10 +7,10 @@ import com.github.mslenc.dbktx.schemas.test1.Brand.Companion.COMPANY_REF
 import com.github.mslenc.dbktx.schemas.test1.Company
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
 import com.github.mslenc.dbktx.util.testing.DelayedExec
-import com.github.mslenc.dbktx.util.defer
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
-import com.github.mslenc.dbktx.util.vertxDispatcher
+import com.github.mslenc.dbktx.util.vertxDefer
+import com.github.mslenc.dbktx.util.vertxRunBlocking
 import io.vertx.ext.unit.junit.RunTestOnContext
 import io.vertx.ext.unit.junit.VertxUnitRunner
 import kotlinx.coroutines.runBlocking
@@ -30,7 +30,7 @@ class ExprFilterHasParentTest {
     var rule = RunTestOnContext()
 
     @Test
-    fun testParentQuery() = runBlocking(vertxDispatcher()) {
+    fun testParentQuery() = vertxRunBlocking {
         val called = AtomicBoolean(false)
         var theSql: String? = null
         var theParams: List<Any?> = emptyList()
@@ -48,7 +48,7 @@ class ExprFilterHasParentTest {
         val delayedExec = DelayedExec()
         val db = DbLoaderImpl(connection, delayedExec, RequestTime.forTesting())
 
-        val deferred = db.run { defer {
+        val deferred = db.run { vertxDefer {
             TestSchema1.BRAND.query {
                 COMPANY_REF.has {
                     Company.NAME gte "qwe"
@@ -86,7 +86,7 @@ class ExprFilterHasParentTest {
         val delayedExec = DelayedExec()
         val db = DbLoaderImpl(connection, delayedExec, RequestTime.forTesting())
 
-        val deferred = db.run { defer {
+        val deferred = db.run { vertxDefer {
             val query = newQuery(TestSchema1.BRAND)
             query.filter {
                 COMPANY_REF.has {

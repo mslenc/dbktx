@@ -7,13 +7,12 @@ import com.github.mslenc.dbktx.schemas.test1.Brand.Companion.ITEMS_SET
 import com.github.mslenc.dbktx.schemas.test1.Item
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
 import com.github.mslenc.dbktx.util.testing.DelayedExec
-import com.github.mslenc.dbktx.util.defer
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
-import com.github.mslenc.dbktx.util.vertxDispatcher
+import com.github.mslenc.dbktx.util.vertxDefer
+import com.github.mslenc.dbktx.util.vertxRunBlocking
 import io.vertx.ext.unit.TestContext
 import io.vertx.ext.unit.junit.VertxUnitRunner
-import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
 import java.util.Arrays
@@ -33,7 +32,7 @@ class ExprFilterContainsChildTest {
     var rule = RunTestOnContext()
 
     @Test
-    fun testChildQuery(ctx: TestContext) = runBlocking(vertxDispatcher()) {
+    fun testChildQuery(ctx: TestContext) = vertxRunBlocking {
         val called = AtomicBoolean(false)
         var theSql: String? = null
         var theParams: List<Any?> = emptyList()
@@ -49,7 +48,7 @@ class ExprFilterContainsChildTest {
         val delayedExec = DelayedExec()
         val db = DbLoaderImpl(connection, delayedExec, RequestTime.forTesting())
 
-        db.run { defer {
+        db.run { vertxDefer {
             TestSchema1.BRAND.query {
                 ITEMS_SET.contains {
                     Item.NAME oneOf setOf("item1", "item2")

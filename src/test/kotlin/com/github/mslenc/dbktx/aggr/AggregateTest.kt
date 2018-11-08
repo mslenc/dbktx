@@ -4,10 +4,10 @@ import com.github.mslenc.asyncdb.DbResultSet
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.schemas.test2.*
-import com.github.mslenc.dbktx.util.defer
 import com.github.mslenc.dbktx.util.testing.DelayedExec
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
+import com.github.mslenc.dbktx.util.vertxDefer
 import io.vertx.ext.unit.junit.RunTestOnContext
 import io.vertx.ext.unit.junit.VertxUnitRunner
 import kotlinx.coroutines.runBlocking
@@ -114,7 +114,7 @@ class AggregateTest {
             }
         }
 
-        val deferred = defer { query.run() }
+        val deferred = vertxDefer { query.run() }
 
         Assert.assertFalse(called.get())
         delayedExec.executePending()

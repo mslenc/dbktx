@@ -13,14 +13,13 @@ import com.github.mslenc.dbktx.schemas.test1.TestSchema1.ITEM
 import com.github.mslenc.dbktx.util.FakeRowData
 import com.github.mslenc.dbktx.util.testing.DelayedExec
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
-import com.github.mslenc.dbktx.util.defer
 import com.github.mslenc.dbktx.util.testing.MockResultSet
 import com.github.mslenc.dbktx.util.testing.toLDT
-import com.github.mslenc.dbktx.util.vertxDispatcher
+import com.github.mslenc.dbktx.util.vertxDefer
+import com.github.mslenc.dbktx.util.vertxRunBlocking
 import io.vertx.ext.unit.junit.RunTestOnContext
 import io.vertx.ext.unit.junit.VertxUnitRunner
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
 
@@ -56,7 +55,7 @@ class DbLoaderTest {
     }
 
     @Test
-    fun testBatchedLoadingEntities() = runBlocking(vertxDispatcher()) {
+    fun testBatchedLoadingEntities() = vertxRunBlocking {
         var called = false
 
         val companyId1 = UUID.randomUUID()
@@ -94,10 +93,10 @@ class DbLoaderTest {
 
 
         val deferred = arrayOf(
-            defer { loader.findById(ITEM, id2) },
-            defer { loader.findById(ITEM, id0) },
-            defer { loader.findById(ITEM, id1) },
-            defer { loader.findById(ITEM, id3) }
+            vertxDefer { loader.findById(ITEM, id2) },
+            vertxDefer { loader.findById(ITEM, id0) },
+            vertxDefer { loader.findById(ITEM, id1) },
+            vertxDefer { loader.findById(ITEM, id3) }
         )
 
         assertFalse(called)
@@ -129,7 +128,7 @@ class DbLoaderTest {
     }
 
     @Test
-    fun testBatchedLoadingToMany() = runBlocking(vertxDispatcher()) {
+    fun testBatchedLoadingToMany() = vertxRunBlocking {
         val delayedExec = DelayedExec()
         var called = false
         var theSql = ""
@@ -163,9 +162,9 @@ class DbLoaderTest {
         val com2 = Company(db, comId2, FakeRowData.of(Company, comId2, "organization", "2017-06-03T00:00:01".toLDT(), "2017-06-11T22:12:21".toLDT()))
 
         val futures = arrayOf (
-            defer { db.load(com2, Company.BRANDS_SET) },
-            defer { db.load(com0, Company.BRANDS_SET) },
-            defer { db.load(com1, Company.BRANDS_SET) }
+            vertxDefer { db.load(com2, Company.BRANDS_SET) },
+            vertxDefer { db.load(com0, Company.BRANDS_SET) },
+            vertxDefer { db.load(com1, Company.BRANDS_SET) }
         )
 
         assertFalse(called)
@@ -197,7 +196,7 @@ class DbLoaderTest {
     }
 
     @Test
-    fun testBatchedLoadingToManyMultiField() = runBlocking(vertxDispatcher()) {
+    fun testBatchedLoadingToManyMultiField() = vertxRunBlocking {
         val delayedExec = DelayedExec()
 
         var called = false
@@ -237,9 +236,9 @@ class DbLoaderTest {
         val idxof1 = 0
         val idxof2 = 1
         val futures: Array<Deferred<List<Item>>> = arrayOf(
-            defer { db.load(brand1, Brand.ITEMS_SET) },
-            defer { db.load(brand2, Brand.ITEMS_SET) },
-            defer { db.load(brand0, Brand.ITEMS_SET) }
+            vertxDefer { db.load(brand1, Brand.ITEMS_SET) },
+            vertxDefer { db.load(brand2, Brand.ITEMS_SET) },
+            vertxDefer { db.load(brand0, Brand.ITEMS_SET) }
         )
 
         assertFalse(called)

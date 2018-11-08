@@ -17,9 +17,7 @@ import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.*
 import io.vertx.core.json.JsonObject
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.future.await
-import kotlinx.coroutines.launch
 import mu.KLogging
 
 import java.util.*
@@ -174,7 +172,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, private val 
     }
 
     private fun goLoadDelayed() {
-        GlobalScope.launch(vertxDispatcher()) {
+        vertxLaunch {
             performDelayedOps()
         }
     }
@@ -557,7 +555,7 @@ class DbLoaderImpl(conn: DbConnection, delayedExecScheduler: DelayedExecSchedule
 
         val futures = LinkedHashMap<FROM, Deferred<TO?>>()
         for (source in sources)
-            futures[source] = defer { find(source, ref) }
+            futures[source] = vertxDefer { find(source, ref) }
 
         val result = LinkedHashMap<FROM, TO?>()
         for ((source, future) in futures)
@@ -573,7 +571,7 @@ class DbLoaderImpl(conn: DbConnection, delayedExecScheduler: DelayedExecSchedule
 
         val futures = LinkedHashMap<FROM, Deferred<List<TO>>>()
         for (source in sources)
-            futures[source] = defer { load(source, ref) }
+            futures[source] = vertxDefer { load(source, ref) }
 
         val result = LinkedHashMap<FROM, List<TO>>()
         for ((source, future) in futures)
@@ -753,7 +751,7 @@ class DbLoaderImpl(conn: DbConnection, delayedExecScheduler: DelayedExecSchedule
 
         for (id in ids) {
             result[id] = null
-            futures.add(defer { findById(table, id) })
+            futures.add(vertxDefer { findById(table, id) })
         }
 
         futures.mapNotNull { it.await() }
@@ -774,7 +772,7 @@ class DbLoaderImpl(conn: DbConnection, delayedExecScheduler: DelayedExecSchedule
         val futures = ArrayList<Deferred<E>>(ids.size)
 
         for (id in ids)
-            futures.add( defer { loadById(table, id) })
+            futures.add( vertxDefer { loadById(table, id) })
 
         futures.map { it.await() }
                .forEach { result[it.id] = it }

@@ -4,10 +4,8 @@ import com.github.mslenc.asyncdb.DbConfig
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbConnectorImpl
 import com.github.mslenc.dbktx.conn.TimeProviderFromClock
-import com.github.mslenc.dbktx.util.vertxDispatcher
+import com.github.mslenc.dbktx.util.vertxLaunch
 import io.vertx.core.Vertx
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import java.time.Clock
 
 fun main(args: Array<String>) {
@@ -28,7 +26,7 @@ fun main(args: Array<String>) {
     val dbConnector = DbConnectorImpl(mySqlClient, timeProvider = TimeProviderFromClock(Clock.systemDefaultZone()))
 
     server.requestHandler { request ->
-        GlobalScope.launch(vertxDispatcher()) {
+        vertxLaunch {
             val start = System.currentTimeMillis()
             var response = "!!!"
 

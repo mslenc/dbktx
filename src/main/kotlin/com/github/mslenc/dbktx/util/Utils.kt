@@ -131,10 +131,17 @@ fun putLongLE(value: Long, bytes: ByteArray, pos: Int) {
     putLongBE(reverseBytes(value), bytes, pos)
 }
 
-fun <T> defer(block: suspend () -> T): Deferred<T> {
-    return GlobalScope.async(vertxDispatcher()) { block() }
+fun <T> vertxDefer(block: suspend CoroutineScope.() -> T): Deferred<T> {
+    return GlobalScope.async(vertxDispatcher(), CoroutineStart.UNDISPATCHED, block)
 }
 
+fun vertxLaunch(block: suspend CoroutineScope.() -> Unit): Job {
+    return GlobalScope.launch(vertxDispatcher(), CoroutineStart.UNDISPATCHED, block)
+}
+
+fun <T> vertxRunBlocking(block: suspend CoroutineScope.() -> T): T {
+    return runBlocking(vertxDispatcher(), block)
+}
 
 fun escapeSqlLikePattern(pattern: String, escapeChar: Char): String {
     // lazy allocate, because most patterns are not expected to actually contain
@@ -231,7 +238,7 @@ fun extractWordsForSearch(query: String): List<String> {
     return result
 }
 
-fun vertxDispatcher(): CoroutineDispatcher {
+private fun vertxDispatcher(): CoroutineDispatcher {
     return Vertx.currentContext().dispatcher()
 }
 

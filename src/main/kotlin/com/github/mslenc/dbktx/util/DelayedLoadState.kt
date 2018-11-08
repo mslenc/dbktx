@@ -1,7 +1,5 @@
 package com.github.mslenc.dbktx.util
 
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
@@ -79,13 +77,13 @@ class DelayedLoadState<RES> {
         return suspendCoroutine { cont ->
             startedLoading(cont)
 
-            GlobalScope.launch(vertxDispatcher()) {
+            vertxLaunch {
                 val result: RES
                 try {
                     result = resProvider()
                 } catch (t: Throwable) {
                     handleError(t)
-                    return@launch
+                    return@vertxLaunch
                 }
 
                 handleResult(result)
@@ -163,13 +161,13 @@ internal class DelayedLoadStateNullable<RES> {
         return suspendCoroutine { cont ->
             startedLoading(cont)
 
-            GlobalScope.launch(vertxDispatcher()) {
+            vertxLaunch {
                 val result: RES?
                 try {
                     result = resProvider()
                 } catch (t: Throwable) {
                     handleError(t)
-                    return@launch
+                    return@vertxLaunch
                 }
 
                 handleResult(result)
