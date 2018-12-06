@@ -13,4 +13,6 @@ interface DbInsert<E : DbEntity<E, ID>, ID: Any> : DbMutation<E> {
     fun <T> NOW(): ExprNow<E, T> {
         return ExprNow()
     }
+
+    fun copyUnsetValuesFrom(original: E)
 }
