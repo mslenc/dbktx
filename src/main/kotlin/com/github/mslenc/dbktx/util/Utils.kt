@@ -1,12 +1,6 @@
 package com.github.mslenc.dbktx.util
 
-import io.vertx.core.Context
-import io.vertx.core.Handler
-import io.vertx.core.Vertx
-import kotlinx.coroutines.*
 import java.lang.Long.reverseBytes
-import java.util.concurrent.*
-import java.util.concurrent.atomic.AtomicReference
 import java.util.regex.Pattern
 
 private object HexUtil {
@@ -131,18 +125,6 @@ fun putLongLE(value: Long, bytes: ByteArray, pos: Int) {
     putLongBE(reverseBytes(value), bytes, pos)
 }
 
-fun <T> vertxDefer(block: suspend CoroutineScope.() -> T): Deferred<T> {
-    return GlobalScope.async(vertxDispatcher(), CoroutineStart.UNDISPATCHED, block)
-}
-
-fun vertxLaunch(block: suspend CoroutineScope.() -> Unit): Job {
-    return GlobalScope.launch(vertxDispatcher(), CoroutineStart.UNDISPATCHED, block)
-}
-
-fun <T> vertxRunBlocking(block: suspend CoroutineScope.() -> T): T {
-    return runBlocking(vertxDispatcher(), block)
-}
-
 fun escapeSqlLikePattern(pattern: String, escapeChar: Char): String {
     // lazy allocate, because most patterns are not expected to actually contain
     // _ or %
@@ -236,125 +218,4 @@ fun extractWordsForSearch(query: String): List<String> {
             result.add(word)
     }
     return result
-}
-
-private fun vertxDispatcher(): CoroutineDispatcher {
-    return Vertx.currentContext().dispatcher()
-}
-
-/**
- * Returns a coroutine dispatcher for this context.
- *
- * It uses the Vert.x context event loop.
- *
- * This is necessary if you want to execute coroutine synchronous operations in your handler
- */
-fun Context.dispatcher(): CoroutineDispatcher {
-    require(!isMultiThreadedWorkerContext) { "Must not be a multithreaded worker verticle." }
-    return VertxCoroutineExecutor(this).asCoroutineDispatcher()
-}
-
-private class VertxCoroutineExecutor(val vertxContext: Context) : AbstractExecutorService(), ScheduledExecutorService {
-
-    override fun execute(command: Runnable) {
-        if (Vertx.currentContext() != vertxContext) {
-            vertxContext.runOnContext { command.run() }
-        } else {
-            command.run()
-        }
-    }
-
-    override fun schedule(command: Runnable, delay: Long, unit: TimeUnit): ScheduledFuture<*> {
-        val t = VertxScheduledFuture(vertxContext, command, delay, unit)
-        t.schedule()
-        return t
-    }
-
-    override fun scheduleAtFixedRate(command: Runnable, initialDelay: Long, period: Long, unit: TimeUnit?): ScheduledFuture<*> {
-        throw UnsupportedOperationException("should not be called")
-    }
-
-    override fun <V : Any?> schedule(callable: Callable<V>?, delay: Long, unit: TimeUnit?): ScheduledFuture<V> {
-        throw UnsupportedOperationException("should not be called")
-    }
-
-    override fun scheduleWithFixedDelay(command: Runnable?, initialDelay: Long, delay: Long, unit: TimeUnit?): ScheduledFuture<*> {
-        throw UnsupportedOperationException("should not be called")
-    }
-
-    override fun isTerminated(): Boolean {
-        throw UnsupportedOperationException("should not be called")
-    }
-
-    override fun shutdown() {
-        throw UnsupportedOperationException("should not be called")
-    }
-
-    override fun shutdownNow(): MutableList<Runnable> {
-        throw UnsupportedOperationException("should not be called")
-    }
-
-    override fun isShutdown(): Boolean {
-        throw UnsupportedOperationException("should not be called")
-    }
-
-    override fun awaitTermination(timeout: Long, unit: TimeUnit?): Boolean {
-        throw UnsupportedOperationException("should not be called")
-    }
-}
-
-private class VertxScheduledFuture(
-        val vertxContext: Context,
-        val task: Runnable,
-        val delay: Long,
-        val unit: TimeUnit) : ScheduledFuture<Any>, Handler<Long> {
-
-    // pending : null (no completion)
-    // done : true
-    // cancelled : false
-    val completion = AtomicReference<Boolean?>()
-    var id: Long? = null
-
-    fun schedule() {
-        val owner = vertxContext.owner()
-        id = owner.setTimer(unit.toMillis(delay), this)
-    }
-
-    override fun get(): Any? {
-        return null
-    }
-
-    override fun get(timeout: Long, unit: TimeUnit?): Any? {
-        return null
-    }
-
-    override fun isCancelled(): Boolean {
-        return completion.get() == false
-    }
-
-    override fun handle(event: Long?) {
-        if (completion.compareAndSet(null, true)) {
-            task.run()
-        }
-    }
-
-    override fun cancel(mayInterruptIfRunning: Boolean): Boolean {
-        return if (completion.compareAndSet(null, false)) {
-            vertxContext.owner().cancelTimer(id!!)
-        } else {
-            false
-        }
-    }
-
-    override fun isDone(): Boolean {
-        return completion.get() == true
-    }
-
-    override fun getDelay(u: TimeUnit): Long {
-        return u.convert(unit.toNanos(delay), TimeUnit.NANOSECONDS)
-    }
-
-    override fun compareTo(other: Delayed): Int {
-        return getDelay(TimeUnit.NANOSECONDS).compareTo(other.getDelay(TimeUnit.NANOSECONDS))
-    }
 }

@@ -2,7 +2,6 @@ package com.github.mslenc.dbktx.schema
 
 import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.aggr.AggregateBuilder
-import com.github.mslenc.dbktx.aggr.AggregateBuilderImpl
 import com.github.mslenc.dbktx.aggr.AggregateQuery
 import com.github.mslenc.dbktx.aggr.AggregateQueryImpl
 import com.github.mslenc.dbktx.composite.CompositeId
@@ -13,10 +12,6 @@ import com.github.mslenc.dbktx.expr.ExprBoolean
 import com.github.mslenc.dbktx.util.EntityIndex
 import com.github.mslenc.dbktx.util.FakeRowData
 import com.github.mslenc.dbktx.util.Sql
-import io.vertx.core.json.JsonObject
-import kotlin.contracts.ExperimentalContracts
-import kotlin.contracts.InvocationKind
-import kotlin.contracts.contract
 import kotlin.reflect.KClass
 
 private fun createPrefixForTableName(tableName: String): String {
@@ -87,8 +82,8 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return DeleteQueryImpl(this, dbLoader)
     }
 
-    fun toJsonObject(entity: E): JsonObject {
-        val result = JsonObject()
+    fun toJsonObject(entity: E): Map<String, Any?> {
+        val result = LinkedHashMap<String, Any?>()
 
         for (column in columns) {
             toJson(entity, column, result)
@@ -97,21 +92,21 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return result
     }
 
-    private fun <T: Any> toJson(entity: E, column: Column<E, T>, result: JsonObject) {
+    private fun <T: Any> toJson(entity: E, column: Column<E, T>, result: MutableMap<String, Any?>) {
         val value = column(entity)
 
         if (value == null) {
-            result.putNull(column.fieldName)
+            result[column.fieldName] = null
         } else {
-            result.put(column.fieldName, column.sqlType.encodeForJson(value))
+            result[column.fieldName] = column.sqlType.encodeForJson(value)
         }
     }
 
-    internal fun importFromJson(jsonObject: JsonObject): DbRow {
+    internal fun importFromJson(jsonObject: Map<String, Any?>): DbRow {
         val result = FakeRowData()
 
         for (column in columns) {
-            val value = jsonObject.getValue(column.fieldName)
+            val value = jsonObject[column.fieldName]
 
             if (value != null) {
                 result.insertJsonValue(column, value)

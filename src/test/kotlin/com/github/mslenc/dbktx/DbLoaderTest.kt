@@ -11,30 +11,18 @@ import com.github.mslenc.dbktx.schemas.test1.Item
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1.ITEM
 import com.github.mslenc.dbktx.util.FakeRowData
-import com.github.mslenc.dbktx.util.testing.DelayedExec
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
 import com.github.mslenc.dbktx.util.testing.toLDT
-import com.github.mslenc.dbktx.util.vertxDefer
-import com.github.mslenc.dbktx.util.vertxRunBlocking
-import io.vertx.ext.unit.junit.RunTestOnContext
-import io.vertx.ext.unit.junit.VertxUnitRunner
-import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.*
 import org.junit.Before
 import org.junit.Test
 
 import org.junit.Assert.*
-import org.junit.Rule
-import org.junit.runner.RunWith
 import java.util.*
 import java.util.concurrent.CompletableFuture
 
-@RunWith(VertxUnitRunner::class)
 class DbLoaderTest {
-    @Rule
-    @JvmField
-    var rule = RunTestOnContext()
-
     @Before
     fun loadSchema() {
         assertNotNull(TestSchema1)
@@ -55,7 +43,7 @@ class DbLoaderTest {
     }
 
     @Test
-    fun testBatchedLoadingEntities() = vertxRunBlocking {
+    fun testBatchedLoadingEntities() = runBlocking {
         var called = false
 
         val companyId1 = UUID.randomUUID()
@@ -86,21 +74,25 @@ class DbLoaderTest {
             }
         }
 
-        val delayedExec = DelayedExec()
-        val loader = DbLoaderImpl(conn, delayedExec, RequestTime.forTesting())
+        val loader = DbLoaderImpl(conn, this, RequestTime.forTesting())
 
         val results = arrayOfNulls<Item>(4)
 
 
         val deferred = arrayOf(
-            vertxDefer { loader.findById(ITEM, id2) },
-            vertxDefer { loader.findById(ITEM, id0) },
-            vertxDefer { loader.findById(ITEM, id1) },
-            vertxDefer { loader.findById(ITEM, id3) }
+            async { loader.findById(ITEM, id2) },
+            async { loader.findById(ITEM, id0) },
+            async { loader.findById(ITEM, id1) },
+            async { loader.findById(ITEM, id3) }
         )
 
         assertFalse(called)
-        delayedExec.executePending()
+
+        results[2] = deferred[0].await()
+        results[0] = deferred[1].await()
+        results[1] = deferred[2].await()
+        results[3] = deferred[3].await()
+
         assertTrue(called)
 
         assertEquals("SELECT I.company_id, I.sku, I.brand_key, I.name, I.price, I.t_created, I.t_updated " +
@@ -111,10 +103,6 @@ class DbLoaderTest {
                                id2.company_id.toString(), id2.sku,
                                id3.company_id.toString(), id3.sku)
 
-        results[2] = deferred[0].await()
-        results[0] = deferred[1].await()
-        results[1] = deferred[2].await()
-        results[3] = deferred[3].await()
 
         assertNotNull(results[0])
         assertNotNull(results[1])
@@ -128,8 +116,7 @@ class DbLoaderTest {
     }
 
     @Test
-    fun testBatchedLoadingToMany() = vertxRunBlocking {
-        val delayedExec = DelayedExec()
+    fun testBatchedLoadingToMany() = runBlocking {
         var called = false
         var theSql = ""
         var theParams: List<Any?> = emptyList()
@@ -154,7 +141,7 @@ class DbLoaderTest {
             }
         }
 
-        val db = DbLoaderImpl(conn, delayedExec, RequestTime.forTesting())
+        val db = DbLoaderImpl(conn, this, RequestTime.forTesting())
 
 
         val com0 = Company(db, comId0, FakeRowData.of(Company, comId0, "company", "2017-06-01T19:51:22".toLDT(), "2017-06-13T04:23:50".toLDT()))
@@ -162,13 +149,19 @@ class DbLoaderTest {
         val com2 = Company(db, comId2, FakeRowData.of(Company, comId2, "organization", "2017-06-03T00:00:01".toLDT(), "2017-06-11T22:12:21".toLDT()))
 
         val futures = arrayOf (
-            vertxDefer { db.load(com2, Company.BRANDS_SET) },
-            vertxDefer { db.load(com0, Company.BRANDS_SET) },
-            vertxDefer { db.load(com1, Company.BRANDS_SET) }
+            async { db.load(com2, Company.BRANDS_SET) },
+            async { db.load(com0, Company.BRANDS_SET) },
+            async { db.load(com1, Company.BRANDS_SET) }
         )
 
         assertFalse(called)
-        delayedExec.executePending()
+
+        val results = arrayOf(
+            futures[0].await(),
+            futures[1].await(),
+            futures[2].await()
+        )
+
         assertTrue(called)
 
         assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B WHERE B.company_id IN (?, ?, ?)", theSql)
@@ -177,12 +170,6 @@ class DbLoaderTest {
         assertEquals(comId1.toString(), theParams[2] as String)
 
         assertEquals("C.id, C.name, C.t_created, C.t_updated", TestSchema1.COMPANY.defaultColumnNames)
-
-        val results = arrayOf(
-            futures[0].await(),
-            futures[1].await(),
-            futures[2].await()
-        )
 
         assertNotNull(results[0])
         assertNotNull(results[1])
@@ -196,9 +183,7 @@ class DbLoaderTest {
     }
 
     @Test
-    fun testBatchedLoadingToManyMultiField() = vertxRunBlocking {
-        val delayedExec = DelayedExec()
-
+    fun testBatchedLoadingToManyMultiField() = runBlocking {
         var called = false
 
         val id0 = Brand.Id("abc", UUID.randomUUID())
@@ -223,7 +208,7 @@ class DbLoaderTest {
             }
         }
 
-        val db: DbConn = DbLoaderImpl(conn, delayedExec, RequestTime.forTesting())
+        val db: DbConn = DbLoaderImpl(conn, this, RequestTime.forTesting())
 
         assertEquals("B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated", TestSchema1.BRAND.defaultColumnNames)
 
@@ -236,13 +221,19 @@ class DbLoaderTest {
         val idxof1 = 0
         val idxof2 = 1
         val futures: Array<Deferred<List<Item>>> = arrayOf(
-            vertxDefer { db.load(brand1, Brand.ITEMS_SET) },
-            vertxDefer { db.load(brand2, Brand.ITEMS_SET) },
-            vertxDefer { db.load(brand0, Brand.ITEMS_SET) }
+            async { db.load(brand1, Brand.ITEMS_SET) },
+            async { db.load(brand2, Brand.ITEMS_SET) },
+            async { db.load(brand0, Brand.ITEMS_SET) }
         )
 
         assertFalse(called)
-        delayedExec.executePending()
+
+        val results = arrayOf(
+            futures[0].await(),
+            futures[1].await(),
+            futures[2].await()
+        )
+
         assertTrue(called)
 
         assertEquals("SELECT I.company_id, I.sku, I.brand_key, I.name, I.price, I.t_created, I.t_updated FROM items AS I WHERE (I.brand_key, I.company_id) IN ((?, ?), (?, ?), (?, ?))", theSql!!)
@@ -250,12 +241,6 @@ class DbLoaderTest {
         checkParams(theParams, id0.key, id0.companyId.toString(),
                                id1.key, id1.companyId.toString(),
                                id2.key, id2.companyId.toString())
-
-        val results = arrayOf(
-            futures[0].await(),
-            futures[1].await(),
-            futures[2].await()
-        )
 
         assertNotNull(results[0])
         assertNotNull(results[1])

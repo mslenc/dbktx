@@ -4,35 +4,25 @@ import com.github.mslenc.asyncdb.DbResultSet
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.schemas.test2.*
-import com.github.mslenc.dbktx.util.testing.DelayedExec
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
-import com.github.mslenc.dbktx.util.vertxDefer
-import io.vertx.ext.unit.junit.RunTestOnContext
-import io.vertx.ext.unit.junit.VertxUnitRunner
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
-import org.junit.runner.RunWith
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicBoolean
 
-@RunWith(VertxUnitRunner::class)
 class AggregateTest {
-    @Rule
-    @JvmField
-    var rule = RunTestOnContext()
-
     @Before
     fun initSchema() {
         TestSchema2.numberOfTables
     }
 
     @Test
-    fun testSimpleQuery() {
+    fun testSimpleQuery() = runBlocking {
         val called = AtomicBoolean(false)
         var theSql: String? = null
         var theParams: List<Any?> = emptyList()
@@ -54,8 +44,8 @@ class AggregateTest {
                     build())
             }
         }
-        val delayedExec = DelayedExec()
-        val db = DbLoaderImpl(connection, delayedExec, RequestTime.forTesting())
+
+        val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
 
         lateinit var weightName: BoundAggregateExpr<String>
 
@@ -116,13 +106,14 @@ class AggregateTest {
             }
         }
 
-        val deferred = vertxDefer { query.run() }
+        val deferred = async { query.run() }
 
         Assert.assertFalse(called.get())
-        delayedExec.executePending()
+
+        val result = deferred.await()
+
         Assert.assertTrue(called.get())
 
-        val result = runBlocking { deferred.await() }
 
         assertEquals(
             "SELECT W.name, AVG(CE.score), MIN(CE.score), LN.name, LN2.name, COUNT(LN2.entity_id), COUNT(DISTINCT LN2.entity_id), AVG(CR.place), W.id_weight, CE.id_country " +

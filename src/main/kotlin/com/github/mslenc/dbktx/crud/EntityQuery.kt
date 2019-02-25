@@ -228,8 +228,8 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
     override val db: DbConn
         get() = loader
 
-    private val queryState = DelayedLoadState<List<E>>()
-    private val countState = DelayedLoadState<Long>()
+    private val queryState = DelayedLoadState<List<E>>(loader.scope)
+    private val countState = DelayedLoadState<Long>(loader.scope)
 
     override suspend fun run(): List<E> {
         return when (queryState.state) {

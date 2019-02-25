@@ -26,7 +26,7 @@ internal class AggregateQueryImpl<E : DbEntity<E, *>>(table: DbTable<E, *>, db: 
         return BaseTableInQuery(this, table)
     }
 
-    private val queryState = DelayedLoadState<List<AggregateRow>>()
+    private val queryState = DelayedLoadState<List<AggregateRow>>(db.scope)
 
     internal var selects = ArrayList<SqlEmitter>()
     internal var groupBy = ArrayList<Expr<*, *>>()

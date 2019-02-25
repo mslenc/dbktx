@@ -6,33 +6,22 @@ import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.schemas.test1.Brand.Companion.ITEMS_SET
 import com.github.mslenc.dbktx.schemas.test1.Item
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
-import com.github.mslenc.dbktx.util.testing.DelayedExec
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
-import com.github.mslenc.dbktx.util.vertxDefer
-import com.github.mslenc.dbktx.util.vertxRunBlocking
-import io.vertx.ext.unit.TestContext
-import io.vertx.ext.unit.junit.VertxUnitRunner
 import org.junit.Test
 
 import java.util.Arrays
 import java.util.concurrent.atomic.AtomicBoolean
 
 import org.junit.Assert.*
-import org.junit.runner.RunWith
 import java.util.concurrent.CompletableFuture
-import io.vertx.ext.unit.junit.RunTestOnContext
-import org.junit.Rule
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
 
 
-@RunWith(VertxUnitRunner::class)
 class ExprFilterContainsChildTest {
-    @Rule
-    @JvmField
-    var rule = RunTestOnContext()
-
     @Test
-    fun testChildQuery(ctx: TestContext) = vertxRunBlocking {
+    fun testChildQuery() = runBlocking {
         val called = AtomicBoolean(false)
         var theSql: String? = null
         var theParams: List<Any?> = emptyList()
@@ -45,10 +34,10 @@ class ExprFilterContainsChildTest {
                 return CompletableFuture.completedFuture(MockResultSet.Builder().build())
             }
         }
-        val delayedExec = DelayedExec()
-        val db = DbLoaderImpl(connection, delayedExec, RequestTime.forTesting())
 
-        db.run { vertxDefer {
+        val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
+
+        val deferred = db.run { async {
             TestSchema1.BRAND.query {
                 ITEMS_SET.contains {
                     Item.NAME oneOf setOf("item1", "item2")
@@ -57,7 +46,9 @@ class ExprFilterContainsChildTest {
         } }
 
         assertFalse(called.get())
-        delayedExec.executePending()
+
+        deferred.await()
+
         assertTrue(called.get())
 
         assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B WHERE (B.key, B.company_id) IN (SELECT I.brand_key, I.company_id FROM items AS I WHERE I.name IN (?, ?))", theSql)

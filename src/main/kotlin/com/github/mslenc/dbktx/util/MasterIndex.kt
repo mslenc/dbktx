@@ -4,9 +4,10 @@ import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 import com.github.mslenc.dbktx.schema.RelToMany
 import com.github.mslenc.dbktx.schema.RelToManyImpl
+import kotlinx.coroutines.CoroutineScope
 import mu.KLogging
 
-internal class MasterIndex {
+internal class MasterIndex(val scope: CoroutineScope) {
 
     private val tableIndex = LinkedHashMap<DbTable<*, *>, EntityIndex<*>>()
     private val relToManyIndex = LinkedHashMap<RelToManyImpl<*, *, *>, ToManyIndex<*, *, *>>()
@@ -56,7 +57,7 @@ internal class MasterIndex {
     @Suppress("UNCHECKED_CAST")
     operator fun <E : DbEntity<E, *>>
     get(table: DbTable<E, *>): EntityIndex<E> {
-        return tableIndex.computeIfAbsent(table) { _ -> EntityIndex(table) } as EntityIndex<E>
+        return tableIndex.computeIfAbsent(table) { EntityIndex(table, scope) } as EntityIndex<E>
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -65,7 +66,7 @@ internal class MasterIndex {
         rel as RelToManyImpl<FROM, FROM_KEY, TO>
 
         return relToManyIndex.computeIfAbsent(rel)
-               { _ -> ToManyIndex(rel) }
+               { _ -> ToManyIndex(rel, scope) }
                as ToManyIndex<FROM, FROM_KEY, TO>
     }
 

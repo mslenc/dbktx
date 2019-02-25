@@ -10,7 +10,7 @@ import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.expr.ExprBoolean
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.Sql
-import io.vertx.core.json.JsonObject
+import kotlinx.coroutines.CoroutineScope
 
 /**
  * A connection to the database, providing methods for querying, updating and
@@ -18,6 +18,7 @@ import io.vertx.core.json.JsonObject
  */
 interface DbConn {
     val requestTime: RequestTime
+    val scope: CoroutineScope
 
     suspend fun startTransaction()
     suspend fun startTransaction(isolation: DbTxIsolation)
@@ -263,7 +264,7 @@ interface DbConn {
      * Opposite of [DbTable.toJsonObject] - imports the serialized entity back into internal cache.
      */
     fun <E : DbEntity<E, ID>, ID: Any>
-    importJson(table: DbTable<E, ID>, json: JsonObject): E
+    importJson(table: DbTable<E, ID>, json: Map<String, Any?>): E
 
     /**
      * Shortcut for creating and executing a query. Use like this:

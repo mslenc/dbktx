@@ -6,31 +6,20 @@ import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.schemas.test1.Brand.Companion.COMPANY_REF
 import com.github.mslenc.dbktx.schemas.test1.Company
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
-import com.github.mslenc.dbktx.util.testing.DelayedExec
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
-import com.github.mslenc.dbktx.util.vertxDefer
-import com.github.mslenc.dbktx.util.vertxRunBlocking
-import io.vertx.ext.unit.junit.RunTestOnContext
-import io.vertx.ext.unit.junit.VertxUnitRunner
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
 import java.util.concurrent.atomic.AtomicBoolean
 
 import org.junit.Assert.*
-import org.junit.Rule
-import org.junit.runner.RunWith
 import java.util.concurrent.CompletableFuture
 
-@RunWith(VertxUnitRunner::class)
 class ExprFilterHasParentTest {
-    @Rule
-    @JvmField
-    var rule = RunTestOnContext()
-
     @Test
-    fun testParentQuery() = vertxRunBlocking {
+    fun testParentQuery() = runBlocking {
         val called = AtomicBoolean(false)
         var theSql: String? = null
         var theParams: List<Any?> = emptyList()
@@ -45,10 +34,9 @@ class ExprFilterHasParentTest {
             }
         }
 
-        val delayedExec = DelayedExec()
-        val db = DbLoaderImpl(connection, delayedExec, RequestTime.forTesting())
+        val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
 
-        val deferred = db.run { vertxDefer {
+        val deferred = db.run { async {
             TestSchema1.BRAND.query {
                 COMPANY_REF.has {
                     Company.NAME gte "qwe"
@@ -57,7 +45,9 @@ class ExprFilterHasParentTest {
         } }
 
         assertFalse(called.get())
-        delayedExec.executePending()
+
+        deferred.await()
+
         assertTrue(called.get())
 
         assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B WHERE B.company_id IN (SELECT C.id FROM companies AS C WHERE C.name >= ?)", theSql)
@@ -83,10 +73,9 @@ class ExprFilterHasParentTest {
             }
         }
 
-        val delayedExec = DelayedExec()
-        val db = DbLoaderImpl(connection, delayedExec, RequestTime.forTesting())
+        val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
 
-        val deferred = db.run { vertxDefer {
+        val deferred = db.run { async {
             val query = newQuery(TestSchema1.BRAND)
             query.filter {
                 COMPANY_REF.has {
@@ -98,7 +87,9 @@ class ExprFilterHasParentTest {
         } }
 
         assertFalse(called.get())
-        delayedExec.executePending()
+
+        deferred.await()
+
         assertTrue(called.get())
 
         assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B INNER JOIN companies AS C ON C.id = B.company_id WHERE (C.name >= ?) ORDER BY C.name", theSql)

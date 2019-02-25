@@ -7,6 +7,7 @@ import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 import com.github.mslenc.dbktx.schema.RelToManyImpl
 import com.github.mslenc.dbktx.schema.UniqueKeyDef
+import kotlinx.coroutines.CoroutineScope
 import mu.KLogging
 
 import java.util.*
@@ -22,13 +23,14 @@ internal class IndexAndKeys<E: DbEntity<E, *>, KEY: Any>(
 
 internal class SingleKeyIndex<E: DbEntity<E, *>, KEY: Any>(
     val table: DbTable<E, *>,
-    val keyDef: UniqueKeyDef<E, KEY>
+    val keyDef: UniqueKeyDef<E, KEY>,
+    val scope: CoroutineScope
 ) {
     private var index = HashMap<KEY, DelayedLoadStateNullable<E>>()
     private var keysToLoad = LinkedHashSet<KEY>()
 
     operator fun get(key: KEY): DelayedLoadStateNullable<E> {
-        return index.computeIfAbsent(key) { _ -> DelayedLoadStateNullable() }
+        return index.computeIfAbsent(key) { DelayedLoadStateNullable(scope) }
     }
 
     fun addKeyToLoad(key: KEY) {
@@ -91,9 +93,9 @@ internal class SingleKeyIndex<E: DbEntity<E, *>, KEY: Any>(
     companion object : KLogging()
 }
 
-internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>) {
+internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>, val scope: CoroutineScope) {
 
-    val indexes = Array<SingleKeyIndex<E, *>>(metainfo.uniqueKeys.size) { SingleKeyIndex(metainfo, metainfo.uniqueKeys[it]) }
+    val indexes = Array<SingleKeyIndex<E, *>>(metainfo.uniqueKeys.size) { SingleKeyIndex(metainfo, metainfo.uniqueKeys[it], scope) }
 
     @Suppress("UNCHECKED_CAST")
     fun <T: Any> getSingleKeyIndex(keyDef: UniqueKeyDef<E, T>): SingleKeyIndex<E, T> {
@@ -168,13 +170,13 @@ internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>) {
 }
 
 internal class ToManyIndex<FROM: DbEntity<FROM, *>, FROM_KEY: Any, TO: DbEntity<TO, *>>(
-        val relation: RelToManyImpl<FROM, FROM_KEY, TO>) {
+        val relation: RelToManyImpl<FROM, FROM_KEY, TO>, val scope: CoroutineScope) {
 
     private var index: HashMap<FROM_KEY, DelayedLoadState<List<TO>>> = HashMap()
     private var keysToLoad = LinkedHashSet<FROM_KEY>()
 
     operator fun get(key: FROM_KEY): DelayedLoadState<List<TO>> {
-        return index.computeIfAbsent(key) { _ -> DelayedLoadState() }
+        return index.computeIfAbsent(key) { DelayedLoadState(scope) }
     }
 
     fun addKeyToLoad(key: FROM_KEY) {
