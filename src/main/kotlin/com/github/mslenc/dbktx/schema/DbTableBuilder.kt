@@ -33,7 +33,7 @@ internal constructor(
                 columnNames.append(", ")
             columnNames.append(table.aliasPrefix)
             columnNames.append(".")
-            columnNames.append(table.columns[i].fieldName)
+            columnNames.append(table.columns[i].quotedFieldName)
             i++
         }
         table.defaultColumnNames = columnNames.toString()
@@ -399,7 +399,6 @@ internal constructor(
     }
 
     fun nullableDecimal(fieldName: String, type: SqlTypeDef, getter: (E) -> BigDecimal?,
-                        primaryKey: Boolean = false,
                         unsigned: Boolean = false
                         ): NullableOrderedColumn<E, BigDecimal> {
 
@@ -408,9 +407,30 @@ internal constructor(
 
         val sqlType = SqlTypes.makeBigDecimal(type.sqlTypeKind, precision, scale, isNotNull = false, isUnsigned = unsigned)
         val column = NullableOrderedColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column, isPrimaryKey = false)
+        return column
+    }
+
+
+    fun nonNullBoolean(fieldName: String, type: SqlTypeDef, getter: (E) -> Boolean,
+                       primaryKey: Boolean = false
+                       ): NonNullColumn<E, Boolean> {
+
+        val sqlType = SqlTypes.makeBoolean(type.sqlTypeKind, isNotNull = true)
+        val column = NonNullColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
         finishAddColumn(column, isPrimaryKey = primaryKey)
         return column
     }
+
+    fun nullableBoolean(fieldName: String, type: SqlTypeDef, getter: (E) -> Boolean?
+                       ): NullableColumn<E, Boolean> {
+
+        val sqlType = SqlTypes.makeBoolean(type.sqlTypeKind, isNotNull = false)
+        val column = NullableColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column, isPrimaryKey = false)
+        return column
+    }
+
 
     inline fun <reified ENUM : Enum<ENUM>>
             nonNullStringEnum(fieldName: String,
@@ -538,6 +558,69 @@ internal constructor(
         return column
     }
 
+
+
+    inline fun <reified ENUM : Enum<ENUM>>
+            nonNullLongEnum(fieldName: String,
+                            typeDef: SqlTypeDef,
+                            noinline getter: (E) -> ENUM,
+                            noinline toDbRep: (ENUM)->Long,
+                            noinline fromDbRep: (Long)->ENUM,
+                            primaryKey: Boolean = false
+    ): NonNullColumn<E, ENUM> {
+
+        val klass = ENUM::class
+        val dummyValue = enumValues<ENUM>()[0]
+
+        return nonNullLongEnum(fieldName, typeDef, getter, toDbRep, fromDbRep, klass, dummyValue, primaryKey = primaryKey)
+    }
+
+    fun <ENUM : Enum<ENUM>>
+            nonNullLongEnum(fieldName: String,
+                            typeDef: SqlTypeDef,
+                            getter: (E) -> ENUM,
+                            toDbRep: (ENUM)->Long,
+                            fromDbRep: (Long)->ENUM,
+                            klass: KClass<ENUM>,
+                            dummyValue: ENUM,
+                            primaryKey: Boolean = false
+                            ): NonNullColumn<E, ENUM> {
+
+        val sqlType = SqlTypes.makeEnumToLong(klass, dummyValue, typeDef.sqlTypeKind, toDbRep, fromDbRep, isNotNull = true)
+        val column = NonNullColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column, isPrimaryKey = primaryKey)
+        return column
+    }
+
+    inline fun <reified ENUM : Enum<ENUM>>
+            nullableLongEnum(fieldName: String,
+                             noinline getter: (E) -> ENUM?,
+                             noinline toDbRep: (ENUM)->Long,
+                             noinline fromDbRep: (Long)->ENUM,
+                             typeDef: SqlTypeDef
+                             ): NullableColumn<E, ENUM> {
+
+        val klass = ENUM::class
+        val dummyValue = enumValues<ENUM>()[0]
+
+        return nullableLongEnum(fieldName, getter, toDbRep, fromDbRep, typeDef, klass, dummyValue)
+    }
+
+    fun <ENUM : Enum<ENUM>>
+            nullableLongEnum(fieldName: String,
+                            getter: (E) -> ENUM?,
+                            toDbRep: (ENUM)->Long,
+                            fromDbRep: (Long)->ENUM,
+                            typeDef: SqlTypeDef,
+                            klass: KClass<ENUM>,
+                            dummyValue: ENUM
+    ): NullableColumn<E, ENUM> {
+
+        val sqlType = SqlTypes.makeEnumToLong(klass, dummyValue, typeDef.sqlTypeKind, toDbRep, fromDbRep, isNotNull = true)
+        val column = NullableColumnImpl(table, getter, fieldName, sqlType, table.columns.size)
+        finishAddColumn(column)
+        return column
+    }
 
 
     private fun <T : Any> finishAddColumn(column: Column<E, T>, isPrimaryKey: Boolean = false, isAutoIncrement: Boolean = false) {

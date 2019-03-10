@@ -3,7 +3,7 @@ package com.github.mslenc.dbktx.aggr
 import com.github.mslenc.dbktx.crud.FilterBuilder
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.crud.TableInQueryBoundFilterBuilder
-import com.github.mslenc.dbktx.expr.ExprBoolean
+import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.schema.*
 
 interface AggregateBuilder<E : DbEntity<E, *>> {
@@ -18,8 +18,8 @@ interface AggregateBuilder<E : DbEntity<E, *>> {
         return groupBy(this)
     }
 
-    fun filter(block: FilterBuilder<E>.() -> ExprBoolean)
-    fun exclude(block: FilterBuilder<E>.() -> ExprBoolean)
+    fun filter(block: FilterBuilder<E>.() -> FilterExpr)
+    fun exclude(block: FilterBuilder<E>.() -> FilterExpr)
 
     fun <REF : DbEntity<REF, *>> innerJoin(ref: RelToOne<E, REF>, block: AggregateBuilder<REF>.() -> Unit)
     fun <REF : DbEntity<REF, *>> innerJoin(set: RelToMany<E, REF>, block: AggregateBuilder<REF>.() -> Unit)
@@ -57,13 +57,13 @@ internal class AggregateBuilderImpl<E: DbEntity<E, *>>(val query: AggregateQuery
         subBuilder.block()
     }
 
-    override fun filter(block: FilterBuilder<E>.() -> ExprBoolean) {
+    override fun filter(block: FilterBuilder<E>.() -> FilterExpr) {
         val filterBuilder = TableInQueryBoundFilterBuilder(tableInQuery)
         val filterExpr = filterBuilder.block()
         query.addFilter(filterExpr)
     }
 
-    override fun exclude(block: FilterBuilder<E>.() -> ExprBoolean) {
+    override fun exclude(block: FilterBuilder<E>.() -> FilterExpr) {
         val filterBuilder = TableInQueryBoundFilterBuilder(tableInQuery)
         val filterExpr = filterBuilder.block()
         query.addFilter(filterExpr.not())

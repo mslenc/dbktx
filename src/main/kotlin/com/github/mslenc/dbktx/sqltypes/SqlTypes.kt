@@ -176,15 +176,18 @@ internal object SqlTypes {
         }
     }
 
-//    fun makeBoolean(sqlType: SqlTypeKind, fieldProps: FieldProps): SqlType<Boolean> {
-//        when (sqlType) {
-//            TINYINT, SMALLINT, MEDIUMINT, INT ->
-//               return SqlTypeIntBoolean(sqlType, fieldProps)
-//
-//            else ->
-//                throw UnsupportedOperationException("No mapping from $sqlType to Boolean")
-//        }
-//    }
+    fun makeBoolean(sqlType: SqlTypeKind, isNotNull: Boolean): SqlType<Boolean> {
+        when (sqlType) {
+            TINYINT, SMALLINT, MEDIUMINT, INT ->
+               return SqlTypeIntBoolean(sqlType, isNotNull)
+
+            BIT, BOOLEAN ->
+               return SqlTypeBoolean(sqlType, isNotNull)
+
+            else ->
+                throw UnsupportedOperationException("No mapping from $sqlType to Boolean")
+        }
+    }
 
 
     fun makeBigDecimal(sqlType: SqlTypeKind, precision: Int, scale: Int, isNotNull: Boolean, isUnsigned: Boolean): SqlType<BigDecimal> {
@@ -198,6 +201,16 @@ internal object SqlTypes {
             }
 
             else -> throw UnsupportedOperationException("No mapping from $sqlType to int(enum)")
+        }
+    }
+
+    internal fun <ENUM : Enum<ENUM>> makeEnumToLong(klass: KClass<ENUM>, dummyValue: ENUM, sqlType: SqlTypeKind, toDbRep: (ENUM)->Long, fromDbRep: (Long)->ENUM, isNotNull: Boolean): SqlType<ENUM> {
+        when (sqlType) {
+            TINYINT, SMALLINT, MEDIUMINT, INT, BIGINT -> {
+                return SqlTypeEnumLong(klass, toDbRep, fromDbRep, isNotNull, dummyValue)
+            }
+
+            else -> throw UnsupportedOperationException("No mapping from $sqlType to long(enum)")
         }
     }
 

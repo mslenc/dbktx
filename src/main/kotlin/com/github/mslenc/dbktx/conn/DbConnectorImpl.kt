@@ -21,7 +21,7 @@ class DbConnectorImpl(
     override suspend fun connect(scope: CoroutineScope, block: suspend (DbConn) -> Unit) {
         val rawConn: DbConnection = try {
             sqlClient.connect().await()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             logger.error("Failed to connect", e)
             throw e
         }

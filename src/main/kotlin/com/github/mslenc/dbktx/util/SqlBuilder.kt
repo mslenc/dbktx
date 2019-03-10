@@ -3,7 +3,7 @@ package com.github.mslenc.dbktx.util
 import com.github.mslenc.asyncdb.util.ULong
 import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.expr.Expr
-import com.github.mslenc.dbktx.expr.ExprBoolean
+import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.expr.SqlEmitter
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.sqltypes.toHexString
@@ -117,11 +117,19 @@ class Sql {
 
     companion object {
         fun quoteIdentifier(ident: String): String {
-            return if (ident.contains('`')) {
-                ident.replace("`", "``")
-            } else {
-                ident
+            val sb = StringBuilder(ident.length + 2)
+            sb.append('"')
+            for (i in 0 until ident.length) {
+                ident[i].let {
+                    if (it == '"') {
+                        sb.append("\"\"")
+                    } else {
+                        sb.append(it)
+                    }
+                }
             }
+            sb.append('"')
+            return sb.toString()
         }
 
         fun formatDuration(value: Duration): String {
@@ -240,7 +248,7 @@ class Sql {
         buildJoins(joinedTable)
     }
 
-    fun WHERE(filter: ExprBoolean?): Sql {
+    fun WHERE(filter: FilterExpr?): Sql {
         if (filter != null) {
             raw(" WHERE ")
             filter.toSql(this, true)

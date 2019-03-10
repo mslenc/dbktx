@@ -11,8 +11,8 @@ import com.github.mslenc.dbktx.expr.Literal
 import com.github.mslenc.dbktx.sqltypes.SqlType
 import com.github.mslenc.dbktx.crud.EntityValues
 import com.github.mslenc.dbktx.crud.TableInQuery
-import com.github.mslenc.dbktx.expr.ExprBoolean
-import com.github.mslenc.dbktx.expr.ExprIsNull
+import com.github.mslenc.dbktx.expr.FilterExpr
+import com.github.mslenc.dbktx.filters.FilterIsNull
 import com.github.mslenc.dbktx.util.Sql
 import com.github.mslenc.dbktx.util.StringSet
 
@@ -155,8 +155,8 @@ open class NullableColumnImpl<E : DbEntity<E, *>, T: Any>(
 
     override val nonNull: Boolean = false
 
-    override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): ExprBoolean {
-        return ExprIsNull(bindForSelect(currentTable), isNull)
+    override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): FilterExpr {
+        return FilterIsNull(bindForSelect(currentTable), isNull)
     }
 }
 
@@ -224,8 +224,8 @@ class NullableOrderedColumnImpl<E : DbEntity<E, *>, T: Comparable<T>>(
 
     override val nonNull = false
 
-    override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): ExprBoolean {
-        return ExprIsNull(bindForSelect(currentTable), isNull)
+    override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): FilterExpr {
+        return FilterIsNull(bindForSelect(currentTable), isNull)
     }
 }
 
@@ -294,8 +294,8 @@ class NullableStringColumnImpl<E : DbEntity<E, *>>(
 
     override val nonNull = false
 
-    override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): ExprBoolean {
-        return ExprIsNull(bindForSelect(currentTable), isNull)
+    override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): FilterExpr {
+        return FilterIsNull(bindForSelect(currentTable), isNull)
     }
 }
 
@@ -363,7 +363,7 @@ class NullableStringSetColumnImpl<E : DbEntity<E, *>>(
 
     override val nonNull = false
 
-    override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): ExprBoolean {
-        return ExprIsNull(bindForSelect(currentTable), isNull)
+    override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): FilterExpr {
+        return FilterIsNull(bindForSelect(currentTable), isNull)
     }
 }

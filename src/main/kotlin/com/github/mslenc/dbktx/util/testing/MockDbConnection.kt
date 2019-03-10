@@ -3,7 +3,13 @@ package com.github.mslenc.dbktx.util.testing
 import com.github.mslenc.asyncdb.*
 import java.util.concurrent.CompletableFuture
 
-open class MockDbConnection : DbConnection {
+open class MockDbConnection(dbType: DbType = DbType.POSTGRES) : DbConnection {
+    private val dbConfig: DbConfig
+
+    init {
+        dbConfig = DbConfig.newBuilder(dbType).build()
+    }
+
     override fun execute(sql: String): CompletableFuture<DbExecResult> {
         TODO("not implemented")
     }
@@ -25,7 +31,7 @@ open class MockDbConnection : DbConnection {
     }
 
     override fun getConfig(): DbConfig {
-        TODO("not implemented")
+        return dbConfig
     }
 
     override fun close(): CompletableFuture<Void> {

@@ -15,7 +15,6 @@ import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
 import com.github.mslenc.dbktx.util.testing.toLDT
 import kotlinx.coroutines.*
-import org.junit.Before
 import org.junit.Test
 
 import org.junit.Assert.*
@@ -23,9 +22,8 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 
 class DbLoaderTest {
-    @Before
-    fun loadSchema() {
-        assertNotNull(TestSchema1)
+    init {
+        TestSchema1.numberOfTables
     }
 
     private fun checkParams(array: List<Any?>, vararg expected: Any) {
@@ -95,8 +93,8 @@ class DbLoaderTest {
 
         assertTrue(called)
 
-        assertEquals("SELECT I.company_id, I.sku, I.brand_key, I.name, I.price, I.t_created, I.t_updated " +
-                     "FROM items AS I WHERE (I.company_id, I.sku) IN ((?, ?), (?, ?), (?, ?), (?, ?))", theSql)
+        assertEquals("SELECT I.\"company_id\", I.\"sku\", I.\"brand_key\", I.\"name\", I.\"price\", I.\"t_created\", I.\"t_updated\" " +
+                     "FROM \"items\" AS I WHERE (I.\"company_id\", I.\"sku\") IN ((?, ?), (?, ?), (?, ?), (?, ?))", theSql)
 
         checkParams(theParams, id0.company_id.toString(), id0.sku,
                                id1.company_id.toString(), id1.sku,
@@ -164,12 +162,12 @@ class DbLoaderTest {
 
         assertTrue(called)
 
-        assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B WHERE B.company_id IN (?, ?, ?)", theSql)
+        assertEquals("SELECT B.\"company_id\", B.\"key\", B.\"name\", B.\"tag_line\", B.\"t_created\", B.\"t_updated\" FROM \"brands\" AS B WHERE B.\"company_id\" IN (?, ?, ?)", theSql)
         assertEquals(comId2.toString(), theParams[0] as String)
         assertEquals(comId0.toString(), theParams[1] as String)
         assertEquals(comId1.toString(), theParams[2] as String)
 
-        assertEquals("C.id, C.name, C.t_created, C.t_updated", TestSchema1.COMPANY.defaultColumnNames)
+        assertEquals("C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\"", TestSchema1.COMPANY.defaultColumnNames)
 
         assertNotNull(results[0])
         assertNotNull(results[1])
@@ -210,7 +208,7 @@ class DbLoaderTest {
 
         val db: DbConn = DbLoaderImpl(conn, this, RequestTime.forTesting())
 
-        assertEquals("B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated", TestSchema1.BRAND.defaultColumnNames)
+        assertEquals("B.\"company_id\", B.\"key\", B.\"name\", B.\"tag_line\", B.\"t_created\", B.\"t_updated\"", TestSchema1.BRAND.defaultColumnNames)
 
         val brand0 = Brand(db, id0, FakeRowData.of(Brand, id0.companyId, id0.key, "Abc (tm)", "We a-b-c for you!", "2017-04-27T12:21:13".toLDT(), "2017-05-27T01:02:03".toLDT()))
         val brand1 = Brand(db, id1, FakeRowData.of(Brand, id1.companyId, id1.key, "Sheeps Inc.", "Wool and stool!", "2017-02-25T13:31:14".toLDT(), "2017-03-27T02:03:04".toLDT()))
@@ -236,7 +234,7 @@ class DbLoaderTest {
 
         assertTrue(called)
 
-        assertEquals("SELECT I.company_id, I.sku, I.brand_key, I.name, I.price, I.t_created, I.t_updated FROM items AS I WHERE (I.brand_key, I.company_id) IN ((?, ?), (?, ?), (?, ?))", theSql!!)
+        assertEquals("SELECT I.\"company_id\", I.\"sku\", I.\"brand_key\", I.\"name\", I.\"price\", I.\"t_created\", I.\"t_updated\" FROM \"items\" AS I WHERE (I.\"brand_key\", I.\"company_id\") IN ((?, ?), (?, ?), (?, ?))", theSql!!)
 
         checkParams(theParams, id0.key, id0.companyId.toString(),
                                id1.key, id1.companyId.toString(),

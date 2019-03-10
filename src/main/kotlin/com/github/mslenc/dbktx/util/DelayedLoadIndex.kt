@@ -81,7 +81,7 @@ internal class SingleKeyIndex<E: DbEntity<E, *>, KEY: Any>(
             for (key in keysToLoad) {
                 try {
                     index[key]?.handleError(error)
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     logger.error("Handler error when flushing cache", e)
                     // but continue anyway..
                 }
@@ -223,7 +223,7 @@ internal class ToManyIndex<FROM: DbEntity<FROM, *>, FROM_KEY: Any, TO: DbEntity<
             for (key in keysToLoad) {
                 try {
                     index[key]?.handleError(error)
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     logger.error("Handler error when flushing cache", e)
                     // but continue anyway..
                 }

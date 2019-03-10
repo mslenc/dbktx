@@ -20,6 +20,10 @@ import kotlinx.coroutines.runBlocking
 
 
 class ExprFilterContainsChildTest {
+    init {
+        TestSchema1.numberOfTables // init
+    }
+
     @Test
     fun testChildQuery() = runBlocking {
         val called = AtomicBoolean(false)
@@ -51,7 +55,7 @@ class ExprFilterContainsChildTest {
 
         assertTrue(called.get())
 
-        assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B WHERE (B.key, B.company_id) IN (SELECT I.brand_key, I.company_id FROM items AS I WHERE I.name IN (?, ?))", theSql)
+        assertEquals("SELECT B.\"company_id\", B.\"key\", B.\"name\", B.\"tag_line\", B.\"t_created\", B.\"t_updated\" FROM \"brands\" AS B WHERE (B.\"key\", B.\"company_id\") IN (SELECT I.\"brand_key\", I.\"company_id\" FROM \"items\" AS I WHERE I.\"name\" IN (?, ?))", theSql)
 
         assertEquals(2, theParams.size)
 

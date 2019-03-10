@@ -18,6 +18,10 @@ import org.junit.Assert.*
 import java.util.concurrent.CompletableFuture
 
 class ExprFilterHasParentTest {
+    init {
+        TestSchema1.numberOfTables // init
+    }
+
     @Test
     fun testParentQuery() = runBlocking {
         val called = AtomicBoolean(false)
@@ -50,7 +54,7 @@ class ExprFilterHasParentTest {
 
         assertTrue(called.get())
 
-        assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B WHERE B.company_id IN (SELECT C.id FROM companies AS C WHERE C.name >= ?)", theSql)
+        assertEquals("SELECT B.\"company_id\", B.\"key\", B.\"name\", B.\"tag_line\", B.\"t_created\", B.\"t_updated\" FROM \"brands\" AS B WHERE B.\"company_id\" IN (SELECT C.\"id\" FROM \"companies\" AS C WHERE C.\"name\" >= ?)", theSql)
 
         assertEquals(1, theParams.size)
         assertEquals("qwe", theParams[0])
@@ -92,7 +96,7 @@ class ExprFilterHasParentTest {
 
         assertTrue(called.get())
 
-        assertEquals("SELECT B.company_id, B.key, B.name, B.tag_line, B.t_created, B.t_updated FROM brands AS B INNER JOIN companies AS C ON C.id = B.company_id WHERE (C.name >= ?) ORDER BY C.name", theSql)
+        assertEquals("SELECT B.\"company_id\", B.\"key\", B.\"name\", B.\"tag_line\", B.\"t_created\", B.\"t_updated\" FROM \"brands\" AS B INNER JOIN \"companies\" AS C ON C.\"id\" = B.\"company_id\" WHERE (C.\"name\" >= ?) ORDER BY C.\"name\"", theSql)
 
         assertEquals(1, theParams.size)
         assertEquals("qwe", theParams[0])

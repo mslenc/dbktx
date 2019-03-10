@@ -16,9 +16,9 @@ abstract class DbEntity<E : DbEntity<E, ID>, ID: Any>(
         return metainfo.updateById(db, id)
     }
 
-    suspend fun executeUpdate(modifier: DbUpdate<E>.() -> Unit): Boolean {
+    suspend fun executeUpdate(modifier: (DbUpdate<E>) -> Unit): Boolean {
         val update = createUpdate()
-        update.modifier()
+        modifier(update)
         return update.execute() > 0
     }
 }

@@ -1,18 +1,19 @@
-package com.github.mslenc.dbktx.expr
+package com.github.mslenc.dbktx.filters
 
 import com.github.mslenc.dbktx.crud.JoinType
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.crud.TableRemapper
+import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.ManyToOneInfo
 import com.github.mslenc.dbktx.util.Sql
 
-class ExprFilterHasParent<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
+class FilterHasParent<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         private val info: ManyToOneInfo<FROM, TO, *>,
-        private val filter: ExprBoolean,
+        private val filter: FilterExpr,
         private val srcTable: TableInQuery<FROM>,
         private val dstTable: TableInQuery<TO>,
-        private val negated: Boolean = false) : ExprBoolean {
+        private val negated: Boolean = false) : FilterExpr {
 
     override fun toSql(sql: Sql, topLevel: Boolean) {
         val mappings = info.columnMappings
@@ -41,12 +42,12 @@ class ExprFilterHasParent<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         }
     }
 
-    override fun not(): ExprBoolean {
-        return ExprFilterHasParent(info, filter, srcTable, dstTable, !negated)
+    override fun not(): FilterExpr {
+        return FilterHasParent(info, filter, srcTable, dstTable, !negated)
     }
 
-    override fun remap(remapper: TableRemapper): ExprBoolean {
-        return ExprFilterHasParent(info, filter.remap(remapper), remapper.remap(srcTable), remapper.remap(dstTable), negated)
+    override fun remap(remapper: TableRemapper): FilterExpr {
+        return FilterHasParent(info, filter.remap(remapper), remapper.remap(srcTable), remapper.remap(dstTable), negated)
     }
 
     override fun toString(): String {

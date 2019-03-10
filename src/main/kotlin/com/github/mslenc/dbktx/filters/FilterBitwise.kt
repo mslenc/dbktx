@@ -1,9 +1,11 @@
-package com.github.mslenc.dbktx.expr
+package com.github.mslenc.dbktx.filters
 
 import com.github.mslenc.dbktx.crud.TableRemapper
+import com.github.mslenc.dbktx.expr.Expr
+import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.util.Sql
 
-internal class ExprBitwise<E, T>(private val left: Expr<in E, T>, private val op: Op, private val right: Expr<in E, T>) : ExprBoolean {
+internal class FilterBitwise<E, T>(private val left: Expr<in E, T>, private val op: Op, private val right: Expr<in E, T>) : FilterExpr {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         when (op) {
             Op.HAS_ANY_BITS -> {
@@ -27,8 +29,8 @@ internal class ExprBitwise<E, T>(private val left: Expr<in E, T>, private val op
         }
     }
 
-    override fun remap(remapper: TableRemapper): ExprBoolean {
-        return ExprBitwise(left.remap(remapper), op, right.remap(remapper))
+    override fun remap(remapper: TableRemapper): FilterExpr {
+        return FilterBitwise(left.remap(remapper), op, right.remap(remapper))
     }
 
     internal enum class Op {
@@ -36,10 +38,10 @@ internal class ExprBitwise<E, T>(private val left: Expr<in E, T>, private val op
         HAS_NO_BITS
     }
 
-    override fun not(): ExprBoolean {
+    override fun not(): FilterExpr {
         return when (op) {
-            Op.HAS_ANY_BITS -> ExprBitwise(left, Op.HAS_NO_BITS, right)
-            Op.HAS_NO_BITS -> ExprBitwise(left, Op.HAS_ANY_BITS, right)
+            Op.HAS_ANY_BITS -> FilterBitwise(left, Op.HAS_NO_BITS, right)
+            Op.HAS_NO_BITS -> FilterBitwise(left, Op.HAS_ANY_BITS, right)
         }
     }
 

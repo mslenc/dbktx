@@ -2,13 +2,13 @@ package com.github.mslenc.dbktx.util
 
 import com.github.mslenc.dbktx.crud.EntityQuery
 import com.github.mslenc.dbktx.crud.FilterBuilder
-import com.github.mslenc.dbktx.expr.ExprBoolean
+import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.RelToOne
 import com.github.mslenc.dbktx.schema.StringColumn
 
 class TextSearchBuilder<E: DbEntity<E, *>>(val entityQuery: EntityQuery<E>, val words: List<String>) {
-    val subFilters: MutableList<MutableList<FilterBuilder<E>.()->ExprBoolean>> = ArrayList()
+    val subFilters: MutableList<MutableList<FilterBuilder<E>.()->FilterExpr>> = ArrayList()
     init {
         for (word in words)
             subFilters.add(ArrayList())
@@ -66,9 +66,9 @@ class TextSearchBuilder<E: DbEntity<E, *>>(val entityQuery: EntityQuery<E>, val 
         // matches word = (field1 matches word) OR (field2 matches word) OR (...)
 
         entityQuery.filter {
-            ExprBoolean.createAND(
+            FilterExpr.createAND(
                     subFilters.map { wordFilters ->
-                        ExprBoolean.createOR(wordFilters.map { it() })
+                        FilterExpr.createOR(wordFilters.map { it() })
                     }
             )
         }

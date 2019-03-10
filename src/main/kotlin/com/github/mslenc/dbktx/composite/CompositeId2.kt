@@ -72,4 +72,8 @@ abstract class CompositeId2<E : DbEntity<E, ID>, T1: Any, T2: Any, ID : Composit
         result = 31 * result + component2.hashCode()
         return result
     }
+
+    override fun toString(): String {
+        return "($component1,$component2)"
+    }
 }

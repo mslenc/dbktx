@@ -7,7 +7,7 @@ import com.github.mslenc.dbktx.aggr.AggregateQuery
 import com.github.mslenc.dbktx.aggr.AggregateRow
 import com.github.mslenc.dbktx.aggr.BoundAggregateExpr
 import com.github.mslenc.dbktx.crud.*
-import com.github.mslenc.dbktx.expr.ExprBoolean
+import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.Sql
 import kotlinx.coroutines.CoroutineScope
@@ -77,7 +77,7 @@ interface DbConn {
      * INTERNAL FUNCTION, use [update] or [DbTable.update] instead.
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeUpdate(table: TableInQuery<E>, filters: ExprBoolean?, values: EntityValues<E>, specificIds: Set<ID>?): Long
+    executeUpdate(table: TableInQuery<E>, filters: FilterExpr?, values: EntityValues<E>, specificIds: Set<ID>?): Long
 
     /**
      * INTERNAL FUNCTION, use [delete] instead.
@@ -108,7 +108,7 @@ interface DbConn {
      * Follows a relation-to-many and applies additional filter to the result.
      */
     suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
-    load(from: FROM, relation: RelToMany<FROM, TO>, filter: FilterBuilder<TO>.()->ExprBoolean): List<TO>
+    load(from: FROM, relation: RelToMany<FROM, TO>, filter: FilterBuilder<TO>.()->FilterExpr): List<TO>
 
     /**
      * Follows a relation-to-one for multiple source entities.
@@ -209,7 +209,7 @@ interface DbConn {
      * ```
      */
     suspend fun <E : DbEntity<E, *>>
-    count(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
+    count(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> FilterExpr): Long {
         val query = table.newQuery(this)
         query.filter(filter)
         return query.countAll()
@@ -233,7 +233,7 @@ interface DbConn {
      * ```
      */
     suspend fun <E : DbEntity<E, *>>
-    deleteMany(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> ExprBoolean): Long {
+    deleteMany(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> FilterExpr): Long {
         val query = table.newDeleteQuery(this)
         query.filter(filter)
         return query.deleteAllMatchingRows()
@@ -273,7 +273,7 @@ interface DbConn {
      * ```
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.query(filter: FilterBuilder<E>.() -> ExprBoolean): List<E> {
+    Z.query(filter: FilterBuilder<E>.() -> FilterExpr): List<E> {
         val query = newQuery(this)
         query.filter(filter)
         return query.run()
@@ -286,7 +286,7 @@ interface DbConn {
      * ```
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-            Z.countAll(filter: FilterBuilder<E>.() -> ExprBoolean): Long {
+            Z.countAll(filter: FilterBuilder<E>.() -> FilterExpr): Long {
         val query = newQuery(this)
         query.filter(filter)
         return query.countAll()
@@ -302,19 +302,19 @@ interface DbConn {
      * ```
      */
     suspend fun <E: DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.insert(builder: DbInsert<E, ID>.() -> Unit): ID {
-        val insert = insertion(this@DbConn)
-        insert.apply(builder)
-        return insert.execute()
+    Z.insert(builder: (DbInsert<E, ID>) -> Unit): ID {
+        val insertion = insertion(this@DbConn)
+        builder(insertion)
+        return insertion.execute()
     }
 
     /**
      * Similar to [insert], but returns the insertion so that it may be further modified, before [DbInsert.execute] is called.
      */
     fun <E: DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.newInsertion(builder: DbInsert<E, ID>.() -> Unit): DbInsert<E, ID> {
+    Z.newInsertion(builder: (DbInsert<E, ID>) -> Unit): DbInsert<E, ID> {
         val insertion = insertion(this@DbConn)
-        insertion.apply(builder)
+        builder(insertion)
         return insertion
     }
 
@@ -327,9 +327,9 @@ interface DbConn {
      * ```
      */
     suspend fun <E: DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.update(entity: E, builder: DbUpdate<E>.() -> Unit): Boolean {
+    Z.update(entity: E, builder: (DbUpdate<E>) -> Unit): Boolean {
         val update = update(this@DbConn, entity)
-        update.apply(builder)
+        builder(update)
         return update.execute() > 0
     }
 

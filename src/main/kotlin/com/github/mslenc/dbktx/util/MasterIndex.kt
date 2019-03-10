@@ -27,7 +27,7 @@ internal class MasterIndex(val scope: CoroutineScope) {
         for (runnable in cleanUp) {
             try {
                 runnable()
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 logger.error("Error while cleaning up", e)
                 // but continue
             }
@@ -48,7 +48,7 @@ internal class MasterIndex(val scope: CoroutineScope) {
         for (runnable in cleanUp) {
             try {
                 runnable()
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 logger.error("Error while cleaning up", e)
             }
         }

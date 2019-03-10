@@ -1,5 +1,5 @@
 group 'com.github.mslenc'
-version '0.9.0'
+version '0.10.0'
 
 buildscript {
     ext.kotlin_version = '1.3.21'
@@ -20,13 +20,14 @@ apply plugin: 'maven'
 sourceCompatibility = 1.8
 
 repositories {
+    mavenLocal()
     mavenCentral()
     jcenter()
     maven { url 'https://jitpack.io' }
 }
 
 dependencies {
-    compile 'com.github.mslenc:asyncdb:1.1.2'
+    compile 'com.github.mslenc:asyncdb:1.2.0'
 
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
@@ -43,10 +44,6 @@ dependencies {
 
 
     testCompile "junit:junit:4.12"
-    testCompile "mysql:mysql-connector-java:6.0.6"
-
-    // https://mvnrepository.com/artifact/net.sf.jopt-simple/jopt-simple
-    testCompile "net.sf.jopt-simple:jopt-simple:5.0.4"
 }
 
 task sourcesJar(type: Jar, dependsOn: classes) {

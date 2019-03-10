@@ -2,12 +2,16 @@ package com.github.mslenc.dbktx.schema
 
 import com.github.mslenc.dbktx.crud.EntityValues
 import com.github.mslenc.dbktx.schemas.test1.Brand
+import com.github.mslenc.dbktx.schemas.test1.TestSchema1
 import org.junit.Test
 
 import org.junit.Assert.*
 import java.util.*
 
 class MultiColumnKeyDefTest {
+    init {
+        TestSchema1.numberOfTables // init
+    }
 
     @Test
     fun testExtractMultiKeyID() {

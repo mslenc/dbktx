@@ -10,15 +10,13 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert
 import org.junit.Assert.assertEquals
-import org.junit.Before
 import org.junit.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicBoolean
 
 class AggregateTest {
-    @Before
-    fun initSchema() {
-        TestSchema2.numberOfTables
+    init {
+        TestSchema2.numberOfTables // init
     }
 
     @Test
@@ -116,24 +114,24 @@ class AggregateTest {
 
 
         assertEquals(
-            "SELECT W.name, AVG(CE.score), MIN(CE.score), LN.name, LN2.name, COUNT(LN2.entity_id), COUNT(DISTINCT LN2.entity_id), AVG(CR.place), W.id_weight, CE.id_country " +
-            "FROM weights AS W " +
-            "INNER JOIN comp_entries AS CE ON W.id_weight = CE.weight_id " +
-            "INNER JOIN competitions AS C ON C.id_competition = CE.id_comp " +
-            "INNER JOIN local_names AS LN2 ON LN2.entity_id = C.id_competition AND LN2.lang_code = ? AND LN2.prop_name = ? " +
-            "INNER JOIN countries AS C2 ON C2.id_country = CE.id_country " +
-            "INNER JOIN local_names AS LN ON LN.entity_id = C2.id_country AND LN.lang_code = ? AND LN.prop_name = ? " +
-            "INNER JOIN comp_results AS CR ON CR.id_person = CE.id_person AND CR.id_country = CE.id_country AND CR.id_weight = CE.weight_id " +
-            "WHERE (CE.id_country = 123) " +
+            "SELECT W.\"name\", AVG(CE.\"score\"), MIN(CE.\"score\"), LN.\"name\", LN2.\"name\", COUNT(LN2.\"entity_id\"), COUNT(DISTINCT LN2.\"entity_id\"), AVG(CR.\"place\"), W.\"id_weight\", CE.\"id_country\" " +
+            "FROM \"weights\" AS W " +
+            "INNER JOIN \"comp_entries\" AS CE ON W.\"id_weight\" = CE.\"weight_id\" " +
+            "INNER JOIN \"competitions\" AS C ON C.\"id_competition\" = CE.\"id_comp\" " +
+            "INNER JOIN \"local_names\" AS LN2 ON LN2.\"entity_id\" = C.\"id_competition\" AND LN2.\"lang_code\" = ? AND LN2.\"prop_name\" = ? " +
+            "INNER JOIN \"countries\" AS C2 ON C2.\"id_country\" = CE.\"id_country\" " +
+            "INNER JOIN \"local_names\" AS LN ON LN.\"entity_id\" = C2.\"id_country\" AND LN.\"lang_code\" = ? AND LN.\"prop_name\" = ? " +
+            "INNER JOIN \"comp_results\" AS CR ON CR.\"id_person\" = CE.\"id_person\" AND CR.\"id_country\" = CE.\"id_country\" AND CR.\"id_weight\" = CE.\"weight_id\" " +
+            "WHERE (CE.\"id_country\" = 123) " +
             "AND (" +
-                "(C.id_competition IN " +
-                    "(SELECT CE2.id_comp FROM comp_entries AS CE2 " +
-                    "WHERE CE2.weight_id IN (12, 13, 14))" +
+                "(C.\"id_competition\" IN " +
+                    "(SELECT CE2.\"id_comp\" FROM \"comp_entries\" AS CE2 " +
+                    "WHERE CE2.\"weight_id\" IN (12, 13, 14))" +
                 ")" +
-            ") AND (LN.name LIKE ? ESCAPE '|') " +
-              "AND (LN2.name LIKE ? ESCAPE '|') " +
-            "GROUP BY W.name, LN.name, LN2.name, W.id_weight, CE.id_country " +
-            "ORDER BY W.name", theSql)
+            ") AND (LN.\"name\" LIKE ? ESCAPE '|') " +
+              "AND (LN2.\"name\" LIKE ? ESCAPE '|') " +
+            "GROUP BY W.\"name\", LN.\"name\", LN2.\"name\", W.\"id_weight\", CE.\"id_country\" " +
+            "ORDER BY W.\"name\"", theSql)
 
         assertEquals(6, theParams.size)
 

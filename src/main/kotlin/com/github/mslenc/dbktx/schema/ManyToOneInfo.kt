@@ -4,9 +4,9 @@ import com.github.mslenc.asyncdb.DbValue
 import com.github.mslenc.asyncdb.impl.values.DbValueNull
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.expr.Expr
-import com.github.mslenc.dbktx.expr.ExprBoolean
+import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.expr.ExprFields
-import com.github.mslenc.dbktx.expr.ExprOneOf
+import com.github.mslenc.dbktx.filters.FilterOneOf
 import com.github.mslenc.dbktx.util.RemappingList
 import kotlin.collections.ArrayList
 
@@ -47,7 +47,7 @@ class ManyToOneInfo<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TO_KEY : Any
         }
     }
 
-    fun makeReverseQueryBuilder(): (Set<TO_KEY>, TableInQuery<FROM>) -> ExprBoolean {
+    fun makeReverseQueryBuilder(): (Set<TO_KEY>, TableInQuery<FROM>) -> FilterExpr {
         if (columnMappings.size > 1) {
             // by construction, the column order in columnMappings is the same as the
             // one in TIDs
@@ -62,7 +62,7 @@ class ManyToOneInfo<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TO_KEY : Any
                 @Suppress("UNCHECKED_CAST") // composite ids are Expr themselves..
                 idSet as Set<Expr<FROM, TO_KEY>>
 
-                ExprOneOf(fields, ArrayList(idSet))
+                FilterOneOf(fields, ArrayList(idSet))
             }
         } else {
             @Suppress("UNCHECKED_CAST")
@@ -72,7 +72,7 @@ class ManyToOneInfo<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TO_KEY : Any
                 if (idsSet.isEmpty())
                     throw IllegalArgumentException()
 
-                ExprOneOf(columnFrom.bindForSelect(tableInQuery), idsSet.map { columnFrom.makeLiteral(it) })
+                FilterOneOf(columnFrom.bindForSelect(tableInQuery), idsSet.map { columnFrom.makeLiteral(it) })
 //                column oneOf idSet
             }
         }

@@ -1,9 +1,10 @@
-package com.github.mslenc.dbktx.expr
+package com.github.mslenc.dbktx.filters
 
 import com.github.mslenc.dbktx.crud.TableRemapper
+import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.util.Sql
 
-internal class ExprBools internal constructor(private val parts: List<ExprBoolean>, private val op: Op) : ExprBoolean {
+internal class FilterBoolean internal constructor(private val parts: List<FilterExpr>, private val op: Op) : FilterExpr {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.expr(topLevel) {
             sql.tuple(parts, separator = op.sql) {
@@ -17,17 +18,17 @@ internal class ExprBools internal constructor(private val parts: List<ExprBoolea
         OR(" OR ")
     }
 
-    override fun not(): ExprBoolean {
+    override fun not(): FilterExpr {
         // !(A && B)   <=>  !A || !B
         // !(A || B)   <=>  !A && !B
 
         val otherOp = if (op == Op.AND) Op.OR else Op.AND
 
-        return ExprBools(parts.map { it.not() }, otherOp)
+        return FilterBoolean(parts.map { it.not() }, otherOp)
     }
 
-    override fun remap(remapper: TableRemapper): ExprBoolean {
-        return ExprBools(parts.map { it.remap(remapper) }, op)
+    override fun remap(remapper: TableRemapper): FilterExpr {
+        return FilterBoolean(parts.map { it.remap(remapper) }, op)
     }
 
     override fun toString(): String {
@@ -35,25 +36,25 @@ internal class ExprBools internal constructor(private val parts: List<ExprBoolea
     }
 
     companion object {
-        internal fun create(left: ExprBoolean, op: Op, right: ExprBoolean): ExprBools {
-            val parts = ArrayList<ExprBoolean>()
+        internal fun create(left: FilterExpr, op: Op, right: FilterExpr): FilterBoolean {
+            val parts = ArrayList<FilterExpr>()
 
-            if (left is ExprBools && left.op == op) {
+            if (left is FilterBoolean && left.op == op) {
                 parts.addAll(left.parts)
             } else {
                 parts.add(left)
             }
 
-            if (right is ExprBools && right.op == op) {
+            if (right is FilterBoolean && right.op == op) {
                 parts.addAll(right.parts)
             } else {
                 parts.add(right)
             }
 
-            return ExprBools(parts, op)
+            return FilterBoolean(parts, op)
         }
 
-        internal fun create(op: Op, parts: Iterable<ExprBoolean>): ExprBoolean {
+        internal fun create(op: Op, parts: Iterable<FilterExpr>): FilterExpr {
             val partsList = parts.toList()
 
             if (partsList.isEmpty())
@@ -62,7 +63,7 @@ internal class ExprBools internal constructor(private val parts: List<ExprBoolea
             if (partsList.size == 1)
                 return partsList.single()
 
-            return ExprBools(partsList, op)
+            return FilterBoolean(partsList, op)
         }
     }
 }

@@ -9,12 +9,14 @@ enum class SqlTypeKind {
     INT,
     BIGINT,
     DECIMAL,
+    NUMERIC,
     FLOAT,
     DOUBLE,
 
     DATE,
     DATETIME,
     TIMESTAMP,
+    TIMESTAMP_TZ,
     TIME,
     YEAR,
 

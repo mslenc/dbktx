@@ -78,6 +78,10 @@ fun INT(size: Int): SqlTypeDef {
     return SqlTypeDef(SqlTypeKind.INT, size)
 }
 
+fun INTEGER(): SqlTypeDef {
+    return SqlTypeDef(SqlTypeKind.INT)
+}
+
 fun BIGINT(): SqlTypeDef {
     return SqlTypeDef(SqlTypeKind.BIGINT)
 }
@@ -98,6 +102,10 @@ fun DECIMAL(precision: Int, scale: Int): SqlTypeDef {
     return SqlTypeDef(SqlTypeKind.DECIMAL, precision, scale)
 }
 
+fun NUMERIC(precision: Int, scale: Int): SqlTypeDef {
+    return SqlTypeDef(SqlTypeKind.NUMERIC, precision, scale)
+}
+
 fun FLOAT(): SqlTypeDef {
     return SqlTypeDef(SqlTypeKind.FLOAT)
 }
@@ -116,6 +124,14 @@ fun DATETIME(): SqlTypeDef {
 
 fun TIMESTAMP(): SqlTypeDef {
     return SqlTypeDef(SqlTypeKind.TIMESTAMP)
+}
+
+fun TIMESTAMP(timeZone: Boolean): SqlTypeDef {
+    if (timeZone) {
+        return SqlTypeDef(SqlTypeKind.TIMESTAMP_TZ)
+    } else {
+        return SqlTypeDef(SqlTypeKind.DATETIME)
+    }
 }
 
 fun TIME(): SqlTypeDef {
@@ -141,6 +157,14 @@ fun ENUM(vararg posibs: String): SqlTypeDef {
 
 fun JSON(): SqlTypeDef {
     return SqlTypeDef(SqlTypeKind.JSON)
+}
+
+fun BOOLEAN(): SqlTypeDef {
+    return SqlTypeDef(SqlTypeKind.BOOLEAN)
+}
+
+fun BIT(): SqlTypeDef {
+    return SqlTypeDef(SqlTypeKind.BIT)
 }
 
 class SqlTypeDef internal constructor(

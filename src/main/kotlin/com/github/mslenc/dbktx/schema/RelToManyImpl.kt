@@ -5,16 +5,16 @@ import com.github.mslenc.dbktx.conn.DbLoaderInternal
 import com.github.mslenc.dbktx.crud.EntityQuery
 import com.github.mslenc.dbktx.crud.FilterBuilder
 import com.github.mslenc.dbktx.crud.TableInQuery
-import com.github.mslenc.dbktx.expr.ExprBoolean
+import com.github.mslenc.dbktx.expr.FilterExpr
 
 class RelToManyImpl<FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *>> : RelToMany<FROM, TO> {
 
     internal lateinit var info: ManyToOneInfo<TO, FROM, FROM_KEY>
     private lateinit var reverseKeyMapper: (TO)->FROM_KEY?
-    private lateinit var queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)-> ExprBoolean
+    private lateinit var queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)-> FilterExpr
     private lateinit var oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>
 
-    internal fun init(oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>, info: ManyToOneInfo<TO, FROM, FROM_KEY>, reverseKeyMapper: (TO)->FROM_KEY?, queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)-> ExprBoolean) {
+    internal fun init(oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>, info: ManyToOneInfo<TO, FROM, FROM_KEY>, reverseKeyMapper: (TO)->FROM_KEY?, queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)-> FilterExpr) {
         this.oppositeRel = oppositeRel
         this.info = info
         this.reverseKeyMapper = reverseKeyMapper
@@ -31,7 +31,7 @@ class RelToManyImpl<FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *
     override val targetTable: DbTable<TO, *>
         get() = info.manyTable
 
-    fun createCondition(fromIds: Set<FROM_KEY>, tableInQuery: TableInQuery<TO>): ExprBoolean {
+    fun createCondition(fromIds: Set<FROM_KEY>, tableInQuery: TableInQuery<TO>): FilterExpr {
         return queryExprBuilder(fromIds, tableInQuery)
     }
 
@@ -39,7 +39,7 @@ class RelToManyImpl<FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *
         return from.db.load(from, this)
     }
 
-    override suspend fun invoke(from: FROM, block: FilterBuilder<TO>.() -> ExprBoolean): List<TO> {
+    override suspend fun invoke(from: FROM, block: FilterBuilder<TO>.() -> FilterExpr): List<TO> {
         val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
 
         query.filter { createCondition(setOf(info.oneKey(from)), query.baseTable) }
@@ -56,7 +56,7 @@ class RelToManyImpl<FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *
         return query.countAll()
     }
 
-    override suspend fun count(from: FROM, block: FilterBuilder<TO>.() -> ExprBoolean): Long {
+    override suspend fun count(from: FROM, block: FilterBuilder<TO>.() -> FilterExpr): Long {
         val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
 
         query.filter { createCondition(setOf(info.oneKey(from)), query.baseTable) }
@@ -69,7 +69,7 @@ class RelToManyImpl<FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *
         return db.load(from, this)
     }
 
-    internal suspend fun callLoadToManyWithFilter(db: DbLoaderImpl, from: FROM, filter: FilterBuilder<TO>.() -> ExprBoolean): List<TO> {
+    internal suspend fun callLoadToManyWithFilter(db: DbLoaderImpl, from: FROM, filter: FilterBuilder<TO>.() -> FilterExpr): List<TO> {
         return db.loadToManyWithFilter(from, this, filter)
     }
 }

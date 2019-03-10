@@ -49,7 +49,7 @@ internal class SingleColumnKeyDefImpl<E: DbEntity<E, *>, T: Any>(
         if (index == 1)
             return column
 
-        throw IllegalArgumentException(index.toString() + " is not a valid index")
+        throw IllegalArgumentException("$index is not a valid index")
     }
 
     override fun makeLiteral(value: T): Expr<E, T> {

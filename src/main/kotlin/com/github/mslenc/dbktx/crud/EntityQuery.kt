@@ -8,8 +8,8 @@ import com.github.mslenc.dbktx.conn.buildSelectQuery
 import com.github.mslenc.dbktx.util.EntityState.*
 import com.github.mslenc.dbktx.expr.CompositeExpr
 import com.github.mslenc.dbktx.expr.Expr
-import com.github.mslenc.dbktx.expr.ExprBoolean
-import com.github.mslenc.dbktx.expr.ExprBools
+import com.github.mslenc.dbktx.expr.FilterExpr
+import com.github.mslenc.dbktx.filters.FilterBoolean
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.DelayedLoadState
 import com.github.mslenc.dbktx.util.OrderSpec
@@ -39,18 +39,18 @@ internal class InsertQueryImpl : QueryImpl()
 interface FilterableQuery<E : DbEntity<E, *>>: Query {
     val baseTable : TableInQuery<E>
 
-    fun filter(block: FilterBuilder<E>.() -> ExprBoolean): FilterableQuery<E>
+    fun filter(block: FilterBuilder<E>.() -> FilterExpr): FilterableQuery<E>
     fun <REF: DbEntity<REF, *>>
-        filter(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> ExprBoolean): FilterableQuery<E>
+        filter(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> FilterExpr): FilterableQuery<E>
     fun <REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>>
-        filter(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> ExprBoolean): FilterableQuery<E>
+        filter(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> FilterExpr): FilterableQuery<E>
 
 
-    fun exclude(block: FilterBuilder<E>.() -> ExprBoolean): FilterableQuery<E>
+    fun exclude(block: FilterBuilder<E>.() -> FilterExpr): FilterableQuery<E>
     fun <REF: DbEntity<REF, *>>
-        exclude(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> ExprBoolean): FilterableQuery<E>
+        exclude(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> FilterExpr): FilterableQuery<E>
     fun <REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>>
-        exclude(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> ExprBoolean): FilterableQuery<E>
+        exclude(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> FilterExpr): FilterableQuery<E>
 }
 
 internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
@@ -61,10 +61,10 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
 
     protected abstract fun makeBaseTable(table: DbTable<E, *>): TableInQuery<E>
     protected abstract fun checkModifiable()
-    internal var filters: ExprBoolean? = null
+    internal var filters: FilterExpr? = null
 
     private fun <E: DbEntity<E, *>>
-        doFilter(tableInQuery: TableInQuery<E>, negate: Boolean, block: FilterBuilder<E>.() -> ExprBoolean) {
+        doFilter(tableInQuery: TableInQuery<E>, negate: Boolean, block: FilterBuilder<E>.() -> FilterExpr) {
 
         checkModifiable()
 
@@ -75,42 +75,42 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
         addFilter(finalFilter)
     }
 
-    internal fun addFilter(filter: ExprBoolean) {
+    internal fun addFilter(filter: FilterExpr) {
         val existing = this.filters
 
         if (existing != null) {
-            this.filters = ExprBools.create(existing, ExprBools.Op.AND, filter)
+            this.filters = FilterBoolean.create(existing, FilterBoolean.Op.AND, filter)
         } else {
             this.filters = filter
         }
     }
 
-    override fun filter(block: FilterBuilder<E>.() -> ExprBoolean): FilterableQuery<E> {
+    override fun filter(block: FilterBuilder<E>.() -> FilterExpr): FilterableQuery<E> {
         doFilter(baseTable, false, block)
         return this
     }
 
-    override fun <REF : DbEntity<REF, *>> filter(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> ExprBoolean): FilterableQuery<E> {
+    override fun <REF : DbEntity<REF, *>> filter(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> FilterExpr): FilterableQuery<E> {
         doFilter(baseTable.innerJoin(ref), false, block)
         return this
     }
 
-    override fun <REF1 : DbEntity<REF1, *>, REF2 : DbEntity<REF2, *>> filter(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> ExprBoolean): FilterableQuery<E> {
+    override fun <REF1 : DbEntity<REF1, *>, REF2 : DbEntity<REF2, *>> filter(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> FilterExpr): FilterableQuery<E> {
         doFilter(baseTable.innerJoin(ref1).innerJoin(ref2), false, block)
         return this
     }
 
-    override fun exclude(block: FilterBuilder<E>.() -> ExprBoolean): FilterableQuery<E> {
+    override fun exclude(block: FilterBuilder<E>.() -> FilterExpr): FilterableQuery<E> {
         doFilter(baseTable, true, block)
         return this
     }
 
-    override fun <REF : DbEntity<REF, *>> exclude(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> ExprBoolean): FilterableQuery<E> {
+    override fun <REF : DbEntity<REF, *>> exclude(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> FilterExpr): FilterableQuery<E> {
         doFilter(baseTable.innerJoin(ref), true, block)
         return this
     }
 
-    override fun <REF1 : DbEntity<REF1, *>, REF2 : DbEntity<REF2, *>> exclude(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> ExprBoolean): FilterableQuery<E> {
+    override fun <REF1 : DbEntity<REF1, *>, REF2 : DbEntity<REF2, *>> exclude(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> FilterExpr): FilterableQuery<E> {
         doFilter(baseTable.innerJoin(ref1).innerJoin(ref2), true, block)
         return this
     }
@@ -140,7 +140,7 @@ interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E>, OrderableQuery<E>
     suspend fun countAll(): Long
 
     fun copy(includeOffsetAndLimit: Boolean = false): EntityQuery<E>
-    fun copyAndRemapFilters(dstTable: TableInQuery<E>): ExprBoolean?
+    fun copyAndRemapFilters(dstTable: TableInQuery<E>): FilterExpr?
 
     fun toAggregateQuery(): AggregateQuery<E>
     fun toAggregateQuery(builder: AggregateBuilder<E>.()->Unit): AggregateQuery<E>
@@ -318,7 +318,7 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
         return newQuery
     }
 
-    override fun copyAndRemapFilters(dstTable: TableInQuery<E>): ExprBoolean? {
+    override fun copyAndRemapFilters(dstTable: TableInQuery<E>): FilterExpr? {
         return filters?.let {
             val remapper = TableRemapper(dstTable.query)
             remapper.addExplicitMapping(baseTable, dstTable)

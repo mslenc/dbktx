@@ -1,14 +1,15 @@
-package com.github.mslenc.dbktx.expr
+package com.github.mslenc.dbktx.filters
 
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.crud.TableRemapper
+import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.ManyToOneInfo
 import com.github.mslenc.dbktx.schema.NonNullColumn
 import com.github.mslenc.dbktx.util.Sql
 
-class RelToOneOneOf<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
-    : ExprBoolean {
+class FilterOneOfRelToOne<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
+    : FilterExpr {
 
     private val info: ManyToOneInfo<FROM, TO, *>
     private val refs: List<TO>
@@ -22,8 +23,8 @@ class RelToOneOneOf<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
         this.negated = negated
     }
 
-    override fun not(): ExprBoolean {
-        return RelToOneOneOf(tableInQuery, info, refs, !negated)
+    override fun not(): FilterExpr {
+        return FilterOneOfRelToOne(tableInQuery, info, refs, !negated)
     }
 
     override fun toSql(sql: Sql, topLevel: Boolean) {
@@ -55,8 +56,8 @@ class RelToOneOneOf<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
         column.sqlType.toSql(column(ref), sql)
     }
 
-    override fun remap(remapper: TableRemapper): ExprBoolean {
-        return RelToOneOneOf(remapper.remap(tableInQuery), info, refs, negated)
+    override fun remap(remapper: TableRemapper): FilterExpr {
+        return FilterOneOfRelToOne(remapper.remap(tableInQuery), info, refs, negated)
     }
 
     override fun toString(): String {

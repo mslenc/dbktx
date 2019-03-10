@@ -29,6 +29,7 @@ object TestSchema2 : DbSchema() {
     val COMPETITION = Competition
     val COMP_ENTRY = CompEntry
     val COMP_RESULT = CompResult
+    val LOCAL_NAME = LocalName
 
     init {
         finishInit()

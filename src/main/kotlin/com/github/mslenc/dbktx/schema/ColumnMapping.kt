@@ -3,9 +3,9 @@ package com.github.mslenc.dbktx.schema
 import com.github.mslenc.dbktx.crud.BoundColumnForSelect
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.expr.Expr
-import com.github.mslenc.dbktx.expr.ExprCmp
-import com.github.mslenc.dbktx.expr.ExprBoolean
-import com.github.mslenc.dbktx.expr.ExprDummy
+import com.github.mslenc.dbktx.filters.FilterCompare
+import com.github.mslenc.dbktx.expr.FilterExpr
+import com.github.mslenc.dbktx.filters.FilterDummy
 
 enum class ColumnInMappingKind {
     COLUMN, // an actual column
@@ -20,7 +20,7 @@ interface ColumnMapping<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TYPE: An
     fun bindColumnTo(tableInQuery: TableInQuery<TO>): BoundColumnForSelect<TO, TYPE>
 
     fun bindFrom(tableInQuery: TableInQuery<FROM>): Expr<FROM, TYPE>
-    fun makeEqRef(ref: TO, tableInQuery: TableInQuery<FROM>): ExprBoolean
+    fun makeEqRef(ref: TO, tableInQuery: TableInQuery<FROM>): FilterExpr
 
     val columnFromAsNullable: NullableColumn<FROM, TYPE>?
     val columnFromAsNonNull: NonNullColumn<FROM, TYPE>?
@@ -68,8 +68,8 @@ class ColumnMappingActualColumn<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, 
     override val rawLiteralFromValue: TYPE
         get() = throw IllegalStateException("Not a literal")
 
-    override fun makeEqRef(ref: TO, tableInQuery: TableInQuery<FROM>): ExprBoolean {
-        return ExprCmp(rawColumnFrom.bindForSelect(tableInQuery), ExprCmp.Op.EQ, rawColumnFrom.makeLiteral(rawColumnTo(ref)))
+    override fun makeEqRef(ref: TO, tableInQuery: TableInQuery<FROM>): FilterExpr {
+        return FilterCompare(rawColumnFrom.bindForSelect(tableInQuery), FilterCompare.Op.EQ, rawColumnFrom.makeLiteral(rawColumnTo(ref)))
     }
 }
 
@@ -109,7 +109,7 @@ class ColumnMappingLiteral<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TYPE:
             return rawColumnTo.makeLiteral(rawLiteralFromValue) as Expr<FROM, TYPE>
         }
 
-    override fun makeEqRef(ref: TO, tableInQuery: TableInQuery<FROM>): ExprDummy {
-        return ExprDummy(rawLiteralFromValue == rawColumnTo(ref))
+    override fun makeEqRef(ref: TO, tableInQuery: TableInQuery<FROM>): FilterDummy {
+        return FilterDummy(rawLiteralFromValue == rawColumnTo(ref))
     }
 }

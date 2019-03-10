@@ -1,14 +1,16 @@
-package com.github.mslenc.dbktx.expr
+package com.github.mslenc.dbktx.filters
 
 import com.github.mslenc.dbktx.crud.TableRemapper
+import com.github.mslenc.dbktx.expr.Expr
+import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.util.Sql
 
-class ExprBetween<E, T>(
+class FilterBetween<E, T>(
         private val value: Expr<in E, T>,
         private val minimum: Expr<in E, T>,
         private val maximum: Expr<in E, T>,
         private val between: Boolean
-): ExprBoolean {
+): FilterExpr {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.expr(topLevel) {
             +value
@@ -19,12 +21,12 @@ class ExprBetween<E, T>(
         }
     }
 
-    override operator fun not(): ExprBoolean {
-        return ExprBetween(value, minimum, maximum, !between)
+    override operator fun not(): FilterExpr {
+        return FilterBetween(value, minimum, maximum, !between)
     }
 
-    override fun remap(remapper: TableRemapper): ExprBoolean {
-        return ExprBetween(value.remap(remapper), minimum.remap(remapper), maximum.remap(remapper), between)
+    override fun remap(remapper: TableRemapper): FilterExpr {
+        return FilterBetween(value.remap(remapper), minimum.remap(remapper), maximum.remap(remapper), between)
     }
 
     override fun toString(): String {

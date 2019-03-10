@@ -112,4 +112,8 @@ abstract class CompositeId6<E : DbEntity<E, ID>, T1: Any, T2: Any, T3: Any, T4: 
         result = 31 * result + component6.hashCode()
         return result
     }
+
+    override fun toString(): String {
+        return "($component1,$component2,$component3,$component4,$component5,$component6)"
+    }
 }

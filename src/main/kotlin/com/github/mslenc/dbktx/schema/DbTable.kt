@@ -8,7 +8,7 @@ import com.github.mslenc.dbktx.composite.CompositeId
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderInternal
 import com.github.mslenc.dbktx.crud.*
-import com.github.mslenc.dbktx.expr.ExprBoolean
+import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.util.EntityIndex
 import com.github.mslenc.dbktx.util.FakeRowData
 import com.github.mslenc.dbktx.util.Sql
@@ -126,7 +126,7 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return DbUpdateImpl(db, this, null, null)
     }
 
-    fun updateMany(db: DbConn, filter: FilterBuilder<E>.()->ExprBoolean): DbUpdate<E> {
+    fun updateMany(db: DbConn, filter: FilterBuilder<E>.()->FilterExpr): DbUpdate<E> {
         val update = DbUpdateImpl(db, this, null, null)
         update.filter(filter)
         return update

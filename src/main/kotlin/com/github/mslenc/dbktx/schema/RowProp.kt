@@ -16,7 +16,7 @@ interface RowProp<E : DbEntity<E, *>, T> {
 }
 
 interface NullableRowProp<E: DbEntity<E, *>, T> : RowProp<E, T> {
-    fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): ExprBoolean
+    fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): FilterExpr
 }
 
 interface NonNullRowProp<E: DbEntity<E, *>, T> : RowProp<E, T> {
