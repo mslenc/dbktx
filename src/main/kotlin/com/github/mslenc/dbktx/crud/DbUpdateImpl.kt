@@ -2,6 +2,7 @@ package com.github.mslenc.dbktx.crud
 
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.crud.dsl.ColumnUpdateOps
+import com.github.mslenc.dbktx.expr.BinaryOp
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.ExprBinary
 import com.github.mslenc.dbktx.expr.FilterExpr
@@ -52,7 +53,7 @@ internal class DbUpdateImpl<E : DbEntity<E, ID>, ID: Any>(
 }
 
 internal class DbColumnMutationImpl<E: DbEntity<E, *>, T: Any>(private val update: DbUpdateImpl<E, *>, private val column: Column<E, T>) : DbColumnMutation<E, T> {
-    fun setDeltaValue(op: ExprBinary.Op, delta: Expr<E, T>) {
+    fun setDeltaValue(op: BinaryOp, delta: Expr<E, T>) {
         update[column] = ExprBinary(column.bindForSelect(update.table), op, delta)
     }
 
@@ -77,23 +78,23 @@ internal class DbColumnMutationImpl<E: DbEntity<E, *>, T: Any>(private val updat
     }
 
     override fun plusAssign(value: Expr<E, T>) {
-        setDeltaValue(ExprBinary.Op.PLUS, value)
+        setDeltaValue(BinaryOp.PLUS, value)
     }
 
     override fun minusAssign(value: Expr<E, T>) {
-        setDeltaValue(ExprBinary.Op.MINUS, value)
+        setDeltaValue(BinaryOp.MINUS, value)
     }
 
     override fun timesAssign(value: Expr<E, T>) {
-        setDeltaValue(ExprBinary.Op.TIMES, value)
+        setDeltaValue(BinaryOp.TIMES, value)
     }
 
     override fun divAssign(value: Expr<E, T>) {
-        setDeltaValue(ExprBinary.Op.DIV, value)
+        setDeltaValue(BinaryOp.DIV, value)
     }
 
     override fun remAssign(value: Expr<E, T>) {
-        setDeltaValue(ExprBinary.Op.REM, value)
+        setDeltaValue(BinaryOp.REM, value)
     }
 
     override fun becomes(value: ColumnUpdateOps<E, T>.() -> Expr<E, T>) {

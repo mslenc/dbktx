@@ -4,6 +4,7 @@ import com.github.mslenc.dbktx.composite.CompositeId
 import com.github.mslenc.dbktx.expr.CompositeExpr
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.schema.*
+import com.github.mslenc.dbktx.sqltypes.SqlType
 import com.github.mslenc.dbktx.util.Sql
 import java.util.*
 
@@ -26,7 +27,7 @@ enum class JoinType {
     SUB_QUERY
 }
 
-abstract sealed class Join(var joinType: JoinType) {
+sealed class Join(var joinType: JoinType) {
     abstract fun combineWithJoinType(joinType: JoinType)
 }
 
@@ -180,6 +181,10 @@ class BoundColumnForSelect<E: DbEntity<E, *>, T : Any>(val column: Column<E, T>,
             sql.raw(".")
         }
         sql.raw(column.quotedFieldName)
+    }
+
+    override fun getSqlType(): SqlType<T> {
+        return column.sqlType
     }
 
     override fun remap(remapper: TableRemapper): Expr<E, T> {

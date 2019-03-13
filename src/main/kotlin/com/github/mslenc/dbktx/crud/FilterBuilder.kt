@@ -49,7 +49,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         }
     }
 
-    infix fun <T> Expr<E, T>.lt(value: Expr<E, T>): FilterExpr {
+    infix fun <T : Any> Expr<E, T>.lt(value: Expr<E, T>): FilterExpr {
         return FilterCompare(this, FilterCompare.Op.LT, value)
     }
 
@@ -61,7 +61,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return FilterCompare(bind(this), FilterCompare.Op.LT, value)
     }
 
-    infix fun <T> Expr<E, T>.lte(value: Expr<E, T>): FilterExpr {
+    infix fun <T : Any> Expr<E, T>.lte(value: Expr<E, T>): FilterExpr {
         return FilterCompare(this, FilterCompare.Op.LTE, value)
     }
 
@@ -73,7 +73,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return FilterCompare(bind(this), FilterCompare.Op.LTE, value)
     }
 
-    infix fun <T> Expr<E, T>.gt(value: Expr<E, T>): FilterExpr {
+    infix fun <T : Any> Expr<E, T>.gt(value: Expr<E, T>): FilterExpr {
         return FilterCompare(this, FilterCompare.Op.GT, value)
     }
 
@@ -85,7 +85,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return FilterCompare(bind(this), FilterCompare.Op.GT, value)
     }
 
-    infix fun <T> Expr<E, T>.gte(value: Expr<E, T>): FilterExpr {
+    infix fun <T : Any> Expr<E, T>.gte(value: Expr<E, T>): FilterExpr {
         return FilterCompare(this, FilterCompare.Op.GTE, value)
     }
 
@@ -189,7 +189,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return ExprFindInSet(SqlTypeVarchar.makeLiteral(value), bindForSelect(currentTable()))
     }
 
-    infix fun <T> Expr<E, T>.oneOf(values: List<Expr<E, T>>): FilterExpr {
+    infix fun <T : Any> Expr<E, T>.oneOf(values: List<Expr<E, T>>): FilterExpr {
         if (values.isEmpty())
             throw IllegalArgumentException("No possibilities specified")
 
@@ -204,7 +204,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return FilterBoolean.create(this, FilterBoolean.Op.OR, other)
     }
 
-    fun <T> NOW(): ExprNow<E, T> {
+    fun <T : Any> NOW(): ExprNow<E, T> {
         return ExprNow()
     }
 

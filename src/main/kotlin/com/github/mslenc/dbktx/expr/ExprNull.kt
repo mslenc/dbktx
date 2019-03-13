@@ -2,11 +2,16 @@ package com.github.mslenc.dbktx.expr
 
 import com.github.mslenc.dbktx.crud.TableRemapper
 import com.github.mslenc.dbktx.schema.DbEntity
+import com.github.mslenc.dbktx.sqltypes.SqlType
 import com.github.mslenc.dbktx.util.Sql
 
-class ExprNull<ENTITY, T> : Expr<ENTITY, T> {
+class ExprNull<ENTITY, T : Any>(private val type: SqlType<T>) : Expr<ENTITY, T> {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.raw("NULL")
+    }
+
+    override fun getSqlType(): SqlType<T> {
+        return type
     }
 
     override fun remap(remapper: TableRemapper): Expr<ENTITY, T> {
@@ -18,8 +23,8 @@ class ExprNull<ENTITY, T> : Expr<ENTITY, T> {
     }
 
     companion object {
-        fun <E : DbEntity<E, *>, T> create(): ExprNull<E, T> {
-            return ExprNull()
+        fun <E : DbEntity<E, *>, T : Any> create(type: SqlType<T>): ExprNull<E, T> {
+            return ExprNull(type)
         }
     }
 }

@@ -256,7 +256,7 @@ class Sql {
         return this
     }
 
-    fun GROUP_BY(groupBy: List<Expr<*, *>>) {
+    fun GROUP_BY(groupBy: List<SqlEmitter>) {
         if (groupBy.isEmpty())
             return
 

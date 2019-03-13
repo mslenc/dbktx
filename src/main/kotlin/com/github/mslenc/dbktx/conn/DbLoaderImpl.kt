@@ -2,14 +2,9 @@ package com.github.mslenc.dbktx.conn
 
 import com.github.mslenc.asyncdb.*
 import com.github.mslenc.asyncdb.impl.values.DbValueLong
-import com.github.mslenc.dbktx.aggr.AggregateQuery
-import com.github.mslenc.dbktx.aggr.AggregateQueryImpl
-import com.github.mslenc.dbktx.aggr.AggregateRow
-import com.github.mslenc.dbktx.aggr.BoundAggregateExpr
 import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.schema.Column
 import com.github.mslenc.dbktx.expr.FilterExpr
-import com.github.mslenc.dbktx.expr.SqlEmitter
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.*
 import kotlinx.coroutines.*
@@ -19,6 +14,8 @@ import mu.KLogging
 import java.util.*
 
 import kotlin.collections.LinkedHashMap
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 internal fun <E : DbEntity<E, *>>
@@ -47,37 +44,6 @@ buildSelectQuery(query: EntityQueryImpl<E>): Sql {
     }
 }
 
-internal fun <E : DbEntity<E, *>>
-buildAggregateQuery(query: AggregateQueryImpl<E>): Sql {
-    return Sql().apply {
-        raw("SELECT ")
-        for ((idx: Int, selectable: SqlEmitter) in query.selects.withIndex()) {
-            if (idx > 0)
-                raw(", ")
-            selectable.toSql(this, true)
-        }
-
-        FROM(query.baseTable)
-        WHERE(query.filters)
-        GROUP_BY(query.groupBy)
-
-        if (!query.orderBy.isEmpty()) {
-            +" ORDER BY "
-            tuple(query.orderBy) {
-                +it.expr
-                if (!it.isAscending)
-                    +" DESC"
-            }
-        }
-
-        if (query.offset != null || query.maxRowCount != null) {
-            +" LIMIT "
-            this(query.maxRowCount ?: Integer.MAX_VALUE)
-            +" OFFSET "
-            this(query.offset ?: 0)
-        }
-    }
-}
 
 internal fun <E : DbEntity<E, *>>
 buildCountQuery(query: EntityQueryImpl<E>): Sql {
@@ -434,6 +400,31 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         return db.conn.executeQuery(sql, params).await()
     }
 
+    override suspend fun streamQuery(sqlBuilder: Sql, receiver: (DbRow) -> Unit): Long {
+        val sql = sqlBuilder.getSql()
+        val params = sqlBuilder.params
+        var numRows = 0L
+
+        return suspendCoroutine { cont ->
+            val observer = object : DbQueryResultObserver {
+                override fun onNext(row: DbRow) {
+                    numRows++
+                    receiver(row)
+                }
+
+                override fun onError(t: Throwable) {
+                    cont.resumeWithException(t)
+                }
+
+                override fun onCompleted() {
+                    cont.resume(numRows)
+                }
+            }
+
+            db.conn.streamQuery(sql, observer, params)
+        }
+    }
+
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
     executeInsert(table: TableInQuery<E>, values: EntityValues<E>): ID {
         @Suppress("UNCHECKED_CAST")
@@ -535,14 +526,6 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         query as EntityQueryImpl<E>
 
         return db.enqueueQuery(query.table, buildSelectQuery(query))
-    }
-
-    override suspend fun <E : DbEntity<E,*>>
-    executeSelect(query: AggregateQuery<E>, bindings: Map<Any, BoundAggregateExpr<*>>): List<AggregateRow> {
-        query as AggregateQueryImpl<E>
-
-        val sql = buildAggregateQuery(query)
-        return query(sql).map { AggregateRow(it, bindings) }
     }
 
     override suspend fun <E : DbEntity<E, *>>

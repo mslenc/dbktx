@@ -56,4 +56,8 @@ class SqlTypeDouble(concreteType: SqlTypeKind,
     override val dummyValue: Double = 2 * Math.PI
 
     override val kotlinType: KClass<Double> = Double::class
+
+    companion object {
+        val INSTANCE_FOR_AVG = SqlTypeDouble(SqlTypeKind.DOUBLE, isNotNull = false, isUnsigned = false)
+    }
 }

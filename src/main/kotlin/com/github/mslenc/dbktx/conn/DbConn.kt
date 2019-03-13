@@ -1,11 +1,6 @@
 package com.github.mslenc.dbktx.conn
 
-import com.github.mslenc.asyncdb.DbResultSet
-import com.github.mslenc.asyncdb.DbTxIsolation
-import com.github.mslenc.asyncdb.DbTxMode
-import com.github.mslenc.dbktx.aggr.AggregateQuery
-import com.github.mslenc.dbktx.aggr.AggregateRow
-import com.github.mslenc.dbktx.aggr.BoundAggregateExpr
+import com.github.mslenc.asyncdb.*
 import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.schema.*
@@ -50,16 +45,18 @@ interface DbConn {
     suspend fun query(sqlBuilder: Sql): DbResultSet
 
     /**
+     * Executes arbitrary SELECT SQL in streaming mode. The function will return when streaming is finished.
+     *
+     * @see execute for non-SELECT statements
+     * @return the number of rows processed
+     */
+    suspend fun streamQuery(sqlBuilder: Sql, receiver: (DbRow)->Unit): Long
+
+    /**
      * INTERNAL FUNCTION, use [EntityQuery.run] instead.
      */
     suspend fun <E: DbEntity<E, *>>
     executeSelect(query: EntityQuery<E>): List<E>
-
-    /**
-     * INTERNAL FUNCTION, use [AggregateQuery.run] instead.
-     */
-    suspend fun <E: DbEntity<E, *>>
-    executeSelect(query: AggregateQuery<E>, bindings: Map<Any, BoundAggregateExpr<*>>): List<AggregateRow>
 
     /**
      * INTERNAL FUNCTION, use [EntityQuery.countAll] instead.

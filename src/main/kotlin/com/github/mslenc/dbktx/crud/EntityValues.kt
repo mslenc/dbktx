@@ -11,7 +11,7 @@ class EntityValues<E : DbEntity<E, *>> : Iterable<Column<E, *>> {
 
     fun <T : Any> set(col: Column<E, T>, value: T?) {
         values[col] = value
-        exprs[col] = if (value == null) ExprNull.create() else col.makeLiteral(value)
+        exprs[col] = if (value == null) ExprNull.create(col.sqlType) else col.makeLiteral(value)
     }
 
     fun <T : Any> set(col: Column<E, T>, value: Expr<E, T>) {

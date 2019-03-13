@@ -1,8 +1,6 @@
 package com.github.mslenc.dbktx.crud
 
-import com.github.mslenc.dbktx.aggr.AggregateBuilder
-import com.github.mslenc.dbktx.aggr.AggregateQuery
-import com.github.mslenc.dbktx.aggr.AggregateQueryImpl
+import com.github.mslenc.dbktx.aggr.*
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.buildSelectQuery
 import com.github.mslenc.dbktx.util.EntityState.*
@@ -76,6 +74,8 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
     }
 
     internal fun addFilter(filter: FilterExpr) {
+        checkModifiable()
+
         val existing = this.filters
 
         if (existing != null) {
@@ -142,8 +142,16 @@ interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E>, OrderableQuery<E>
     fun copy(includeOffsetAndLimit: Boolean = false): EntityQuery<E>
     fun copyAndRemapFilters(dstTable: TableInQuery<E>): FilterExpr?
 
-    fun toAggregateQuery(): AggregateQuery<E>
-    fun toAggregateQuery(builder: AggregateBuilder<E>.()->Unit): AggregateQuery<E>
+    suspend fun <OUT: Any> aggregateInto(factory: ()->OUT, queryBuilder: AggrListBuilder<OUT, E>.()->Unit): List<OUT> {
+        return makeAggregateListQuery(factory, queryBuilder).run()
+    }
+
+    suspend fun aggregateStream(queryBuilder: AggrStreamBuilder<E>.()->Unit): Long {
+        return makeAggregateStreamQuery(queryBuilder).run()
+    }
+
+    fun <OUT: Any> makeAggregateListQuery(factory: ()->OUT, queryBuilder: AggrListBuilder<OUT, E>.()->Unit): AggrListQuery<OUT, E>
+    fun makeAggregateStreamQuery(queryBuilder: AggrStreamBuilder<E>.()->Unit): AggrStreamQuery<E>
 }
 
 class TableInQueryBoundFilterBuilder<E: DbEntity<E, *>>(val table: TableInQuery<E>) : FilterBuilder<E> {
@@ -326,8 +334,8 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
         }
     }
 
-    override fun toAggregateQuery(): AggregateQuery<E> {
-        val query = (table.aggregateQuery(db) { }) as AggregateQueryImpl<E>
+    override fun <OUT : Any> makeAggregateListQuery(factory: () -> OUT, queryBuilder: AggrListBuilder<OUT, E>.() -> Unit): AggrListQuery<OUT, E> {
+        val query = table.makeAggregateListQuery(db, factory, {}) as AggrListImpl
 
         filters?.let { oldFilters ->
             val remapper = TableRemapper(query)
@@ -338,10 +346,16 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
         return query
     }
 
-    override fun toAggregateQuery(builder: AggregateBuilder<E>.() -> Unit): AggregateQuery<E> {
-        val aggrQuery = toAggregateQuery()
-        aggrQuery.expand(builder)
-        return aggrQuery
+    override fun makeAggregateStreamQuery(queryBuilder: AggrStreamBuilder<E>.() -> Unit): AggrStreamQuery<E> {
+        val query = table.makeAggregateStreamQuery(db, {}) as AggrStreamImpl
+
+        filters?.let { oldFilters ->
+            val remapper = TableRemapper(query)
+            remapper.addExplicitMapping(baseTable, query.baseTable)
+            query.filter { oldFilters.remap(remapper) }
+        }
+
+        return query
     }
 
     override fun toString(): String {

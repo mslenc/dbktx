@@ -56,4 +56,8 @@ class SqlTypeLong(
     override val dummyValue: Long = 51561L
 
     override val kotlinType: KClass<Long> = Long::class
+
+    companion object {
+        val INSTANCE_FOR_COUNT = SqlTypeLong(SqlTypeKind.BIGINT, true, false, false)
+    }
 }

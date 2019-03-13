@@ -4,6 +4,7 @@ import com.github.mslenc.dbktx.crud.TableRemapper
 import com.github.mslenc.dbktx.filters.FilterBoolean
 import com.github.mslenc.dbktx.filters.FilterBetween
 import com.github.mslenc.dbktx.filters.FilterIsNull
+import com.github.mslenc.dbktx.sqltypes.SqlType
 import com.github.mslenc.dbktx.util.Sql
 
 interface SqlEmitter {
@@ -16,21 +17,23 @@ interface SqlEmitter {
     }
 }
 
-class SqlRange<E, T>(val minumum: Expr<in E, T>,
-                     val maximum: Expr<in E, T>)
+class SqlRange<E, T : Any>(val minumum: Expr<in E, T>,
+                           val maximum: Expr<in E, T>)
 
-interface Expr<E, T> : SqlEmitter {
+interface Expr<E, T : Any> : SqlEmitter {
     operator fun rangeTo(other: Expr<in E, T>): SqlRange<E, T> {
         return SqlRange(this, other)
     }
 
     fun remap(remapper: TableRemapper): Expr<E, T>
 
+    fun getSqlType(): SqlType<T>
+
     val isComposite: Boolean
         get() = false
 }
 
-interface NullableExpr<E, T> : Expr<E, T> {
+interface NullableExpr<E, T : Any> : Expr<E, T> {
     val isNull: FilterExpr
         get() = FilterIsNull(this, isNull = true)
 
@@ -38,11 +41,11 @@ interface NullableExpr<E, T> : Expr<E, T> {
         get() = FilterIsNull(this, isNull = false)
 }
 
-interface NonNullExpr<E, T> : Expr<E, T>
+interface NonNullExpr<E, T : Any> : Expr<E, T>
 
 
 
-interface OrderedExpr<E, T> : Expr<E, T> {
+interface OrderedExpr<E, T : Any> : Expr<E, T> {
 
 
     infix fun between(range: SqlRange<in E, T>): FilterExpr {
@@ -62,8 +65,8 @@ interface OrderedExpr<E, T> : Expr<E, T> {
     }
 }
 
-interface NullableOrderedExpr<E, T>: OrderedExpr<E, T>, NullableExpr<E, T>
-interface NonNullOrderedExpr<E, T>: OrderedExpr<E, T>, NonNullExpr<E, T>
+interface NullableOrderedExpr<E, T : Any>: OrderedExpr<E, T>, NullableExpr<E, T>
+interface NonNullOrderedExpr<E, T : Any>: OrderedExpr<E, T>, NonNullExpr<E, T>
 
 
 interface ExprString<E> : OrderedExpr<E, String>

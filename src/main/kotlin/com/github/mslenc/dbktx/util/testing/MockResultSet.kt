@@ -1,6 +1,7 @@
 package com.github.mslenc.dbktx.util.testing
 
 import com.github.mslenc.asyncdb.DbColumn
+import com.github.mslenc.asyncdb.DbQueryResultObserver
 import com.github.mslenc.asyncdb.DbResultSet
 import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.asyncdb.impl.DbColumnsImpl
@@ -53,6 +54,12 @@ object MockResultSet {
 
         fun build(): DbResultSet {
             return DbResultSetImpl(dbColumns, rows)
+        }
+
+        fun streamInto(observer: DbQueryResultObserver) {
+            for (row in rows)
+                observer.onNext(row)
+            observer.onCompleted()
         }
     }
 }

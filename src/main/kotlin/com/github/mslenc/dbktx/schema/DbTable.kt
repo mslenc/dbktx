@@ -1,9 +1,7 @@
 package com.github.mslenc.dbktx.schema
 
 import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.aggr.AggregateBuilder
-import com.github.mslenc.dbktx.aggr.AggregateQuery
-import com.github.mslenc.dbktx.aggr.AggregateQueryImpl
+import com.github.mslenc.dbktx.aggr.*
 import com.github.mslenc.dbktx.composite.CompositeId
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderInternal
@@ -183,8 +181,14 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return db.enqueueDeleteQuery(this, sql, specificIds)
     }
 
-    fun aggregateQuery(db: DbConn, builder: AggregateBuilder<E>.()->Unit): AggregateQuery<E> {
-        val query = AggregateQueryImpl(this, db)
+    fun <OUT: Any> makeAggregateListQuery(db: DbConn, factory: ()->OUT, builder: AggrListBuilder<OUT, E>.()->Unit): AggrListQuery<OUT, E> {
+        val query = AggrListImpl(this, db, factory)
+        query.expand(builder)
+        return query
+    }
+
+    fun makeAggregateStreamQuery(db: DbConn, builder: AggrStreamBuilder<E>.()->Unit): AggrStreamQuery<E> {
+        val query = AggrStreamImpl(this, db)
         query.expand(builder)
         return query
     }

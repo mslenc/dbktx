@@ -6,7 +6,7 @@ import java.util.concurrent.CompletableFuture
 
 fun <T> wrapForTiming(promise: CompletableFuture<T>): CompletableFuture<T> {
     val started = System.currentTimeMillis()
-    return promise.whenComplete { t, u ->
+    return promise.whenComplete { _, _ ->
         val ended = System.currentTimeMillis()
         DebuggingConnection.logger.debug { "(${ended - started} ms)\n\n" }
     }

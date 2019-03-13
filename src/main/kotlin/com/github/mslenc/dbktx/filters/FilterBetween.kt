@@ -5,7 +5,7 @@ import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.util.Sql
 
-class FilterBetween<E, T>(
+class FilterBetween<E, T: Any>(
         private val value: Expr<in E, T>,
         private val minimum: Expr<in E, T>,
         private val maximum: Expr<in E, T>,
