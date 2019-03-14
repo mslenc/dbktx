@@ -19,6 +19,7 @@ class Invoice(db: DbConn, id: Long, row: DbRow) : DbEntity<Invoice, Long>(db, id
         val INVOICE_DATE = b.nonNullDate("invoice_date", DATE(), Invoice::invoiceDate)
 
         val TIME_ITEMS_SET = b.relToMany { InvoiceTimeItem.INVOICE_REF }
+        val EXPENSE_ITEMS_SET = b.relToMany { InvoiceExpenseItem.INVOICE_REF }
 
         init {
             b.build(::Invoice)

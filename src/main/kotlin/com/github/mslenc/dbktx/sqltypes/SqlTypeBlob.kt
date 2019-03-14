@@ -66,7 +66,7 @@ class SqlTypeBlob(concreteType: SqlTypeKind, size: Int, isNotNull: Boolean) : Sq
         sql(value)
     }
 
-    override val dummyValue: ByteArray = "binary".take(maxSize).toByteArray(ISO_8859_1)
+    override val zeroValue: ByteArray = byteArrayOf()
 
     override val kotlinType: KClass<ByteArray> = ByteArray::class
 }

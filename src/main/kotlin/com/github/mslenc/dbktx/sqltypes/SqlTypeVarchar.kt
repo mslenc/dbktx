@@ -72,7 +72,7 @@ class SqlTypeVarchar(
         sql(value)
     }
 
-    override val dummyValue: String = "properString".take(maxSize)
+    override val zeroValue: String = ""
 
     override val kotlinType: KClass<String> = String::class
 

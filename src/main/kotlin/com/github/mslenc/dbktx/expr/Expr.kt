@@ -29,6 +29,8 @@ interface Expr<E, T : Any> : SqlEmitter {
 
     fun getSqlType(): SqlType<T>
 
+    fun makeLiteral(value: T): Expr<E, T> = Literal(value, getSqlType())
+
     val isComposite: Boolean
         get() = false
 }

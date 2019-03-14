@@ -31,8 +31,7 @@ class SqlTypeBoolean(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<Bo
         throw IllegalArgumentException("Not a boolean value - $value")
     }
 
-    override val dummyValue: Boolean
-        get() = true
+    override val zeroValue: Boolean = false
 
     override fun toSql(value: Boolean, sql: Sql) {
         sql.raw(if (value) "TRUE" else "FALSE")

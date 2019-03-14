@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets.ISO_8859_1
 import kotlin.reflect.KClass
 
 abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<UUID>(isNotNull = isNotNull) {
-    override val dummyValue: UUID = UUID.randomUUID()
+    override val zeroValue: UUID = UUID(0L, 0L)
 
     override val kotlinType: KClass<UUID> = UUID::class
 

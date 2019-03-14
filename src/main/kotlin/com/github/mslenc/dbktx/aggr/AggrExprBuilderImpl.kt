@@ -4,6 +4,7 @@ import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.expr.BinaryOp
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.ExprBinary
+import com.github.mslenc.dbktx.expr.ExprCoalesce
 import com.github.mslenc.dbktx.schema.Column
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.RelToMany
@@ -85,5 +86,9 @@ internal class AggrExprBuilderImpl<E: DbEntity<E, *>>(val tableInQuery: TableInQ
         val midTable = tableInQuery.innerJoin(this)
         val nextTable = midTable.innerJoin(relToMany)
         return RelPathImpl(nextTable)
+    }
+
+    override fun <T : Any> coalesce(vararg options: Expr<E, T>, ifAllNull: T?): Expr<E, T> {
+        return ExprCoalesce.create(options.toList(), ifAllNull)
     }
 }

@@ -32,7 +32,7 @@ class SqlTypeYear(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<Year>
         throw IllegalArgumentException("Not a year value - $value")
     }
 
-    override val dummyValue: Year = Year.of(2017)
+    override val zeroValue: Year = Year.of(0) // 1BC ?
 
     override fun toSql(value: Year, sql: Sql) {
         sql(value.value)

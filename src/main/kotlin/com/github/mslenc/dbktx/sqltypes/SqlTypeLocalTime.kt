@@ -34,7 +34,7 @@ class SqlTypeLocalTime(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<
         return value.format(LOCAL_TIME_FORMAT)
     }
 
-    override val dummyValue: LocalTime = LocalTime.now()
+    override val zeroValue: LocalTime = LocalTime.of(0, 0, 0)
 
     override fun toSql(value: LocalTime, sql: Sql) {
         sql(value)

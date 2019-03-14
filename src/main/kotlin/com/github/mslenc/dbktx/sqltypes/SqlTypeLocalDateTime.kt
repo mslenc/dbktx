@@ -5,6 +5,7 @@ import com.github.mslenc.asyncdb.impl.values.DbValueLocalDateTime
 import com.github.mslenc.dbktx.util.Sql
 
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatterBuilder
 import kotlin.reflect.KClass
@@ -38,8 +39,7 @@ class SqlTypeLocalDateTime(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlT
         sql(value)
     }
 
-    override val dummyValue: LocalDateTime
-        get() = LocalDateTime.now()
+    override val zeroValue: LocalDateTime = LocalDateTime.ofEpochSecond(0L, 0, ZoneOffset.UTC)
 
     override val kotlinType: KClass<LocalDateTime> = LocalDateTime::class
 

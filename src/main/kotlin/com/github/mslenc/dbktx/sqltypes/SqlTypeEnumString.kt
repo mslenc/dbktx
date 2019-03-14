@@ -6,7 +6,7 @@ import com.github.mslenc.dbktx.util.Sql
 import java.lang.IllegalArgumentException
 import kotlin.reflect.KClass
 
-class SqlTypeEnumString<ENUM : Enum<ENUM>>(override val kotlinType: KClass<ENUM>, private val toDbRep: (ENUM)->String, private val fromDbRep: (String)->ENUM, isNotNull: Boolean, override val dummyValue: ENUM) : SqlType<ENUM>(isNotNull = isNotNull) {
+class SqlTypeEnumString<ENUM : Enum<ENUM>>(override val kotlinType: KClass<ENUM>, private val toDbRep: (ENUM)->String, private val fromDbRep: (String)->ENUM, isNotNull: Boolean, override val zeroValue: ENUM) : SqlType<ENUM>(isNotNull = isNotNull) {
     override fun parseDbValue(value: DbValue): ENUM {
         return fromDbRep(value.asString())
     }

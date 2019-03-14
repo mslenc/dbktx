@@ -7,7 +7,7 @@ import java.lang.IllegalArgumentException
 import kotlin.reflect.KClass
 
 @PublishedApi
-internal class SqlTypeEnumInt<ENUM : Enum<ENUM>>(override val kotlinType: KClass<ENUM>, private val toDbRep: (ENUM)->Int, private val fromDbRep: (Int)->ENUM, isNotNull: Boolean, override val dummyValue: ENUM) : SqlType<ENUM>(isNotNull = isNotNull) {
+internal class SqlTypeEnumInt<ENUM : Enum<ENUM>>(override val kotlinType: KClass<ENUM>, private val toDbRep: (ENUM)->Int, private val fromDbRep: (Int)->ENUM, isNotNull: Boolean, override val zeroValue: ENUM) : SqlType<ENUM>(isNotNull = isNotNull) {
     override fun parseDbValue(value: DbValue): ENUM {
         return fromDbRep(value.asInt())
     }

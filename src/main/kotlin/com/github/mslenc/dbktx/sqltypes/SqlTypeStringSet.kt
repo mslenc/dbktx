@@ -70,8 +70,8 @@ class SqlTypeStringSet(private val concreteType: SqlTypeKind,
         throw IllegalArgumentException("Not a string: $value")
     }
 
-    override val dummyValue: StringSet
-        get() = setOf("someValue").toStringSet()
+    override val zeroValue: StringSet
+        get() = emptySet<String>().toStringSet()
 
     override val kotlinType: KClass<StringSet>
         get() = StringSet::class

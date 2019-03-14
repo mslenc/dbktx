@@ -4,10 +4,7 @@ import com.github.mslenc.asyncdb.DbQueryResultObserver
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.schemas.test2.*
-import com.github.mslenc.dbktx.schemas.test3.Invoice
-import com.github.mslenc.dbktx.schemas.test3.InvoiceDailyTimeItem
-import com.github.mslenc.dbktx.schemas.test3.InvoiceTimeItem
-import com.github.mslenc.dbktx.schemas.test3.TestSchema3
+import com.github.mslenc.dbktx.schemas.test3.*
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
 import com.github.mslenc.dbktx.util.testing.toLD
@@ -248,5 +245,73 @@ class AggregateTest {
         assertEquals(1521.6.toBigDecimal(), result.totalFee)
         assertEquals("2019-02-01".toLD(), result.firstDate)
         assertEquals("2019-02-27".toLD(), result.lastDate)
+    }
+
+    class ExpenseSummary {
+        var numInvoices: Long = 0
+        var numExpenses: Long = 0
+        var baseAmount: BigDecimal? = null
+        var totalAmount: BigDecimal? = null
+    }
+
+    @Test
+    fun testFormulaQuery() = runBlocking {
+        val called = AtomicBoolean(false)
+        var theSql: String? = null
+        var theParams: List<Any?> = emptyList()
+
+        val connection = object : MockDbConnection() {
+            override fun streamQuery(sql: String, observer: DbQueryResultObserver, args: List<Any?>) {
+                theSql = sql
+                theParams = args
+                called.set(true)
+
+                println(sql)
+
+                MockResultSet.Builder(
+                        "COUNT(DISTINCT I.id)", "COUNT(DISTINCT IEI.id)", "SUM(IDEI.amount)", "SUM((IDEI.amount * (1 + (COALESCE(IDEI.markup_perc, 0) / 100))) + COALESCE(IDEI.markup_amount, 0))"
+                ).
+                addRow(     3L,                     25L,                      541.6,                            851.44).
+                streamInto(observer)
+            }
+        }
+
+        val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
+
+        val query =
+            Invoice.makeAggregateListQuery(db, ::ExpenseSummary) {
+                ExpenseSummary::numInvoices becomes countDistinct { +Invoice.ID }
+                ExpenseSummary::numExpenses becomes countDistinct { Invoice.EXPENSE_ITEMS_SET..InvoiceExpenseItem.ID }
+
+                innerJoin(Invoice.EXPENSE_ITEMS_SET) {
+                    filter { InvoiceExpenseItem.BILLABLE eq true }
+
+                    innerJoin(InvoiceExpenseItem.DAILY_ITEMS_SET) {
+                        ExpenseSummary::baseAmount becomes sum { +InvoiceDailyExpenseItem.AMOUNT }
+
+                        ExpenseSummary::totalAmount becomes sum { InvoiceDailyExpenseItem.AMOUNT * (1.0.toBigDecimal() + InvoiceDailyExpenseItem.MARKUP_PERC.orZero() / 100.toBigDecimal()) + InvoiceDailyExpenseItem.MARKUP_AMOUNT.orZero() }
+                    }
+                }
+            }
+
+        val result = query.run().first()
+
+        assertEquals(
+                "SELECT COUNT(DISTINCT I.\"id\"), " +
+                       "COUNT(DISTINCT IEI.\"id\"), " +
+                       "SUM(IDEI.\"amount\"), " +
+                       "SUM((IDEI.\"amount\" * (1.0 + (COALESCE(IDEI.\"markup_perc\", 0) / 100))) + COALESCE(IDEI.\"markup_amount\", 0)) " +
+                "FROM \"invoice\" AS I " +
+                "INNER JOIN \"invoice_expense_item\" AS IEI ON I.\"id\" = IEI.\"invoice_id\" " +
+                "INNER JOIN \"invoice_daily_expense_item\" AS IDEI ON IEI.\"id\" = IDEI.\"invoice_expense_item_id\" " +
+                "WHERE IEI.\"billable\" = TRUE",
+                theSql)
+
+        assertEquals(0, theParams.size)
+
+        assertEquals(3L, result.numInvoices)
+        assertEquals(25L, result.numExpenses)
+        assertEquals(541.6.toBigDecimal(), result.baseAmount)
+        assertEquals(851.44.toBigDecimal(), result.totalAmount)
     }
 }

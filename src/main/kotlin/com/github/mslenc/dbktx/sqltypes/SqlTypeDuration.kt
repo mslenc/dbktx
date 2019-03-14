@@ -75,7 +75,7 @@ class SqlTypeDuration(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<D
         sql(value)
     }
 
-    override val dummyValue: Duration = Duration.ofSeconds(31415)
+    override val zeroValue: Duration = Duration.ofSeconds(0)
 
     override val kotlinType: KClass<Duration> = Duration::class
 

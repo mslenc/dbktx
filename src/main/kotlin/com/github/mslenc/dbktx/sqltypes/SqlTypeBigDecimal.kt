@@ -56,7 +56,7 @@ class SqlTypeBigDecimal(concreteType: SqlTypeKind,
         sql(value)
     }
 
-    override val dummyValue: BigDecimal = BigDecimal.ONE
+    override val zeroValue: BigDecimal = BigDecimal.ZERO
 
     override val kotlinType: KClass<BigDecimal> = BigDecimal::class
 }

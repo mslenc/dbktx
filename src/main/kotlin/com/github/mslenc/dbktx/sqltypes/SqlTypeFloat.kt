@@ -36,7 +36,7 @@ class SqlTypeFloat(concreteType: SqlTypeKind,
         sql(value)
     }
 
-    override val dummyValue: Float = Math.PI.toFloat()
+    override val zeroValue: Float = 0.0f
 
     override val kotlinType: KClass<Float> = Float::class
 }

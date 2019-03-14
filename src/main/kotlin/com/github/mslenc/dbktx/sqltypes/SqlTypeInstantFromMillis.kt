@@ -32,8 +32,7 @@ class SqlTypeInstantFromMillis(concreteType: SqlTypeKind, isNotNull: Boolean) : 
         throw IllegalArgumentException("Not a number: $value")
     }
 
-    override val dummyValue: Instant
-        get() = Instant.now()
+    override val zeroValue: Instant = Instant.ofEpochMilli(0L)
 
     override fun toSql(value: Instant, sql: Sql) {
         sql(value.toEpochMilli())

@@ -31,8 +31,7 @@ class SqlTypeIntBoolean(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType
         throw IllegalArgumentException("Not a number: $value")
     }
 
-    override val dummyValue: Boolean
-        get() = true
+    override val zeroValue: Boolean = false
 
     override fun toSql(value: Boolean, sql: Sql) {
         sql(if (value) 1 else 0)

@@ -53,7 +53,7 @@ class SqlTypeLong(
         sql(value)
     }
 
-    override val dummyValue: Long = 51561L
+    override val zeroValue: Long = 0L
 
     override val kotlinType: KClass<Long> = Long::class
 

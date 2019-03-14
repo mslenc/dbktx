@@ -29,9 +29,9 @@ abstract class SqlType<T: Any> protected constructor(val isNotNull: Boolean, val
     abstract fun decodeFromJson(value: Any): T
 
     /**
-     * A dummy value of the appropriate type. Used internally for various shenanigans.
+     * A zero value of the appropriate type. Used for replacing nulls and for various other shenanigans.
      */
-    internal abstract val dummyValue: T
+    internal abstract val zeroValue: T
 
     /**
      * The class T

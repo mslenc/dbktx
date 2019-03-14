@@ -53,7 +53,7 @@ class SqlTypeDouble(concreteType: SqlTypeKind,
         sql(value)
     }
 
-    override val dummyValue: Double = 2 * Math.PI
+    override val zeroValue: Double = 0.0
 
     override val kotlinType: KClass<Double> = Double::class
 

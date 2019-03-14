@@ -54,7 +54,7 @@ class SqlTypeULong(
         sql(value)
     }
 
-    override val dummyValue: ULong = ULong.valueOf(125)
+    override val zeroValue: ULong = ULong.valueOf(0)
 
     override val kotlinType: KClass<ULong> = ULong::class
 }

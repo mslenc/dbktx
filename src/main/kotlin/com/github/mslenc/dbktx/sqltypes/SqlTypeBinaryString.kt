@@ -64,7 +64,7 @@ class SqlTypeBinaryString(concreteType: SqlTypeKind, size: Int?, isNotNull: Bool
         sql(value.toByteArray(charset))
     }
 
-    override val dummyValue: String = "binaryString".take(maxSize)
+    override val zeroValue: String = ""
 
     override val kotlinType: KClass<String> = String::class
 }

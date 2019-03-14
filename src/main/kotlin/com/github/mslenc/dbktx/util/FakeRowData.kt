@@ -28,7 +28,7 @@ class FakeRowData : DbRow {
     }
 
     fun <T: Any> insertDummyValue(column: Column<*, T>) {
-        put(column, column.sqlType.dummyValue)
+        put(column, column.sqlType.zeroValue)
     }
 
     fun <T: Any> insertJsonValue(column: Column<*, T>, value: Any) {

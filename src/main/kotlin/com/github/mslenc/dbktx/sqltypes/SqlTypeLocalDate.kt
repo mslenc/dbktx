@@ -36,8 +36,8 @@ class SqlTypeLocalDate(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<
         sql(value)
     }
 
-    override val dummyValue: LocalDate
-        get() = LocalDate.now()
+    override val zeroValue: LocalDate
+        get() = LocalDate.of(1970, 1, 1)
 
     override val kotlinType: KClass<LocalDate> = LocalDate::class
 }
