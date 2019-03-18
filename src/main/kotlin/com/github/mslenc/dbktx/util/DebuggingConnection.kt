@@ -4,16 +4,14 @@ import com.github.mslenc.asyncdb.*
 import mu.KLogging
 import java.util.concurrent.CompletableFuture
 
-fun <T> wrapForTiming(promise: CompletableFuture<T>): CompletableFuture<T> {
-    val started = System.currentTimeMillis()
+fun <T> wrapForTiming(promise: CompletableFuture<T>, started: Long): CompletableFuture<T> {
     return promise.whenComplete { _, _ ->
         val ended = System.currentTimeMillis()
         DebuggingConnection.logger.debug { "(${ended - started} ms)\n\n" }
     }
 }
 
-fun wrapForTiming(observer: DbQueryResultObserver): DbQueryResultObserver {
-    val started = System.currentTimeMillis()
+fun wrapForTiming(observer: DbQueryResultObserver, started: Long): DbQueryResultObserver {
     var rows = 0
 
     return object : DbQueryResultObserver {
@@ -56,12 +54,14 @@ class DebuggingPreparedStatement(private val stmt: DbPreparedStatement, private 
 
     override fun streamQuery(observer: DbQueryResultObserver, args: List<Any?>) {
         logger.debug { "Streaming PS with params $args:\n$sql" }
-        stmt.streamQuery(wrapForTiming(observer), args)
+        val started = System.currentTimeMillis()
+        stmt.streamQuery(wrapForTiming(observer, started), args)
     }
 
     override fun streamQuery(streamHandler: DbQueryResultObserver, vararg values: Any?) {
         logger.debug { "Streaming PS with params ${values.toList()}:\n$sql" }
-        stmt.streamQuery(wrapForTiming(streamHandler), *values)
+        val started = System.currentTimeMillis()
+        stmt.streamQuery(wrapForTiming(streamHandler, started), *values)
     }
 
     override fun close(): CompletableFuture<Void> {
@@ -70,32 +70,38 @@ class DebuggingPreparedStatement(private val stmt: DbPreparedStatement, private 
 
     override fun execute(args: List<Any?>): CompletableFuture<DbExecResult> {
         logger.debug { "Executing PS with params $args:\n$sql" }
-        return wrapForTiming(stmt.execute(args))
+        val started = System.currentTimeMillis()
+        return wrapForTiming(stmt.execute(args), started)
     }
 
     override fun execute(vararg values: Any?): CompletableFuture<DbExecResult> {
         logger.debug { "Executing PS with params ${values.toList()}:\n$sql" }
-        return wrapForTiming(stmt.execute(*values))
+        val started = System.currentTimeMillis()
+        return wrapForTiming(stmt.execute(*values), started)
     }
 
     override fun executeQuery(values: List<Any?>): CompletableFuture<DbResultSet> {
         logger.debug { "Executing PS query with params $values:\n$sql" }
-        return wrapForTiming(stmt.executeQuery(values))
+        val started = System.currentTimeMillis()
+        return wrapForTiming(stmt.executeQuery(values), started)
     }
 
     override fun executeQuery(vararg values: Any?): CompletableFuture<DbResultSet> {
         logger.debug { "Executing PS query with params ${values.toList()}:\n$sql" }
-        return wrapForTiming(stmt.executeQuery(*values))
+        val started = System.currentTimeMillis()
+        return wrapForTiming(stmt.executeQuery(*values), started)
     }
 
     override fun executeUpdate(values: List<Any?>): CompletableFuture<DbUpdateResult> {
         logger.debug { "Executing PS update with params $values:\n$sql" }
-        return wrapForTiming(stmt.executeUpdate(values))
+        val started = System.currentTimeMillis()
+        return wrapForTiming(stmt.executeUpdate(values), started)
     }
 
     override fun executeUpdate(vararg values: Any?): CompletableFuture<DbUpdateResult> {
         logger.debug { "Executing PS update with params ${values.toList()}:\n$sql" }
-        return wrapForTiming(stmt.executeUpdate(*values))
+        val started = System.currentTimeMillis()
+        return wrapForTiming(stmt.executeUpdate(*values), started)
     }
 
     companion object : KLogging()
@@ -136,47 +142,56 @@ class DebuggingConnection(private val conn: DbConnection) : DbConnection {
 
     override fun execute(sql: String): CompletableFuture<DbExecResult> {
         logger.debug { "Querying with no params:\n$sql" }
-        return wrapForTiming(conn.execute(sql))
+        val started = System.currentTimeMillis()
+        return wrapForTiming(conn.execute(sql), started)
     }
 
     override fun execute(sql: String, params: List<Any?>): CompletableFuture<DbExecResult> {
         logger.debug { "Querying with params $params:\n$sql" }
-        return wrapForTiming(conn.execute(sql, params))
+        val started = System.currentTimeMillis()
+        return wrapForTiming(conn.execute(sql, params), started)
     }
 
     override fun execute(sql: String, vararg params: Any?): CompletableFuture<DbExecResult> {
         logger.debug { "Querying with params ${ params.toList() }:\n$sql" }
-        return wrapForTiming(conn.execute(sql, *params))
+        val started = System.currentTimeMillis()
+        return wrapForTiming(conn.execute(sql, *params), started)
     }
 
     override fun executeQuery(sql: String): CompletableFuture<DbResultSet> {
         logger.debug { "Querying with no params:\n$sql" }
-        return wrapForTiming(conn.executeQuery(sql))
+        val started = System.currentTimeMillis()
+        return wrapForTiming(conn.executeQuery(sql), started)
     }
 
     override fun executeQuery(sql: String, values: List<Any?>): CompletableFuture<DbResultSet> {
         logger.debug { "Querying with params $values:\n$sql" }
-        return wrapForTiming(conn.executeQuery(sql, values))
+        val started = System.currentTimeMillis()
+        return wrapForTiming(conn.executeQuery(sql, values), started)
     }
 
     override fun executeQuery(sql: String, vararg values: Any?): CompletableFuture<DbResultSet> {
         logger.debug { "Querying with params ${ values.toList() }:\n$sql" }
-        return wrapForTiming(conn.executeQuery(sql, *values))
+        val started = System.currentTimeMillis()
+        return wrapForTiming(conn.executeQuery(sql, *values), started)
     }
 
     override fun executeUpdate(sql: String): CompletableFuture<DbUpdateResult> {
         logger.debug { "Updating with no params:\n$sql" }
-        return wrapForTiming(conn.executeUpdate(sql))
+        val started = System.currentTimeMillis()
+        return wrapForTiming(conn.executeUpdate(sql), started)
     }
 
     override fun executeUpdate(sql: String?, values: List<Any?>): CompletableFuture<DbUpdateResult> {
         logger.debug { "Updating with params $values:\n$sql" }
-        return wrapForTiming(conn.executeUpdate(sql, values))
+        val started = System.currentTimeMillis()
+        return wrapForTiming(conn.executeUpdate(sql, values), started)
     }
 
     override fun executeUpdate(sql: String?, vararg values: Any?): CompletableFuture<DbUpdateResult> {
         logger.debug { "Querying with params ${ values.toList() }:\n$sql" }
-        return wrapForTiming(conn.executeUpdate(sql, *values))
+        val started = System.currentTimeMillis()
+        return wrapForTiming(conn.executeUpdate(sql, *values), started)
     }
 
     override fun prepareStatement(sql: String): CompletableFuture<DbPreparedStatement> {
@@ -185,17 +200,20 @@ class DebuggingConnection(private val conn: DbConnection) : DbConnection {
 
     override fun streamQuery(sql: String, observer: DbQueryResultObserver) {
         logger.debug { "Streaming with no params:\n$sql" }
-        conn.streamQuery(sql, wrapForTiming(observer))
+        val started = System.currentTimeMillis()
+        conn.streamQuery(sql, wrapForTiming(observer, started))
     }
 
     override fun streamQuery(sql: String, observer: DbQueryResultObserver, args: List<Any?>) {
         logger.debug { "Streaming with params $args:\n$sql" }
-        conn.streamQuery(sql, wrapForTiming(observer), args)
+        val started = System.currentTimeMillis()
+        conn.streamQuery(sql, wrapForTiming(observer, started), args)
     }
 
-    override fun streamQuery(sql: String?, streamHandler: DbQueryResultObserver?, vararg values: Any?) {
+    override fun streamQuery(sql: String, streamHandler: DbQueryResultObserver, vararg values: Any?) {
         logger.debug { "Streaming with params ${values.toList()}:\n$sql" }
-        conn.streamQuery(sql, streamHandler, *values)
+        val started = System.currentTimeMillis()
+        conn.streamQuery(sql, wrapForTiming(streamHandler, started), *values)
     }
 
     override fun getConfig(): DbConfig {

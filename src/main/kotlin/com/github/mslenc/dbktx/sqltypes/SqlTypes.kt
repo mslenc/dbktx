@@ -113,6 +113,9 @@ internal object SqlTypes {
             DATE ->
                 return SqlTypeLocalDate(sqlType, isNotNull = isNotNull)
 
+            DATETIME ->
+                return SqlTypeLocalDateIgnoringTime(sqlType, isNotNull = isNotNull)
+
             else ->
                 throw UnsupportedOperationException("No mapping from $sqlType to LocalDate")
         }
