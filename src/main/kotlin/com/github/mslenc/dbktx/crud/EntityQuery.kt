@@ -343,6 +343,8 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
             query.filter { oldFilters.remap(remapper) }
         }
 
+        query.expand(queryBuilder)
+
         return query
     }
 
@@ -354,6 +356,8 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
             remapper.addExplicitMapping(baseTable, query.baseTable)
             query.filter { oldFilters.remap(remapper) }
         }
+
+        query.expand(queryBuilder)
 
         return query
     }
