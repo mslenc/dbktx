@@ -187,7 +187,7 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return query
     }
 
-    fun makeAggregateStreamQuery(db: DbConn, builder: AggrStreamBuilder<E>.()->Unit): AggrStreamQuery<E> {
+    fun makeAggregateStreamQuery(db: DbConn, builder: AggrStreamTopLevelBuilder<E>.()->Unit): AggrStreamQuery<E> {
         val query = AggrStreamImpl(this, db)
         query.expand(builder)
         return query

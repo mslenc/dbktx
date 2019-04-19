@@ -50,6 +50,10 @@ internal class DbUpdateImpl<E : DbEntity<E, ID>, ID: Any>(
     override suspend fun execute(): Long {
         return db.executeUpdate(table, filters, values, specificIds)
     }
+
+    override fun anyChangesSoFar(): Boolean {
+        return !values.isEmpty()
+    }
 }
 
 internal class DbColumnMutationImpl<E: DbEntity<E, *>, T: Any>(private val update: DbUpdateImpl<E, *>, private val column: Column<E, T>) : DbColumnMutation<E, T> {

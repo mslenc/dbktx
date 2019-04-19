@@ -24,5 +24,7 @@ interface DbColumnMutation<E: DbEntity<E, *>, T: Any> {
 interface DbUpdate<E : DbEntity<E, *>> : DbMutation<E> {
     operator fun <T : Any> get(column: Column<E, T>): DbColumnMutation<E, T>
 
+    fun anyChangesSoFar(): Boolean
+
     suspend fun execute(): Long
 }

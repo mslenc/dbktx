@@ -10,6 +10,8 @@ interface ColumnUpdateOps<E: DbEntity<E, *>, T: Any> {
     fun literal(value: T): Expr<E, T>
     fun bind(column: Column<E, T>): Expr<E, T>
 
+    operator fun Column<E, T>.unaryPlus() = bind(this)
+
     operator fun Expr<E, T>.plus(other: Expr<E, T>): Expr<E, T> = ExprBinary(this, BinaryOp.PLUS, other)
     operator fun Expr<E, T>.plus(other: Column<E, T>) = this + bind(other)
     operator fun Expr<E, T>.plus(other: T) = this + literal(other)
