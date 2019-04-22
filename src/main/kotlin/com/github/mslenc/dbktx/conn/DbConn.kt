@@ -56,7 +56,7 @@ interface DbConn {
      * INTERNAL FUNCTION, use [EntityQuery.run] instead.
      */
     suspend fun <E: DbEntity<E, *>>
-    executeSelect(query: EntityQuery<E>): List<E>
+    executeSelect(query: EntityQuery<E>, selectForUpdate: Boolean): List<E>
 
     /**
      * INTERNAL FUNCTION, use [EntityQuery.countAll] instead.
@@ -336,4 +336,21 @@ interface DbConn {
      */
     fun <E : DbEntity<E, ID>, ID: Any>
     newQuery(table: DbTable<E, ID>) = table.newQuery(this)
+
+    /**
+     * Flushes all internal caches. Note that if there are any outstanding queries, they will all
+     * be failed, so it's likely it only makes sense to call this is non-concurrent code.
+     */
+    fun
+    flushAllCaches()
+
+    /**
+     * Flushes the cache for a specific table. Use this when you know the table contents changed
+     * in some way DbConn doesn't see/recognize (e.g. if you run raw queries that do so, or if
+     * the data is changed in some other way external to DbConn). Note that to-many caches
+     * involving the table will be flushed as well. Also note that any related outstanding queries
+     * will all be failed, so it's likely it only makes sense to call this in non-concurrent code.
+     */
+    fun <E : DbEntity<E, ID>, ID: Any>
+    flushTableCache(table: DbTable<E, ID>)
 }

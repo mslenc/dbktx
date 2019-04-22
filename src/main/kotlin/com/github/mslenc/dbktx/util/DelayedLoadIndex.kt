@@ -123,10 +123,10 @@ internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>, val 
         return dbLoaderImpl.loadDelayedTable(this)
     }
 
-    fun rowLoaded(db: DbConn, row: DbRow): E {
+    fun rowLoaded(db: DbConn, row: DbRow, selectForUpdate: Boolean): E {
         // first, we create/reuse the entity; then we go through all indexes and insert the entity in them..
 
-        val entity: E = metainfo.callInsertAndResolveEntityInIndex(this, db, row)
+        val entity: E = metainfo.callInsertAndResolveEntityInIndex(this, db, row, selectForUpdate)
 
         for (i in 1 until indexes.size) {
             val index = indexes[i]
@@ -137,7 +137,7 @@ internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>, val 
     }
 
     internal fun <Z: DbEntity<Z, T>, T: Any>
-    insertAndResolveEntityInIndex(db: DbConn, metainfo: DbTable<Z, T>, row: DbRow): Z {
+    insertAndResolveEntityInIndex(db: DbConn, metainfo: DbTable<Z, T>, row: DbRow, selectForUpdate: Boolean): Z {
         @Suppress("UNCHECKED_CAST")
         val primaryIndex = indexes[0] as SingleKeyIndex<Z, T>
         val primaryId: T = primaryIndex.keyDef.invoke(row)
@@ -146,7 +146,7 @@ internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>, val 
         val entity: Z
         if (primaryInfo.state == EntityState.LOADED) {
             val entityMaybe = primaryInfo.value
-            if (entityMaybe != null) {
+            if (entityMaybe != null && !selectForUpdate) {
                 entity = entityMaybe
             } else {
                 entity = metainfo.create(db, primaryId, row)

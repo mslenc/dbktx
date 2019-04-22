@@ -19,7 +19,7 @@ import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 internal fun <E : DbEntity<E, *>>
-buildSelectQuery(query: EntityQueryImpl<E>): Sql {
+buildSelectQuery(query: EntityQueryImpl<E>, selectForUpdate: Boolean): Sql {
 
     return Sql().apply {
         SELECT(query.table.defaultColumnNames)
@@ -40,6 +40,10 @@ buildSelectQuery(query: EntityQueryImpl<E>): Sql {
             this(query.maxRowCount ?: Integer.MAX_VALUE)
             +" OFFSET "
             this(query.offset ?: 0)
+        }
+
+        if (selectForUpdate) {
+            +" FOR UPDATE"
         }
     }
 }
@@ -199,11 +203,11 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
     }
 
     private suspend fun <E : DbEntity<E, *>>
-    queryNow(entities: EntityIndex<E>, sb: Sql): List<E> {
+    queryNow(entities: EntityIndex<E>, sb: Sql, selectForUpdate: Boolean): List<E> {
         val res = ArrayList<E>()
 
         for (row in queryNow(sb)) {
-            val entity: E = entities.rowLoaded(publicDb, row)
+            val entity: E = entities.rowLoaded(publicDb, row, selectForUpdate)
             res.add(entity)
         }
 
@@ -261,7 +265,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
             WHERE(filterExpr)
         }
 
-        return queryNow(entities, sb)
+        return queryNow(entities, sb, false)
     }
 
     private suspend fun queryNow(sqlBuilder: Sql): DbResultSet {
@@ -303,7 +307,6 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
 
         val updateResult = conn.executeUpdate(sql, params).await()
 
-        // TODO: use specificIdx to not destroy so much cache (think about it, anyway)
         masterIndex.flushRelated(table)
 
         return updateResult.rowsAffected
@@ -318,7 +321,6 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
 
         val updateResult = conn.executeUpdate(sql, params).await()
 
-        // TODO: use specificIds to not destroy so much cache
         masterIndex.flushRelated(table)
 
         return updateResult.rowsAffected
@@ -349,8 +351,8 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
 
             EntityState.INITIAL -> {
                 logger.trace("Adding key {} of table {} to list for loading and initiating load", key, table.dbName)
-                scheduleDelayedExec()
                 index.addKeyToLoad(key)
+                scheduleDelayedExec()
                 return suspendCoroutine(entityInfo::startedLoading)
             }
         }
@@ -372,18 +374,17 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
             }
 
             EntityState.INITIAL -> {
-                scheduleDelayedExec()
                 relInfo.addKeyToLoad(fromKey)
+                scheduleDelayedExec()
                 suspendCoroutine(loadState::startedLoading)
             }
         }
     }
 
     internal suspend fun <E : DbEntity<E, *>>
-    enqueueQuery(table: DbTable<E, *>, sb: Sql): List<E> {
+    enqueueQuery(table: DbTable<E, *>, sb: Sql, selectForUpdate: Boolean): List<E> {
         val entities = masterIndex[table]
-
-        return queryNow(entities, sb)
+        return queryNow(entities, sb, selectForUpdate)
     }
 
     companion object : KLogging()
@@ -398,6 +399,14 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         val params = sqlBuilder.params
 
         return db.conn.executeQuery(sql, params).await()
+    }
+
+    override fun <E : DbEntity<E, ID>, ID : Any> flushTableCache(table: DbTable<E, ID>) {
+        db.masterIndex.flushRelated(table)
+    }
+
+    override fun flushAllCaches() {
+        db.masterIndex.flushAll()
     }
 
     override suspend fun streamQuery(sqlBuilder: Sql, receiver: (DbRow) -> Unit): Long {
@@ -522,10 +531,10 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
     }
 
     override suspend fun <E : DbEntity<E,*>>
-    executeSelect(query: EntityQuery<E>): List<E> {
+    executeSelect(query: EntityQuery<E>, selectForUpdate: Boolean): List<E> {
         query as EntityQueryImpl<E>
 
-        return db.enqueueQuery(query.table, buildSelectQuery(query))
+        return db.enqueueQuery(query.table, buildSelectQuery(query, selectForUpdate), selectForUpdate)
     }
 
     override suspend fun <E : DbEntity<E, *>>
@@ -673,7 +682,7 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
                 throw IllegalArgumentException("Missing value for column ${column.fieldName}")
         }
 
-        return db.masterIndex[table].rowLoaded(this, decoded)
+        return db.masterIndex[table].rowLoaded(this, decoded, false)
     }
 
     companion object : KLogging()

@@ -173,8 +173,8 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return update
     }
 
-    internal fun callInsertAndResolveEntityInIndex(entityIndex: EntityIndex<E>, db: DbConn, row: DbRow): E {
-        return entityIndex.insertAndResolveEntityInIndex(db, this, row)
+    internal fun callInsertAndResolveEntityInIndex(entityIndex: EntityIndex<E>, db: DbConn, row: DbRow, selectForUpdate: Boolean): E {
+        return entityIndex.insertAndResolveEntityInIndex(db, this, row, selectForUpdate)
     }
 
     internal suspend fun callEnqueueDeleteQuery(db: DbLoaderInternal, sql: Sql, specificIds: Set<ID>?): Long {

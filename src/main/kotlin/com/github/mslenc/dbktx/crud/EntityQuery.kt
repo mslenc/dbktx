@@ -136,7 +136,7 @@ interface OrderableQuery<E: DbEntity<E, *>> {
 interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E>, OrderableQuery<E> {
     val db: DbConn
 
-    suspend fun run(): List<E>
+    suspend fun run(selectForUpdate: Boolean = false): List<E>
     suspend fun countAll(): Long
 
     fun copy(includeOffsetAndLimit: Boolean = false): EntityQuery<E>
@@ -239,11 +239,11 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
     private val queryState = DelayedLoadState<List<E>>(loader.scope)
     private val countState = DelayedLoadState<Long>(loader.scope)
 
-    override suspend fun run(): List<E> {
+    override suspend fun run(selectForUpdate: Boolean): List<E> {
         return when (queryState.state) {
             LOADED  -> queryState.value
             LOADING -> suspendCoroutine(queryState::addReceiver)
-            INITIAL -> queryState.startLoading({ loader.executeSelect(this) })
+            INITIAL -> queryState.startLoading({ loader.executeSelect(this, selectForUpdate) })
         }
     }
 
@@ -363,6 +363,6 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
     }
 
     override fun toString(): String {
-        return buildSelectQuery(this).getSql()
+        return buildSelectQuery(this, false).getSql()
     }
 }

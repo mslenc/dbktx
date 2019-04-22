@@ -41,6 +41,48 @@ class DbLoaderTest {
     }
 
     @Test
+    fun testSelectForUpdate() = runBlocking {
+        var called = false
+
+        val companyId = UUID.randomUUID()
+
+        var theSql = ""
+        var theParams: List<Any?> = arrayListOf()
+
+        val conn = object: MockDbConnection() {
+            override fun execute(sql: String, args: List<Any?>): CompletableFuture<DbExecResult> {
+                called = true
+
+                theSql = sql
+                theParams = args
+
+                val result = MockResultSet.Builder("id", "name", "t_created", "t_updated")
+
+                result.addRow(companyId.toString(), "The Company", "2017-06-27T12:44:21".toLDT(), "2017-06-27T12:44:21".toLDT())
+
+                return CompletableFuture.completedFuture(DbQueryResultImpl(0, null, result.build(), emptyList()))
+            }
+        }
+
+        val loader = DbLoaderImpl(conn, this, RequestTime.forTesting())
+
+        val query = loader.newQuery(Company)
+        query.filter { Company.ID eq companyId }
+
+        val result = query.run(selectForUpdate = true)
+
+        assertTrue(called)
+
+        assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" " +
+                "FROM \"companies\" AS C WHERE C.\"id\" = ? FOR UPDATE", theSql)
+
+        checkParams(theParams, companyId.toString())
+
+        assertEquals(1, result.size)
+        assertEquals(companyId, result[0].id)
+    }
+
+    @Test
     fun testBatchedLoadingEntities() = runBlocking {
         var called = false
 
