@@ -598,6 +598,14 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         db.conn.commit().await()
     }
 
+    override suspend fun commitAndChain() {
+        db.conn.commitAndChain().await()
+    }
+
+    override suspend fun rollbackAndChain() {
+        db.conn.rollbackAndChain().await()
+    }
+
     override suspend fun startTransaction() {
         db.conn.startTransaction().await()
     }

@@ -31,6 +31,16 @@ interface DbConn {
     suspend fun rollback()
 
     /**
+     * Commits any pending changes and starts a new transaction.
+     */
+    suspend fun commitAndChain()
+
+    /**
+     * Rolls back any pending changes and starts a new transaction.
+     */
+    suspend fun rollbackAndChain()
+
+    /**
      * Executes arbitrary SQL (not SELECT)
      *
      * @see query for SELECT statements
