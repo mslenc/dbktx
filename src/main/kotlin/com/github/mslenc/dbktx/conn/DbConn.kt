@@ -4,6 +4,7 @@ import com.github.mslenc.asyncdb.*
 import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.schema.*
+import com.github.mslenc.dbktx.util.BatchingLoader
 import com.github.mslenc.dbktx.util.Sql
 import kotlinx.coroutines.CoroutineScope
 
@@ -162,6 +163,18 @@ interface DbConn {
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
     findByIds(table: DbTable<E, ID>, ids: Iterable<ID>): Map<ID, E?>
+
+    /**
+     * Loads a value using the specified batching loader.
+     */
+    suspend fun <KEY: Any, RESULT>
+    load(loader: BatchingLoader<KEY, RESULT>, key: KEY): RESULT
+
+    /**
+     * Loads many values using the specified batching loader.
+     */
+    suspend fun <KEY: Any, RESULT>
+    loadForAll(loader: BatchingLoader<KEY, RESULT>, keys: Collection<KEY>): Map<KEY, RESULT>
 
     /**
      * Shortcut for [loadById]. Use like this:

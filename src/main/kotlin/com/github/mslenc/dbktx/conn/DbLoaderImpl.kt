@@ -158,6 +158,13 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
                     }
                 }
 
+                for (index in masterIndex.allCachedLoaders) {
+                    if (index.loadNow(this)) {
+                        any = true
+                        continue@startOver
+                    }
+                }
+
                 break
             }
         } finally {
@@ -236,7 +243,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
         val mapped = LinkedHashMap<FROM_KEY, ArrayList<TO>>()
         for (to in result) {
             val fromId = rel.reverseMap(to)!!
-            mapped.computeIfAbsent(fromId) { _ -> ArrayList() }.add(to)
+            mapped.computeIfAbsent(fromId) { ArrayList() }.add(to)
         }
 
         for ((key, value) in mapped) {
@@ -244,6 +251,30 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
         }
 
         fromKeys.removeAll(mapped.keys)
+        if (fromKeys.isNotEmpty())
+            index.reportNull(fromKeys)
+
+        return true
+    }
+
+    internal suspend fun <KEY: Any, RESULT>
+    loadCustomBatchNow(index: BatchingLoaderIndex<KEY, RESULT>): Boolean {
+        val fromKeys = index.getAndClearKeysToLoad() ?: return false
+
+        logger.debug { "Loading from custom loader ${index.loader} for source keys $fromKeys" }
+
+        val result = try {
+            index.loader.loadNow(fromKeys, publicDb)
+        } catch (e: Throwable) {
+            index.reportError(fromKeys, e)
+            return true
+        }
+
+        for ((key, value) in result) {
+            index[key].handleResult(value)
+        }
+
+        fromKeys.removeAll(result.keys)
         if (fromKeys.isNotEmpty())
             index.reportNull(fromKeys)
 
@@ -375,6 +406,28 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
 
             EntityState.INITIAL -> {
                 relInfo.addKeyToLoad(fromKey)
+                scheduleDelayedExec()
+                suspendCoroutine(loadState::startedLoading)
+            }
+        }
+    }
+
+    internal suspend fun <KEY: Any, RESULT>
+    load(loader: BatchingLoader<KEY, RESULT>, key: KEY): RESULT {
+        val loaderInfo = masterIndex[loader]
+        val loadState = loaderInfo[key]
+
+        return when (loadState.state) {
+            EntityState.LOADED -> {
+                loadState.value
+            }
+
+            EntityState.LOADING -> {
+                suspendCoroutine(loadState::addReceiver)
+            }
+
+            EntityState.INITIAL -> {
+                loaderInfo.addKeyToLoad(key)
                 scheduleDelayedExec()
                 suspendCoroutine(loadState::startedLoading)
             }
@@ -518,6 +571,25 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         result
     }
 
+
+    override suspend fun <KEY : Any, RESULT> load(loader: BatchingLoader<KEY, RESULT>, key: KEY): RESULT {
+        return db.load(loader, key)
+    }
+
+    override suspend fun <KEY : Any, RESULT> loadForAll(loader: BatchingLoader<KEY, RESULT>, keys: Collection<KEY>): Map<KEY, RESULT> = supervisorScope {
+        if (keys.isEmpty())
+            return@supervisorScope emptyMap<KEY, RESULT>()
+
+        val futures = LinkedHashMap<KEY, Deferred<RESULT>>()
+        for (key in keys)
+            futures[key] = async { load(loader, key) }
+
+        val result = LinkedHashMap<KEY, RESULT>()
+        for ((key, future) in futures)
+            result[key] = future.await()
+
+        result
+    }
 
     override suspend fun <E : DbEntity<E, *>>
     count(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> FilterExpr): Long {

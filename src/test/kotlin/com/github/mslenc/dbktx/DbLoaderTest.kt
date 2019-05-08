@@ -10,6 +10,7 @@ import com.github.mslenc.dbktx.schemas.test1.Company
 import com.github.mslenc.dbktx.schemas.test1.Item
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1.ITEM
+import com.github.mslenc.dbktx.util.BatchingLoader
 import com.github.mslenc.dbktx.util.FakeRowData
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
@@ -295,5 +296,56 @@ class DbLoaderTest {
         assertEquals(1, results[idxof2].size)
 
 //         TODO: check some props as well
+    }
+
+    @Test
+    fun testCustomBatchedLoading() = runBlocking {
+        var called = false
+
+        val batch = object : BatchingLoader<Int, String> {
+            override suspend fun loadNow(keys: Set<Int>, db: DbConn): Map<Int, String> {
+                called = true
+
+                val sorted = TreeSet(keys)
+                val result = sorted.joinToString(", ")
+                val resultKeys = sorted - sorted.first()
+                return resultKeys.associateWith { result }
+            }
+
+            override fun nullResult(): String {
+                return "null result"
+            }
+        }
+
+        val conn = MockDbConnection()
+
+        val db: DbConn = DbLoaderImpl(conn, this, RequestTime.forTesting())
+
+        val futures: Array<Deferred<String>> = arrayOf(
+            async { db.load(batch, 12) },
+            async { db.load(batch, 65) },
+            async { db.load(batch, 7) }
+        )
+
+        assertFalse(called)
+
+        val results = arrayOf(
+            futures[0].await(),
+            futures[1].await(),
+            futures[2].await()
+        )
+
+        assertTrue(called)
+
+        assertEquals("7, 12, 65", results[0]) // result for 12
+        assertEquals("7, 12, 65", results[1]) // result for 65
+        assertEquals("null result", results[2]) // result for 7
+
+
+        val result = db.loadForAll(batch, listOf(300, 100, 200, 300))
+        assertEquals(3, result.size)
+        assertEquals("null result", result[100])
+        assertEquals("100, 200, 300", result[200])
+        assertEquals("100, 200, 300", result[300])
     }
 }
