@@ -1,13 +1,15 @@
 package com.github.mslenc.dbktx.schema
 
+import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.DbLoaderInternal
 import com.github.mslenc.dbktx.crud.EntityQuery
 import com.github.mslenc.dbktx.crud.FilterBuilder
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.expr.FilterExpr
+import java.util.ArrayList
 
-class RelToManyImpl<FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *>> : RelToMany<FROM, TO> {
+class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntity<TO, *>> : RelToMany<FROM, TO> {
 
     internal lateinit var info: ManyToOneInfo<TO, FROM, FROM_KEY>
     private lateinit var reverseKeyMapper: (TO)->FROM_KEY?
@@ -36,7 +38,7 @@ class RelToManyImpl<FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *
     }
 
     override suspend fun invoke(from: FROM): List<TO> {
-        return from.db.load(from, this)
+        return from.db.load(this, from)
     }
 
     override suspend fun invoke(from: FROM, block: FilterBuilder<TO>.() -> FilterExpr): List<TO> {
@@ -65,11 +67,32 @@ class RelToManyImpl<FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *
         return query.countAll()
     }
 
-    internal suspend fun callLoad(db: DbLoaderInternal, from: FROM): List<TO> {
-        return db.load(from, this)
-    }
-
     internal suspend fun callLoadToManyWithFilter(db: DbLoaderImpl, from: FROM, filter: FilterBuilder<TO>.() -> FilterExpr): List<TO> {
         return db.loadToManyWithFilter(from, this, filter)
+    }
+
+    override suspend fun loadNow(keys: Set<FROM>, db: DbConn): Map<FROM, List<TO>> {
+        val index = keys.associateBy { it.id }
+
+        val query = info.manyTable.newQuery(db)
+        query.filter { createCondition(index.keys, currentTable()) }
+        val result = query.run()
+
+        val mapped = LinkedHashMap<FROM, ArrayList<TO>>()
+        for (to in result) {
+            val fromId = reverseMap(to) ?: continue
+            val fromEntity = index[fromId] ?: continue
+            mapped.computeIfAbsent(fromEntity) { ArrayList() }.add(to)
+        }
+
+        return mapped
+    }
+
+    override fun nullResult(): List<TO> {
+        return emptyList()
+    }
+
+    override fun isRelated(table: DbTable<*, *>): Boolean {
+        return table == info.oneTable || table == info.manyTable
     }
 }

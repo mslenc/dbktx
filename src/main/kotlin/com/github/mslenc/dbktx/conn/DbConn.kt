@@ -107,12 +107,6 @@ interface DbConn {
     find(from: FROM, relation: RelToOne<FROM, TO>): TO?
 
     /**
-     * Follows a relation-to-many
-     */
-    suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
-    load(from: FROM, relation: RelToMany<FROM, TO>): List<TO>
-
-    /**
      * Follows a relation-to-many and applies additional filter to the result.
      */
     suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
@@ -123,13 +117,6 @@ interface DbConn {
      */
     suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     loadForAll(ref: RelToOne<FROM, TO>, sources: Collection<FROM>): Map<FROM, TO?>
-
-    /**
-     * Follows a relation-to-many for multiple source entities.
-     */
-    suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
-    loadForAll(ref: RelToMany<FROM, TO>, sources: Collection<FROM>): Map<FROM, List<TO>>
-
 
     /**
      * Loads a row from the table by ID and throws if it is not found.

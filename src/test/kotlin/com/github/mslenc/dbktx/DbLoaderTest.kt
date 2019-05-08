@@ -190,9 +190,9 @@ class DbLoaderTest {
         val com2 = Company(db, comId2, FakeRowData.of(Company, comId2, "organization", "2017-06-03T00:00:01".toLDT(), "2017-06-11T22:12:21".toLDT()))
 
         val futures = arrayOf (
-            async { db.load(com2, Company.BRANDS_SET) },
-            async { db.load(com0, Company.BRANDS_SET) },
-            async { db.load(com1, Company.BRANDS_SET) }
+            async { db.load(Company.BRANDS_SET, com2) },
+            async { db.load(Company.BRANDS_SET, com0) },
+            async { db.load(Company.BRANDS_SET, com1) }
         )
 
         assertFalse(called)
@@ -262,9 +262,9 @@ class DbLoaderTest {
         val idxof1 = 0
         val idxof2 = 1
         val futures: Array<Deferred<List<Item>>> = arrayOf(
-            async { db.load(brand1, Brand.ITEMS_SET) },
-            async { db.load(brand2, Brand.ITEMS_SET) },
-            async { db.load(brand0, Brand.ITEMS_SET) }
+            async { db.load(Brand.ITEMS_SET, brand1) },
+            async { db.load(Brand.ITEMS_SET, brand2) },
+            async { db.load(Brand.ITEMS_SET, brand0) }
         )
 
         assertFalse(called)

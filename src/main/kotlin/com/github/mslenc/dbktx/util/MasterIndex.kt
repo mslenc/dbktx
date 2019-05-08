@@ -2,15 +2,12 @@ package com.github.mslenc.dbktx.util
 
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
-import com.github.mslenc.dbktx.schema.RelToMany
-import com.github.mslenc.dbktx.schema.RelToManyImpl
 import kotlinx.coroutines.CoroutineScope
 import mu.KLogging
 
 internal class MasterIndex(val scope: CoroutineScope) {
 
     private val tableIndex = LinkedHashMap<DbTable<*, *>, EntityIndex<*>>()
-    private val relToManyIndex = LinkedHashMap<RelToManyImpl<*, *, *>, ToManyIndex<*, *, *>>()
     private val loaderIndex = LinkedHashMap<BatchingLoader<*, *>, BatchingLoaderIndex<*, *>>()
 
     fun flushAll() {
@@ -20,9 +17,6 @@ internal class MasterIndex(val scope: CoroutineScope) {
         val cleanUp = ArrayList<()->Unit>()
 
         for (index in tableIndex.values)
-            index.flushAll(cleanUp)
-
-        for (index in relToManyIndex.values)
             index.flushAll(cleanUp)
 
         for (index in loaderIndex.values)
@@ -42,12 +36,6 @@ internal class MasterIndex(val scope: CoroutineScope) {
         val cleanUp = ArrayList<()->Unit>()
 
         tableIndex[table]?.flushAll(cleanUp)
-
-        for ((rel, index) in relToManyIndex) {
-            if (rel.sourceTable === table || rel.targetTable === table) {
-                index.flushAll(cleanUp)
-            }
-        }
 
         for ((loader, index) in loaderIndex) {
             if (loader.isRelated(table)) {
@@ -71,16 +59,6 @@ internal class MasterIndex(val scope: CoroutineScope) {
     }
 
     @Suppress("UNCHECKED_CAST")
-    operator fun <FROM: DbEntity<FROM, *>, FROM_KEY: Any, TO: DbEntity<TO, *>>
-    get(rel: RelToMany<FROM, TO>): ToManyIndex<FROM, FROM_KEY, TO> {
-        rel as RelToManyImpl<FROM, FROM_KEY, TO>
-
-        return relToManyIndex.computeIfAbsent(rel)
-               { ToManyIndex(rel, scope) }
-               as ToManyIndex<FROM, FROM_KEY, TO>
-    }
-
-    @Suppress("UNCHECKED_CAST")
     operator fun <KEY: Any, RESULT>
     get(loader: BatchingLoader<KEY, RESULT>): BatchingLoaderIndex<KEY, RESULT> {
 
@@ -89,9 +67,6 @@ internal class MasterIndex(val scope: CoroutineScope) {
 
     val allCachedTables: Collection<EntityIndex<*>>
         get() = tableIndex.values
-
-    val allCachedToManyRels: Collection<ToManyIndex<*, *, *>>
-        get() = relToManyIndex.values
 
     val allCachedLoaders: Collection<BatchingLoaderIndex<*, *>>
         get() = loaderIndex.values

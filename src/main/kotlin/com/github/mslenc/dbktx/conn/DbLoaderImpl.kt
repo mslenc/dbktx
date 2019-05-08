@@ -144,21 +144,14 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
         try {
             startOver@
             while (true) {
-                for (index in masterIndex.allCachedToManyRels) {
-                    if (index.loadNow(this)) { // hoop because of type system :(
-                        any = true
-                        continue@startOver
-                    }
-                }
-
-                for (index in masterIndex.allCachedTables) {
+                for (index in masterIndex.allCachedLoaders) {
                     if (index.loadNow(this)) {
                         any = true
                         continue@startOver
                     }
                 }
 
-                for (index in masterIndex.allCachedLoaders) {
+                for (index in masterIndex.allCachedTables) {
                     if (index.loadNow(this)) {
                         any = true
                         continue@startOver
@@ -219,42 +212,6 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
         }
 
         return res
-    }
-
-    internal suspend fun <FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *>>
-    loadDelayedToManyRel(index: ToManyIndex<FROM, FROM_KEY, TO>): Boolean {
-        val fromKeys = index.getAndClearKeysToLoad() ?: return false
-
-        // TODO: split large lists into chunks
-
-        val rel = index.relation
-
-        val manyTable = rel.targetTable
-
-        logger.debug { "Querying toMany ${rel.sourceTable.dbName} -> ${rel.targetTable.dbName} for source keys $fromKeys" }
-
-        val result = try {
-            queryNow(manyTable) { rel.createCondition(fromKeys, currentTable()) }
-        } catch (e: Throwable) {
-            index.reportError(fromKeys, e)
-            return true
-        }
-
-        val mapped = LinkedHashMap<FROM_KEY, ArrayList<TO>>()
-        for (to in result) {
-            val fromId = rel.reverseMap(to)!!
-            mapped.computeIfAbsent(fromId) { ArrayList() }.add(to)
-        }
-
-        for ((key, value) in mapped) {
-            index[key].handleResult(value)
-        }
-
-        fromKeys.removeAll(mapped.keys)
-        if (fromKeys.isNotEmpty())
-            index.reportNull(fromKeys)
-
-        return true
     }
 
     internal suspend fun <KEY: Any, RESULT>
@@ -385,29 +342,6 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
                 index.addKeyToLoad(key)
                 scheduleDelayedExec()
                 return suspendCoroutine(entityInfo::startedLoading)
-            }
-        }
-    }
-
-    internal suspend fun <FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO : DbEntity<TO, *>>
-    load(from: FROM, relation: RelToManyImpl<FROM, FROM_KEY, TO>): List<TO> {
-        val relInfo = masterIndex.get<FROM, FROM_KEY, TO>(relation)
-        val fromKey = relation.info.oneKey(from)
-        val loadState = relInfo[fromKey]
-
-        return when (loadState.state) {
-            EntityState.LOADED -> {
-                loadState.value
-            }
-
-            EntityState.LOADING -> {
-                suspendCoroutine(loadState::addReceiver)
-            }
-
-            EntityState.INITIAL -> {
-                relInfo.addKeyToLoad(fromKey)
-                scheduleDelayedExec()
-                suspendCoroutine(loadState::startedLoading)
             }
         }
     }
@@ -555,22 +489,6 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         result
     }
 
-    override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
-    loadForAll(ref: RelToMany<FROM, TO>, sources: Collection<FROM>): Map<FROM, List<TO>> = supervisorScope {
-        if (sources.isEmpty())
-            return@supervisorScope emptyMap<FROM, List<TO>>()
-
-        val futures = LinkedHashMap<FROM, Deferred<List<TO>>>()
-        for (source in sources)
-            futures[source] = async { load(source, ref) }
-
-        val result = LinkedHashMap<FROM, List<TO>>()
-        for ((source, future) in futures)
-            result[source] = future.await()
-
-        result
-    }
-
 
     override suspend fun <KEY : Any, RESULT> load(loader: BatchingLoader<KEY, RESULT>, key: KEY): RESULT {
         return db.load(loader, key)
@@ -638,18 +556,12 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
     }
 
     override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
-    load(from: FROM, relation: RelToMany<FROM, TO>): List<TO> {
-        relation as RelToManyImpl<FROM, *, TO>
-        return relation.callLoad(db, from)
-    }
-
-    override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     load(from: FROM, relation: RelToMany<FROM, TO>, filter: FilterBuilder<TO>.()->FilterExpr): List<TO> {
         relation as RelToManyImpl<FROM, *, TO>
         return relation.callLoadToManyWithFilter(this, from, filter)
     }
 
-    internal suspend fun <FROM : DbEntity<FROM, *>, FROM_KEY: Any, TO: DbEntity<TO, *>>
+    internal suspend fun <FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO: DbEntity<TO, *>>
     loadToManyWithFilter(from: FROM, relation: RelToManyImpl<FROM, FROM_KEY, TO>, filter: FilterBuilder<TO>.()->FilterExpr): List<TO> {
         val fromKeys = setOf(relation.info.oneKey(from))
 
