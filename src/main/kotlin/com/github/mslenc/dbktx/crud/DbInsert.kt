@@ -10,5 +10,9 @@ interface DbInsert<E : DbEntity<E, ID>, ID: Any> : DbMutation<E> {
         return ExprNow()
     }
 
+    /**
+     * Copies values from original for any columns that don't have their value already set, except for auto-generated
+     * primary key columns.
+     */
     fun copyUnsetValuesFrom(original: E)
 }
