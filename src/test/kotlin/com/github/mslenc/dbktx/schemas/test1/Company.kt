@@ -28,6 +28,8 @@ class Company(db: DbConn, id: UUID, row: DbRow)
         val BRANDS_SET = b.relToMany { Brand.COMPANY_REF }
         val ITEMS_SET = b.relToMany { Item.COMPANY_REF }
 
+        val CONTACT_INFO_REF = b.relToZeroOrOne { ContactInfo.COMPANY_REF }
+
         init {
             b.build(::Company)
         }

@@ -30,6 +30,7 @@ class TableRemapper(val newQuery: QueryImpl) {
                 val newJoin = when(val join = original.incomingJoin) {
                     is JoinToOne -> JoinToOne(join.joinType, join.relToOne)
                     is JoinToMany -> JoinToMany(join.joinType, join.relToMany)
+                    is JoinToZeroOrOne -> JoinToZeroOrOne(join.joinType, join.relToZeroOrOne)
                 }
                 val newAlias = generateAliasTo(newQuery, original.table)
                 val newJoinedTable = JoinedTableInQuery(newQuery, newAlias, original.table, newPrevTable, newJoin)

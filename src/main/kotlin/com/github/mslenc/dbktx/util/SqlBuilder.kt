@@ -2,7 +2,6 @@ package com.github.mslenc.dbktx.util
 
 import com.github.mslenc.asyncdb.util.ULong
 import com.github.mslenc.dbktx.crud.*
-import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.expr.SqlEmitter
 import com.github.mslenc.dbktx.schema.*
@@ -171,13 +170,9 @@ class Sql {
                 continue
 
             when (val join = joinedTable.incomingJoin) {
-                is JoinToOne -> {
-                    buildJoinToOne(joinedTable, join)
-                }
-
-                is JoinToMany -> {
-                    buildJoinToMany(joinedTable, join)
-                }
+                is JoinToOne -> buildJoinToOne(joinedTable, join)
+                is JoinToMany -> buildJoinToMany(joinedTable, join)
+                is JoinToZeroOrOne -> buildJoinToZeroOrOne(joinedTable, join)
             }
         }
     }
@@ -217,6 +212,39 @@ class Sql {
 
     private fun buildJoinToMany(joinedTable: JoinedTableInQuery<*>, incomingJoin: JoinToMany) {
         val rel = incomingJoin.relToMany as RelToManyImpl<*, *, *>
+        val sourceTable = joinedTable.prevTable
+        val targetTable = rel.targetTable
+
+        if (incomingJoin.joinType == JoinType.INNER_JOIN) {
+            raw(" INNER JOIN ")
+        } else {
+            raw(" LEFT JOIN ")
+        }
+
+        raw(targetTable.quotedDbName).raw(" AS ").raw(joinedTable.tableAlias).raw(" ON ")
+
+        tuple(rel.info.columnMappings, separator = " AND ") { colMap ->
+            when (colMap.columnFromKind) {
+                ColumnInMappingKind.COLUMN -> {
+                    columnForSelect(SqlBuilderHelpers.forceBindColumnTo(colMap, sourceTable))
+                    raw(" = ")
+                    columnForSelect(SqlBuilderHelpers.forceBindColumnFrom(colMap, joinedTable))
+                }
+
+                ColumnInMappingKind.CONSTANT,
+                ColumnInMappingKind.PARAMETER -> {
+                    columnForSelect(SqlBuilderHelpers.forceBindColumnTo(colMap, sourceTable))
+                    raw(" = ")
+                    colMap.columnFromLiteral.toSql(this)
+                }
+            }
+        }
+
+        buildJoins(joinedTable)
+    }
+
+    private fun buildJoinToZeroOrOne(joinedTable: JoinedTableInQuery<*>, incomingJoin: JoinToZeroOrOne) {
+        val rel = incomingJoin.relToZeroOrOne as RelToZeroOrOneImpl<*, *, *>
         val sourceTable = joinedTable.prevTable
         val targetTable = rel.targetTable
 

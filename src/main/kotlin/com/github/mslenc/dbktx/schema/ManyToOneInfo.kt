@@ -62,7 +62,7 @@ class ManyToOneInfo<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TO_KEY : Any
                 @Suppress("UNCHECKED_CAST") // composite ids are Expr themselves..
                 idSet as Set<Expr<FROM, TO_KEY>>
 
-                FilterOneOf(fields, ArrayList(idSet))
+                FilterOneOf(fields, idSet.toList())
             }
         } else {
             @Suppress("UNCHECKED_CAST")

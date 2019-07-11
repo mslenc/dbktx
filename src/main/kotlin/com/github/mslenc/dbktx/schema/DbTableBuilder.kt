@@ -712,6 +712,18 @@ internal constructor(
         return rel
     }
 
+    fun <TARGET : DbEntity<TARGET, TID>, TID: Any>
+    relToZeroOrOne(oppositeRel: ()-> RelToOne<TARGET, E>): RelToZeroOrOne<E, TARGET> {
+        val rel = RelToZeroOrOneImpl<E, ID, TARGET>()
+        table.schema.addLazyInit(PRIORITY_REL_TO_MANY) {
+            @Suppress("UNCHECKED_CAST")
+            val relToOne = oppositeRel() as RelToOneImpl<TARGET, E, ID>
+            val info = relToOne.info
+            rel.init(relToOne, info, relToOne.keyMapper, info.makeReverseQueryBuilder())
+        }
+        return rel
+    }
+
     fun <TARGET : DbEntity<TARGET, TID>, TID : CompositeId2<TARGET, A, B, TID>, A : Any, B : Any>
     relToOne(columnA: Column<E, A>, columnB: Column<E, B>, targetClass: KClass<TARGET>, idConstructor: ((A, B)->TID)? = null): RelToOne<E, TARGET> {
         val result = RelToOneImpl<E, TARGET, TID>()

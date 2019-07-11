@@ -208,6 +208,15 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return ExprNow()
     }
 
+    fun <TO: DbEntity<TO, *>> RelToZeroOrOne<E, TO>.has(block: FilterBuilder<TO>.() -> FilterExpr): FilterExpr {
+        val dstTable = currentTable().subQueryOrJoin(this)
+        val dstFilter = TableInQueryBoundFilterBuilder(dstTable)
+        val setFilter = dstFilter.block()
+        val relImpl = this as RelToZeroOrOneImpl<E, *, TO>
+
+        return FilterHasAssociated(currentTable(), relImpl.info, setFilter, dstTable)
+    }
+
     fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.has(block: FilterBuilder<TO>.() -> FilterExpr): FilterExpr {
         val dstTable = currentTable().subQueryOrJoin(this)
         val dstFilter = TableInQueryBoundFilterBuilder(dstTable)

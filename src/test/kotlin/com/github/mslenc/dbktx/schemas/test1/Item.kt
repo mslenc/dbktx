@@ -10,7 +10,7 @@ import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.*
 
-class Item(db: DbConn, id: Item.Id, row: DbRow)
+class Item(db: DbConn, id: Id, row: DbRow)
     : DbEntity<Item, Item.Id>(db, id, row) {
 
     override val metainfo get() = Item

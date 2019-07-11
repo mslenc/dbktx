@@ -8,6 +8,7 @@ object TestSchema1 : DbSchema() {
     val COMPANY = Company
     val PURCHASE = Purchase
     val PURCHASE_ITEM = PurchaseItem
+    val CONTACT_INFO = ContactInfo
 
     init {
         finishInit()

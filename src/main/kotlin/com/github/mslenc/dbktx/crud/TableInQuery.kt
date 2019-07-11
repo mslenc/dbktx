@@ -6,6 +6,7 @@ import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.sqltypes.SqlType
 import com.github.mslenc.dbktx.util.Sql
+import java.lang.UnsupportedOperationException
 import java.util.*
 
 // the policy over joins is this:
@@ -51,6 +52,16 @@ class JoinToMany(joinType: JoinType, val relToMany: RelToMany<*, *>): Join(joinT
     }
 }
 
+class JoinToZeroOrOne(joinType: JoinType, val relToZeroOrOne: RelToZeroOrOne<*, *>): Join(joinType) {
+    override fun combineWithJoinType(joinType: JoinType) {
+        if (this.joinType == joinType)
+            return
+
+        // only one possible pair, which combines into INNER_JOIN..
+        this.joinType = JoinType.INNER_JOIN
+    }
+}
+
 internal fun generateAliasTo(query: QueryImpl, table: DbTable<*, *>): String {
     var counter = 1
     var name = table.aliasPrefix
@@ -74,6 +85,13 @@ sealed class TableInQuery<E : DbEntity<E, *>>(val query: QueryImpl, val tableAli
         return joinedTable
     }
 
+    fun <R: DbEntity<R, *>> forcedSubQuery(rel: RelToZeroOrOne<E, R>): TableInQuery<R> {
+        val alias = generateAliasTo(query, rel.targetTable)
+        val joinedTable = SubTableInQuery(query, alias, rel.targetTable, this)
+        query.registerTableInQuery(joinedTable)
+        return joinedTable
+    }
+
     fun <R: DbEntity<R, *>> leftJoin(rel: RelToOne<E, R>): TableInQuery<R> {
         return join(JoinType.LEFT_JOIN, rel)
     }
@@ -90,7 +108,35 @@ sealed class TableInQuery<E : DbEntity<E, *>>(val query: QueryImpl, val tableAli
         return join(JoinType.INNER_JOIN, rel)
     }
 
+    fun <R: DbEntity<R, *>> leftJoin(rel: RelToZeroOrOne<E, R>): TableInQuery<R> {
+        return join(JoinType.LEFT_JOIN, rel)
+    }
+
+    fun <R: DbEntity<R, *>> innerJoin(rel: RelToZeroOrOne<E, R>): TableInQuery<R> {
+        return join(JoinType.INNER_JOIN, rel)
+    }
+
+    fun <R: DbEntity<R, *>> leftJoin(rel: RelToSingle<E, R>): TableInQuery<R> {
+        return when (rel) {
+            is RelToOne -> join(JoinType.LEFT_JOIN, rel)
+            is RelToZeroOrOne -> join(JoinType.LEFT_JOIN, rel)
+            else -> throw UnsupportedOperationException("Unknown RelToSingle type")
+        }
+    }
+
+    fun <R: DbEntity<R, *>> innerJoin(rel: RelToSingle<E, R>): TableInQuery<R> {
+        return when (rel) {
+            is RelToOne -> join(JoinType.INNER_JOIN, rel)
+            is RelToZeroOrOne -> join(JoinType.INNER_JOIN, rel)
+            else -> throw UnsupportedOperationException("Unknown RelToSingle type")
+        }
+    }
+
     fun <R: DbEntity<R, *>> subQueryOrJoin(rel: RelToOne<E, R>): TableInQuery<R> {
+        return join(JoinType.SUB_QUERY, rel)
+    }
+
+    fun <R: DbEntity<R, *>> subQueryOrJoin(rel: RelToZeroOrOne<E, R>): TableInQuery<R> {
         return join(JoinType.SUB_QUERY, rel)
     }
 
@@ -106,6 +152,24 @@ sealed class TableInQuery<E : DbEntity<E, *>>(val query: QueryImpl, val tableAli
         }
 
         val join = JoinToOne(joinType, rel)
+        val alias = generateAliasTo(query, rel.targetTable)
+        val joinedTable = JoinedTableInQuery(query, alias, rel.targetTable, this, join)
+        query.registerTableInQuery(joinedTable)
+        joins.add(joinedTable)
+        return joinedTable
+    }
+
+    private fun <R: DbEntity<R, *>> join(joinType: JoinType, rel: RelToZeroOrOne<E, R>): TableInQuery<R> {
+
+        val existing = joins.firstOrNull { (it.incomingJoin as? JoinToZeroOrOne)?.relToZeroOrOne === rel }
+
+        @Suppress("UNCHECKED_CAST")
+        if (existing != null) {
+            existing.incomingJoin.combineWithJoinType(joinType)
+            return existing as TableInQuery<R>
+        }
+
+        val join = JoinToZeroOrOne(joinType, rel)
         val alias = generateAliasTo(query, rel.targetTable)
         val joinedTable = JoinedTableInQuery(query, alias, rel.targetTable, this, join)
         query.registerTableInQuery(joinedTable)
