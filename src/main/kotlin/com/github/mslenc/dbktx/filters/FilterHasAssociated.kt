@@ -50,7 +50,7 @@ class FilterHasAssociated<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
     }
 
     override fun remap(remapper: TableRemapper): FilterExpr {
-        return FilterHasAssociated(remapper.remap(parentTable), info, filter?.remap(remapper), remapper.remap(childTable), negated)
+        return FilterHasAssociated(remapper.remap(parentTable), info, filter.remap(remapper), remapper.remap(childTable), negated)
     }
 
     override fun toString(): String {
