@@ -4,7 +4,7 @@ import com.github.mslenc.dbktx.crud.EntityQuery
 import com.github.mslenc.dbktx.crud.FilterBuilder
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.schema.DbEntity
-import com.github.mslenc.dbktx.schema.RelToOne
+import com.github.mslenc.dbktx.schema.RelToSingle
 import com.github.mslenc.dbktx.schema.StringColumn
 
 class TextSearchBuilder<E: DbEntity<E, *>>(val entityQuery: EntityQuery<E>, val words: List<String>) {
@@ -31,14 +31,14 @@ class TextSearchBuilder<E: DbEntity<E, *>>(val entityQuery: EntityQuery<E>, val 
         return this
     }
 
-    fun <REF : DbEntity<REF, *>> matchBeginningOf(ref: RelToOne<E, REF>, field: StringColumn<REF>): TextSearchBuilder<E> {
+    fun <REF : DbEntity<REF, *>> matchBeginningOf(ref: RelToSingle<E, REF>, field: StringColumn<REF>): TextSearchBuilder<E> {
         for (i in 0 until words.size)
             subFilters[i].add { ref.has { field startsWith words[i] } }
 
         return this
     }
 
-    fun <REF : DbEntity<REF, *>> matchAnywhereIn(ref: RelToOne<E, REF>, field: StringColumn<REF>): TextSearchBuilder<E> {
+    fun <REF : DbEntity<REF, *>> matchAnywhereIn(ref: RelToSingle<E, REF>, field: StringColumn<REF>): TextSearchBuilder<E> {
         for (i in 0 until words.size)
             subFilters[i].add { ref.has { field contains words[i] } }
 
@@ -46,7 +46,7 @@ class TextSearchBuilder<E: DbEntity<E, *>>(val entityQuery: EntityQuery<E>, val 
     }
 
     fun <REF : DbEntity<REF, *>, NEXT_REF: DbEntity<NEXT_REF, *>>
-            matchBeginningOf(ref: RelToOne<E, REF>, nextRef: RelToOne<REF, NEXT_REF>, field: StringColumn<NEXT_REF>): TextSearchBuilder<E> {
+    matchBeginningOf(ref: RelToSingle<E, REF>, nextRef: RelToSingle<REF, NEXT_REF>, field: StringColumn<NEXT_REF>): TextSearchBuilder<E> {
         for (i in 0 until words.size)
             subFilters[i].add { ref.has { nextRef.has { field startsWith words[i] } } }
 
@@ -54,9 +54,41 @@ class TextSearchBuilder<E: DbEntity<E, *>>(val entityQuery: EntityQuery<E>, val 
     }
 
     fun <REF : DbEntity<REF, *>, NEXT_REF: DbEntity<NEXT_REF, *>>
-            matchAnywhereIn(ref: RelToOne<E, REF>, nextRef: RelToOne<REF, NEXT_REF>, field: StringColumn<NEXT_REF>): TextSearchBuilder<E> {
+    matchAnywhereIn(ref: RelToSingle<E, REF>, nextRef: RelToSingle<REF, NEXT_REF>, field: StringColumn<NEXT_REF>): TextSearchBuilder<E> {
         for (i in 0 until words.size)
             subFilters[i].add { ref.has { nextRef.has { field contains words[i] } } }
+
+        return this
+    }
+
+    fun <REF : DbEntity<REF, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>>
+    matchBeginningOf(ref: RelToSingle<E, REF>, ref2: RelToSingle<REF, REF2>, ref3: RelToSingle<REF2, REF3>, field: StringColumn<REF3>): TextSearchBuilder<E> {
+        for (i in 0 until words.size)
+            subFilters[i].add { ref.has { ref2.has { ref3.has { field startsWith words[i] } } } }
+
+        return this
+    }
+
+    fun <REF : DbEntity<REF, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>>
+    matchAnywhereIn(ref: RelToSingle<E, REF>, ref2: RelToSingle<REF, REF2>, ref3: RelToSingle<REF2, REF3>, field: StringColumn<REF3>): TextSearchBuilder<E> {
+        for (i in 0 until words.size)
+            subFilters[i].add { ref.has { ref2.has { ref3.has { field contains words[i] } } } }
+
+        return this
+    }
+
+    fun <REF : DbEntity<REF, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>, REF4: DbEntity<REF4, *>>
+    matchBeginningOf(ref: RelToSingle<E, REF>, ref2: RelToSingle<REF, REF2>, ref3: RelToSingle<REF2, REF3>, ref4: RelToSingle<REF3, REF4>, field: StringColumn<REF4>): TextSearchBuilder<E> {
+        for (i in 0 until words.size)
+            subFilters[i].add { ref.has { ref2.has { ref3.has { ref4.has { field startsWith words[i] } } } } }
+
+        return this
+    }
+
+    fun <REF : DbEntity<REF, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>, REF4: DbEntity<REF4, *>>
+    matchAnywhereIn(ref: RelToSingle<E, REF>, ref2: RelToSingle<REF, REF2>, ref3: RelToSingle<REF2, REF3>, ref4: RelToSingle<REF3, REF4>, field: StringColumn<REF4>): TextSearchBuilder<E> {
+        for (i in 0 until words.size)
+            subFilters[i].add { ref.has { ref2.has { ref3.has { ref4.has { field contains words[i] } } } } }
 
         return this
     }

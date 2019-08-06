@@ -225,6 +225,14 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return FilterHasParent((this as RelToOneImpl<E, TO, *>).info, parentFilter, currentTable(), dstTable)
     }
 
+    fun <TO : DbEntity<TO, *>> RelToSingle<E, TO>.has(block: FilterBuilder<TO>.() -> FilterExpr): FilterExpr {
+        return when (this) {
+            is RelToOne -> this.has(block)
+            is RelToZeroOrOne -> this.has(block)
+            else -> throw IllegalStateException()
+        }
+    }
+
     infix fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.oneOf(parentFilter: EntityQuery<TO>): FilterExpr {
         parentFilter as EntityQueryImpl<TO>
 
