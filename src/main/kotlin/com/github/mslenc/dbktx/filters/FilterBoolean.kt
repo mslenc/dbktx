@@ -54,16 +54,14 @@ internal class FilterBoolean internal constructor(private val parts: List<Filter
             return FilterBoolean(parts, op)
         }
 
-        internal fun create(op: Op, parts: Iterable<FilterExpr>): FilterExpr {
-            val partsList = parts.toList()
-
-            if (partsList.isEmpty())
+        internal fun create(op: Op, parts: Collection<FilterExpr>): FilterExpr {
+            if (parts.isEmpty())
                 throw IllegalArgumentException("Can't have an empty list of parts with OR or AND")
 
-            if (partsList.size == 1)
-                return partsList.single()
+            if (parts.size == 1)
+                return parts.single()
 
-            return FilterBoolean(partsList, op)
+            return FilterBoolean(parts.toList(), op)
         }
     }
 }

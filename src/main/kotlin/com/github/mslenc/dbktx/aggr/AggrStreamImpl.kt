@@ -2,9 +2,8 @@ package com.github.mslenc.dbktx.aggr
 
 import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.conn.DbConn
-import com.github.mslenc.dbktx.crud.FilterBuilder
+import com.github.mslenc.dbktx.crud.FilterableQuery
 import com.github.mslenc.dbktx.crud.TableInQuery
-import com.github.mslenc.dbktx.crud.TableInQueryBoundFilterBuilder
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.expr.SqlEmitter
@@ -178,7 +177,14 @@ internal class AggrStreamImpl<E: DbEntity<E, *>>(table: DbTable<E, *>, val db: D
     }
 }
 
-internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>(val query: AggrStreamImpl<E>, val tableInQuery: TableInQuery<CURR>): AggrStreamTopLevelBuilder<CURR> {
+internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>(val query: AggrStreamImpl<E>, val tableInQuery: TableInQuery<CURR>): AggrStreamTopLevelBuilder<CURR>, FilterableQuery<CURR> {
+    override val baseTable: TableInQuery<CURR>
+        get() = tableInQuery
+
+    override fun require(filter: FilterExpr) {
+        query.require(filter)
+    }
+
     internal fun <T : Any, OUT: Any> addNullableAggregate(op: AggrOp, block: AggrExprBuilder<CURR>.() -> Expr<CURR, T>, sqlType: SqlType<OUT>): NullableAggrExpr<CURR, OUT> {
         query.checkModifiable()
         val builder = AggrExprBuilderImpl(tableInQuery)
@@ -323,17 +329,5 @@ internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>
         val subTable = tableInQuery.leftJoin(set)
         val subBuilder = AggrStreamBuilderImpl(query, subTable)
         subBuilder.block()
-    }
-
-    override fun filter(block: FilterBuilder<CURR>.() -> FilterExpr) {
-        val filterBuilder = TableInQueryBoundFilterBuilder(tableInQuery)
-        val filterExpr = filterBuilder.block()
-        query.addFilter(filterExpr)
-    }
-
-    override fun exclude(block: FilterBuilder<CURR>.() -> FilterExpr) {
-        val filterBuilder = TableInQueryBoundFilterBuilder(tableInQuery)
-        val filterExpr = filterBuilder.block()
-        query.addFilter(filterExpr.not())
     }
 }

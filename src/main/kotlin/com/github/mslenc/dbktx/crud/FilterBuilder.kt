@@ -237,7 +237,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         parentFilter as EntityQueryImpl<TO>
 
         if (parentFilter.filters == null)
-            return this.isNotNull
+            return this.isNotNull()
 
         val dstTable = currentTable().subQueryOrJoin(this)
         val remappedFilter = parentFilter.copyAndRemapFilters(dstTable)
@@ -245,39 +245,29 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return FilterHasParent((this as RelToOneImpl<E, TO, *>).info, remappedFilter!!, currentTable(), dstTable)
     }
 
-    val NullableRowProp<E, *>.isNull: FilterExpr
-        get() {
-            return this.makeIsNullExpr(currentTable(), isNull = true)
-        }
+    fun NullableRowProp<E, *>.isNull(): FilterExpr = this.makeIsNullExpr(currentTable(), isNull = true)
 
-    val NullableRowProp<E, *>.isNotNull: FilterExpr
-        get() {
-            return this.makeIsNullExpr(currentTable(), isNull = false)
-        }
+    fun NullableRowProp<E, *>.isNotNull(): FilterExpr = this.makeIsNullExpr(currentTable(), isNull = false)
 
-    val <TO : DbEntity<TO, *>> RelToOne<E, TO>.isNull: FilterExpr
-        get() {
-            // a multi-column reference is null if any of its parts are null, because we only allow references to non-null columns..
+    fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.isNull(): FilterExpr {
+        // a multi-column reference is null if any of its parts are null, because we only allow references to non-null columns..
 
-            val rel = this as RelToOneImpl<E, TO, *>
-            val parts = ArrayList<FilterExpr>()
+        val rel = this as RelToOneImpl<E, TO, *>
+        val parts = ArrayList<FilterExpr>()
 
-            rel.info.columnMappings.forEach { colMap ->
-                colMap.columnFromAsNullable?.let { column ->
-                    parts.add(column.makeIsNullExpr(currentTable(), isNull = true))
-                }
+        rel.info.columnMappings.forEach { colMap ->
+            colMap.columnFromAsNullable?.let { column ->
+                parts.add(column.makeIsNullExpr(currentTable(), isNull = true))
             }
-
-            if (parts.isEmpty())
-                throw IllegalStateException("isNull used on a reference where nothing can be null")
-
-            return FilterExpr.createOR(parts)
         }
 
-    val <TO : DbEntity<TO, *>> RelToOne<E, TO>.isNotNull: FilterExpr
-        get() {
-            return !isNull
-        }
+        if (parts.isEmpty())
+            return FilterDummy(false)
+
+        return FilterExpr.createOR(parts)
+    }
+
+    fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.isNotNull(): FilterExpr = !isNull()
 
     infix fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.eq(ref: TO): FilterExpr {
         this as RelToOneImpl<E, TO, *>

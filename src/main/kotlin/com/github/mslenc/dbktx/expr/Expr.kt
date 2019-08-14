@@ -81,11 +81,11 @@ interface FilterExpr : SqlEmitter {
     fun remap(remapper: TableRemapper): FilterExpr
 
     companion object {
-        fun createOR(exprs: Iterable<FilterExpr>): FilterExpr {
+        fun createOR(exprs: Collection<FilterExpr>): FilterExpr {
             return FilterBoolean.create(FilterBoolean.Op.OR, exprs)
         }
 
-        fun createAND(exprs: Iterable<FilterExpr>): FilterExpr {
+        fun createAND(exprs: Collection<FilterExpr>): FilterExpr {
             return FilterBoolean.create(FilterBoolean.Op.AND, exprs)
         }
     }

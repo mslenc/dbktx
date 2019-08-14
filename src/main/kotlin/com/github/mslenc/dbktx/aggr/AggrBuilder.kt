@@ -2,6 +2,7 @@ package com.github.mslenc.dbktx.aggr
 
 import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.crud.FilterBuilder
+import com.github.mslenc.dbktx.crud.FilterableQuery
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.schema.*
@@ -10,10 +11,7 @@ import kotlin.reflect.KMutableProperty1
 interface NullableAggrExpr<E : DbEntity<E, *>, T: Any>
 interface NonNullAggrExpr<E: DbEntity<E, *>, T: Any>
 
-interface AggrBuilder<E : DbEntity<E, *>> {
-    fun filter(block: FilterBuilder<E>.() -> FilterExpr)
-    fun exclude(block: FilterBuilder<E>.() -> FilterExpr)
-
+interface AggrBuilder<E : DbEntity<E, *>> : FilterableQuery<E> {
     fun <T: Any> sum(block: AggrExprBuilder<E>.() -> Expr<E, T>): NullableAggrExpr<E, T>
     fun <T: Any> min(block: AggrExprBuilder<E>.() -> Expr<E, T>): NullableAggrExpr<E, T>
     fun <T: Any> max(block: AggrExprBuilder<E>.() -> Expr<E, T>): NullableAggrExpr<E, T>

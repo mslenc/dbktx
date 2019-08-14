@@ -8,6 +8,7 @@ import com.github.mslenc.dbktx.expr.CompositeExpr
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.filters.FilterBoolean
+import com.github.mslenc.dbktx.filters.FilterDummy
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.DelayedLoadState
 import com.github.mslenc.dbktx.util.OrderSpec
@@ -26,7 +27,7 @@ abstract class QueryImpl {
     }
 
     fun registerTableInQuery(tableInQuery: TableInQuery<*>) {
-        alias2table.put(tableInQuery.tableAlias, tableInQuery)
+        alias2table[tableInQuery.tableAlias] = tableInQuery
     }
 }
 
@@ -37,18 +38,113 @@ internal class InsertQueryImpl : QueryImpl()
 interface FilterableQuery<E : DbEntity<E, *>>: Query {
     val baseTable : TableInQuery<E>
 
-    fun filter(block: FilterBuilder<E>.() -> FilterExpr): FilterableQuery<E>
+    fun require(filter: FilterExpr)
+
+    fun exclude(filter: FilterExpr) {
+        require(!filter)
+    }
+
+    fun filter(block: FilterBuilder<E>.() -> FilterExpr) {
+        require(createFilter(block))
+    }
+
     fun <REF: DbEntity<REF, *>>
-        filter(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> FilterExpr): FilterableQuery<E>
+    filter(ref: RelToSingle<E, REF>, block: FilterBuilder<REF>.() -> FilterExpr) {
+        require(createFilter(ref, block))
+    }
+
     fun <REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>>
-        filter(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> FilterExpr): FilterableQuery<E>
+    filter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, block: FilterBuilder<REF2>.() -> FilterExpr) {
+        require(createFilter(ref1, ref2, block))
+    }
+
+    fun <REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>>
+    filter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, block: FilterBuilder<REF3>.() -> FilterExpr) {
+        require(createFilter(ref1, ref2, ref3, block))
+    }
+
+    fun <REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>, REF4: DbEntity<REF4, *>>
+    filter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, ref4: RelToSingle<REF3, REF4>, block: FilterBuilder<REF4>.() -> FilterExpr) {
+        require(createFilter(ref1, ref2, ref3, ref4, block))
+    }
 
 
-    fun exclude(block: FilterBuilder<E>.() -> FilterExpr): FilterableQuery<E>
+    fun exclude(block: FilterBuilder<E>.() -> FilterExpr) {
+        exclude(createFilter(block))
+    }
+
     fun <REF: DbEntity<REF, *>>
-        exclude(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> FilterExpr): FilterableQuery<E>
+    exclude(ref: RelToSingle<E, REF>, block: FilterBuilder<REF>.() -> FilterExpr) {
+        exclude(createFilter(ref, block))
+    }
+
     fun <REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>>
-        exclude(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> FilterExpr): FilterableQuery<E>
+    exclude(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, block: FilterBuilder<REF2>.() -> FilterExpr) {
+        exclude(createFilter(ref1, ref2, block))
+    }
+
+    fun <REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>>
+    exclude(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, block: FilterBuilder<REF3>.() -> FilterExpr) {
+        exclude(createFilter(ref1, ref2, ref3, block))
+    }
+
+    fun <REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>, REF4: DbEntity<REF4, *>>
+    exclude(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, ref4: RelToSingle<REF3, REF4>, block: FilterBuilder<REF4>.() -> FilterExpr) {
+        exclude(createFilter(ref1, ref2, ref3, ref4, block))
+    }
+
+
+    fun createFilter(block: FilterBuilder<E>.() -> FilterExpr): FilterExpr {
+        return TableInQueryBoundFilterBuilder(baseTable).block()
+    }
+
+    fun <REF: DbEntity<REF, *>>
+    createFilter(ref: RelToSingle<E, REF>, block: FilterBuilder<REF>.() -> FilterExpr): FilterExpr {
+        return TableInQueryBoundFilterBuilder(baseTable.innerJoin(ref)).block()
+    }
+
+    fun <REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>>
+    createFilter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, block: FilterBuilder<REF2>.() -> FilterExpr): FilterExpr {
+        return TableInQueryBoundFilterBuilder(baseTable.innerJoin(ref1).innerJoin(ref2)).block()
+    }
+
+    fun <REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>>
+    createFilter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, block: FilterBuilder<REF3>.() -> FilterExpr): FilterExpr {
+        return TableInQueryBoundFilterBuilder(baseTable.innerJoin(ref1).innerJoin(ref2).innerJoin(ref3)).block()
+    }
+
+    fun <REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>, REF4: DbEntity<REF4, *>>
+    createFilter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, ref4: RelToSingle<REF3, REF4>, block: FilterBuilder<REF4>.() -> FilterExpr): FilterExpr {
+        return TableInQueryBoundFilterBuilder(baseTable.innerJoin(ref1).innerJoin(ref2).innerJoin(ref3).innerJoin(ref4)).block()
+    }
+
+    fun requireAnyOf(filters: Collection<FilterExpr>) {
+        if (filters.isEmpty()) {
+            require(FilterDummy(false))
+        } else {
+            require(FilterExpr.createOR(filters))
+        }
+    }
+
+    fun requireAllOf(filters: Collection<FilterExpr>) {
+        if (filters.isNotEmpty()) {
+            require(FilterExpr.createAND(filters))
+        }
+    }
+
+    fun excludeWhenAnyOf(exprs: Collection<FilterExpr>) {
+        if (exprs.isNotEmpty()) {
+            require(!FilterExpr.createOR(exprs))
+        }
+    }
+
+    fun excludeWhenAllOf(exprs: Collection<FilterExpr>) {
+        if (exprs.isEmpty()) {
+            require(FilterDummy(false))
+        } else {
+            require(!FilterExpr.createAND(exprs))
+        }
+    }
 }
 
 internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
@@ -61,19 +157,7 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
     protected abstract fun checkModifiable()
     internal var filters: FilterExpr? = null
 
-    private fun <E: DbEntity<E, *>>
-        doFilter(tableInQuery: TableInQuery<E>, negate: Boolean, block: FilterBuilder<E>.() -> FilterExpr) {
-
-        checkModifiable()
-
-        val filterBuilder = TableInQueryBoundFilterBuilder(tableInQuery)
-        val filter = filterBuilder.block()
-        val finalFilter = if (negate) !filter else filter
-
-        addFilter(finalFilter)
-    }
-
-    internal fun addFilter(filter: FilterExpr) {
+    override fun require(filter: FilterExpr) {
         checkModifiable()
 
         val existing = this.filters
@@ -83,36 +167,6 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
         } else {
             this.filters = filter
         }
-    }
-
-    override fun filter(block: FilterBuilder<E>.() -> FilterExpr): FilterableQuery<E> {
-        doFilter(baseTable, false, block)
-        return this
-    }
-
-    override fun <REF : DbEntity<REF, *>> filter(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> FilterExpr): FilterableQuery<E> {
-        doFilter(baseTable.innerJoin(ref), false, block)
-        return this
-    }
-
-    override fun <REF1 : DbEntity<REF1, *>, REF2 : DbEntity<REF2, *>> filter(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> FilterExpr): FilterableQuery<E> {
-        doFilter(baseTable.innerJoin(ref1).innerJoin(ref2), false, block)
-        return this
-    }
-
-    override fun exclude(block: FilterBuilder<E>.() -> FilterExpr): FilterableQuery<E> {
-        doFilter(baseTable, true, block)
-        return this
-    }
-
-    override fun <REF : DbEntity<REF, *>> exclude(ref: RelToOne<E, REF>, block: FilterBuilder<REF>.() -> FilterExpr): FilterableQuery<E> {
-        doFilter(baseTable.innerJoin(ref), true, block)
-        return this
-    }
-
-    override fun <REF1 : DbEntity<REF1, *>, REF2 : DbEntity<REF2, *>> exclude(ref1: RelToOne<E, REF1>, ref2: RelToOne<REF1, REF2>, block: FilterBuilder<REF2>.() -> FilterExpr): FilterableQuery<E> {
-        doFilter(baseTable.innerJoin(ref1).innerJoin(ref2), true, block)
-        return this
     }
 }
 
@@ -255,7 +309,7 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
         return when (queryState.state) {
             LOADED  -> queryState.value
             LOADING -> suspendCoroutine(queryState::addReceiver)
-            INITIAL -> queryState.startLoading({ loader.executeSelect(this, selectForUpdate) })
+            INITIAL -> queryState.startLoading { loader.executeSelect(this, selectForUpdate) }
         }
     }
 
@@ -263,7 +317,7 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
         return when (countState.state) {
             LOADED  -> countState.value
             LOADING -> suspendCoroutine(countState::addReceiver)
-            INITIAL -> countState.startLoading({ loader.executeCount(this) })
+            INITIAL -> countState.startLoading { loader.executeCount(this) }
         }
     }
 

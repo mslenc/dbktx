@@ -2,9 +2,7 @@ package com.github.mslenc.dbktx.aggr
 
 import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.conn.DbConn
-import com.github.mslenc.dbktx.crud.FilterBuilder
 import com.github.mslenc.dbktx.crud.TableInQuery
-import com.github.mslenc.dbktx.crud.TableInQueryBoundFilterBuilder
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.expr.SqlEmitter
@@ -31,8 +29,7 @@ internal class AggrListImpl<OUT: Any, E: DbEntity<E, *>>(table: DbTable<E, *>, v
     }
 
     override suspend fun run(): List<OUT> {
-        if (executing)
-            throw IllegalStateException("Already querying")
+        checkModifiable()
 
         executing = true
 
@@ -42,9 +39,7 @@ internal class AggrListImpl<OUT: Any, E: DbEntity<E, *>>(table: DbTable<E, *>, v
         val result = ArrayList<OUT>()
         db.streamQuery(sql) { row ->
             val out = outFactory()
-            for (i in 0 until setters.size) {
-                setters[i].invoke(row, out)
-            }
+            setters.forEach { it(row, out) }
             result.add(out)
         }
 
@@ -173,6 +168,13 @@ internal class AggrListImpl<OUT: Any, E: DbEntity<E, *>>(table: DbTable<E, *>, v
 }
 
 internal class AggrListBuilderImpl<OUT: Any, E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>(val query: AggrListImpl<OUT, E>, val tableInQuery: TableInQuery<CURR>): AggrListBuilder<OUT, CURR> {
+    override val baseTable: TableInQuery<CURR>
+        get() = tableInQuery
+
+    override fun require(filter: FilterExpr) {
+        query.require(filter)
+    }
+
     internal fun <T : Any, RES: Any> addNullableAggregate(op: AggrOp, block: AggrExprBuilder<CURR>.() -> Expr<CURR, T>, sqlType: SqlType<RES>): NullableAggrExpr<CURR, RES> {
         query.checkModifiable()
         val builder = AggrExprBuilderImpl(tableInQuery)
@@ -310,17 +312,5 @@ internal class AggrListBuilderImpl<OUT: Any, E: DbEntity<E, *>, CURR: DbEntity<C
         val subTable = tableInQuery.leftJoin(set)
         val subBuilder = AggrListBuilderImpl(query, subTable)
         subBuilder.block()
-    }
-
-    override fun filter(block: FilterBuilder<CURR>.() -> FilterExpr) {
-        val filterBuilder = TableInQueryBoundFilterBuilder(tableInQuery)
-        val filterExpr = filterBuilder.block()
-        query.addFilter(filterExpr)
-    }
-
-    override fun exclude(block: FilterBuilder<CURR>.() -> FilterExpr) {
-        val filterBuilder = TableInQueryBoundFilterBuilder(tableInQuery)
-        val filterExpr = filterBuilder.block()
-        query.addFilter(filterExpr.not())
     }
 }
