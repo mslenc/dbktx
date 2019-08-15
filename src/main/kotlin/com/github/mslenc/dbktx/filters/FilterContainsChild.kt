@@ -29,7 +29,7 @@ class FilterContainsChild<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
                 }
             }
             +(if (negated) " NOT IN " else " IN ")
-            +"(SELECT "
+            +"(SELECT DISTINCT "
             tuple(mappings) {
                 +it.bindColumnFrom(childTable)
             }
