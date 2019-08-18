@@ -5,6 +5,7 @@ import com.github.mslenc.asyncdb.impl.values.DbValueLong
 import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.schema.Column
 import com.github.mslenc.dbktx.expr.FilterExpr
+import com.github.mslenc.dbktx.filters.MatchAnything
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.*
 import kotlinx.coroutines.*
@@ -61,17 +62,19 @@ buildCountQuery(query: EntityQueryImpl<E>): Sql {
 
 internal fun <E : DbEntity<E, *>>
 buildDeleteQuery(query: DeleteQueryImpl<E>): Sql {
+    if (query.filters == MatchAnything)
+        throw RuntimeException("Missing filters")
 
     return Sql().apply {
         raw("DELETE FROM ")
         raw(query.baseTable.table.quotedDbName)
-        WHERE(query.filters ?: throw RuntimeException("Missing filters"))
+        WHERE(query.filters)
     }
 }
 
 
 private fun <E : DbEntity<E, ID>, ID: Any>
-createUpdateQuery(table: TableInQuery<E>, values: EntityValues<E>, filter: FilterExpr?): Sql? {
+createUpdateQuery(table: TableInQuery<E>, values: EntityValues<E>, filter: FilterExpr): Sql? {
     if (values.isEmpty())
         return null
 
@@ -287,7 +290,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
     }
 
     internal suspend fun <E : DbEntity<E, ID>, ID: Any>
-    enqueueUpdateQuery(table: DbTable<E, ID>, sqlBuilder: Sql, specificIds: Set<ID>?): Long {
+    enqueueUpdateQuery(table: DbTable<E, ID>, sqlBuilder: Sql): Long {
         val sql = sqlBuilder.getSql()
         val params = sqlBuilder.params
 
@@ -301,7 +304,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
     }
 
     internal suspend fun <E : DbEntity<E, ID>, ID: Any>
-    enqueueDeleteQuery(table: DbTable<E, ID>, sqlBuilder: Sql, specificIds: Set<ID>?): Long {
+    enqueueDeleteQuery(table: DbTable<E, ID>, sqlBuilder: Sql): Long {
         val sql = sqlBuilder.getSql()
         val params = sqlBuilder.params
 
@@ -440,11 +443,11 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
 
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeUpdate(table: TableInQuery<E>, filters: FilterExpr?, values: EntityValues<E>, specificIds: Set<ID>?): Long {
+    executeUpdate(table: TableInQuery<E>, filters: FilterExpr, values: EntityValues<E>): Long {
         val sqlBuilder = createUpdateQuery(table, values, filters) ?: return 0
 
         @Suppress("UNCHECKED_CAST")
-        return db.enqueueUpdateQuery(table.table as DbTable<E, ID>, sqlBuilder, specificIds)
+        return db.enqueueUpdateQuery(table.table as DbTable<E, ID>, sqlBuilder)
     }
 
     override suspend fun <E : DbEntity<E, *>>
@@ -452,7 +455,7 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         deleteQuery as DeleteQueryImpl<E>
         val sql = buildDeleteQuery(deleteQuery)
 
-        return deleteQuery.table.callEnqueueDeleteQuery(db, sql, null)
+        return deleteQuery.table.callEnqueueDeleteQuery(db, sql)
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID : Any>

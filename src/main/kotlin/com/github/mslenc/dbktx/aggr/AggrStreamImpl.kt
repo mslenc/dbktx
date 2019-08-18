@@ -3,6 +3,7 @@ package com.github.mslenc.dbktx.aggr
 import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.crud.FilterableQuery
+import com.github.mslenc.dbktx.crud.FilteringState
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
@@ -183,6 +184,10 @@ internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>
 
     override fun require(filter: FilterExpr) {
         query.require(filter)
+    }
+
+    override fun filteringState(): FilteringState {
+        return query.filteringState()
     }
 
     internal fun <T : Any, OUT: Any> addNullableAggregate(op: AggrOp, block: AggrExprBuilder<CURR>.() -> Expr<CURR, T>, sqlType: SqlType<OUT>): NullableAggrExpr<CURR, OUT> {

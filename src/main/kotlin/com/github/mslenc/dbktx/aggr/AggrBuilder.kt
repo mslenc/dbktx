@@ -1,10 +1,8 @@
 package com.github.mslenc.dbktx.aggr
 
 import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.crud.FilterBuilder
 import com.github.mslenc.dbktx.crud.FilterableQuery
 import com.github.mslenc.dbktx.expr.Expr
-import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.schema.*
 import kotlin.reflect.KMutableProperty1
 

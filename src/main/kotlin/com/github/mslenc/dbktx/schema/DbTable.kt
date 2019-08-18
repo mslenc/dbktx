@@ -51,11 +51,15 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return dbName.hashCode()
     }
 
+    override fun equals(other: Any?): Boolean {
+        return this === other
+    }
+
     fun validate(): DbTable<E, ID> {
-        if (factory == null)
-            throw IllegalStateException("Missing constructor for table " + dbName)
-        if (primaryKey == null)
-            throw IllegalStateException("Missing primaryKey for table " + dbName)
+        if (!::factory.isInitialized)
+            throw IllegalStateException("Missing constructor for table $dbName")
+        if (!::primaryKey.isInitialized)
+            throw IllegalStateException("Missing primaryKey for table $dbName")
 
         // TODO
         return this
@@ -121,23 +125,23 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
     }
 
     fun updateAll(db: DbConn): DbUpdate<E> {
-        return DbUpdateImpl(db, this, null, null)
+        return DbUpdateImpl(db, this, null)
     }
 
     fun updateMany(db: DbConn, filter: FilterBuilder<E>.()->FilterExpr): DbUpdate<E> {
-        val update = DbUpdateImpl(db, this, null, null)
+        val update = DbUpdateImpl(db, this, null)
         update.filter(filter)
         return update
     }
 
     fun update(db: DbConn, entity: E): DbUpdate<E> {
-        val update = DbUpdateImpl(db, this, setOf(entity.id), entity)
+        val update = DbUpdateImpl(db, this, entity)
         update.filter { primaryKey eq entity.id }
         return update
     }
 
     fun updateById(db: DbConn, id: ID): DbUpdate<E> {
-        val update = DbUpdateImpl(db, this, setOf(id), null)
+        val update = DbUpdateImpl(db, this, null)
         update.filter { primaryKey eq id }
         return update
     }
@@ -147,29 +151,24 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
 //    }
 
     fun updateByIds(db: DbConn, vararg ids: ID): DbUpdate<E> {
-        val idsSet = setOf(*ids)
-        val update = DbUpdateImpl(db, this, idsSet, null)
-        update.filter { primaryKey oneOf idsSet }
+        val update = DbUpdateImpl(db, this, null)
+        update.filter { primaryKey oneOf ids.toSet() }
         return update
     }
 
     fun update(db: DbConn, entities: Collection<E>): DbUpdate<E> {
-        if (entities.size == 1)
-            return update(db, entities.first())
+        entities.singleOrNull()?.let {
+            return update(db, it)
+        }
 
-        val idsSet = HashSet<ID>()
-        for (entity in entities)
-            idsSet.add(entity.id)
-
-        val update = DbUpdateImpl(db, this, idsSet, null)
-        update.filter { primaryKey oneOf idsSet }
+        val update = DbUpdateImpl(db, this, null)
+        update.filter { primaryKey oneOf entities.mapTo(HashSet()) { it.id } }
         return update
     }
 
     fun updateByIds(db: DbConn, ids: Collection<ID>): DbUpdate<E> {
-        val idsSet = HashSet(ids)
-        val update = DbUpdateImpl(db, this, idsSet, null)
-        update.filter { primaryKey oneOf idsSet }
+        val update = DbUpdateImpl(db, this, null)
+        update.filter { primaryKey oneOf ids.toSet() }
         return update
     }
 
@@ -177,8 +176,8 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return entityIndex.insertAndResolveEntityInIndex(db, this, row, selectForUpdate)
     }
 
-    internal suspend fun callEnqueueDeleteQuery(db: DbLoaderInternal, sql: Sql, specificIds: Set<ID>?): Long {
-        return db.enqueueDeleteQuery(this, sql, specificIds)
+    internal suspend fun callEnqueueDeleteQuery(db: DbLoaderInternal, sql: Sql): Long {
+        return db.enqueueDeleteQuery(this, sql)
     }
 
     fun <OUT: Any> makeAggregateListQuery(db: DbConn, factory: ()->OUT, builder: AggrListBuilder<OUT, E>.()->Unit): AggrListQuery<OUT, E> {

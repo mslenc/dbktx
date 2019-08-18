@@ -1,6 +1,7 @@
 package com.github.mslenc.dbktx.crud
 
 import com.github.mslenc.dbktx.conn.DbConn
+import com.github.mslenc.dbktx.filters.MatchAnything
 import com.github.mslenc.dbktx.schema.*
 
 interface DeleteQuery<E : DbEntity<E, *>>: FilterableQuery<E> {
@@ -19,7 +20,7 @@ internal class DeleteQueryImpl<E : DbEntity<E, *>>(
     var executed = false
 
     override suspend fun deleteAllMatchingRows(): Long {
-        if (filters == null)
+        if (filters == MatchAnything)
             throw IllegalStateException("No filter specified, don't want to delete entire table")
 
         checkModifiable()

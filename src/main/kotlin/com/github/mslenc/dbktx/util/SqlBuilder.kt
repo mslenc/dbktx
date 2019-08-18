@@ -4,6 +4,7 @@ import com.github.mslenc.asyncdb.util.ULong
 import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.expr.SqlEmitter
+import com.github.mslenc.dbktx.filters.MatchAnything
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.sqltypes.toHexString
 import java.math.BigDecimal
@@ -276,8 +277,8 @@ class Sql {
         buildJoins(joinedTable)
     }
 
-    fun WHERE(filter: FilterExpr?): Sql {
-        if (filter != null) {
+    fun WHERE(filter: FilterExpr): Sql {
+        if (filter != MatchAnything) {
             raw(" WHERE ")
             filter.toSql(this, true)
         }

@@ -6,27 +6,19 @@ import com.github.mslenc.dbktx.expr.BinaryOp
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.ExprBinary
 import com.github.mslenc.dbktx.expr.FilterExpr
-import com.github.mslenc.dbktx.filters.FilterBoolean
+import com.github.mslenc.dbktx.filters.MatchAnything
 import com.github.mslenc.dbktx.schema.*
 
 internal class DbUpdateImpl<E : DbEntity<E, ID>, ID: Any>(
         db: DbConn,
         table: DbTable<E, ID>,
-        private val specificIds: Set<ID>?,
         private val specificEntity: E?)
     : DbMutationImpl<E, ID>(db, BaseTableInUpdateQuery(UpdateQueryImpl(), table)), DbUpdate<E> {
 
-    private var filters: FilterExpr? = null
+    private var filters: FilterExpr = MatchAnything
 
     internal fun filter(block: FilterBuilder<E>.()->FilterExpr) {
-        val filterBuilder = TableInQueryBoundFilterBuilder(table)
-        val filter = filterBuilder.block()
-
-        if (filters == null) {
-            filters = filter
-        } else {
-            filters = FilterBoolean.create(filters!!, FilterBoolean.Op.AND, filter)
-        }
+        filters = filters and TableInQueryBoundFilterBuilder(table).block()
     }
 
     override fun <T : Any> set(column: NonNullColumn<E, T>, value: T) {
@@ -48,7 +40,7 @@ internal class DbUpdateImpl<E : DbEntity<E, ID>, ID: Any>(
     }
 
     override suspend fun execute(): Long {
-        return db.executeUpdate(table, filters, values, specificIds)
+        return db.executeUpdate(table, filters, values)
     }
 
     override fun anyChangesSoFar(): Boolean {

@@ -3,6 +3,8 @@ package com.github.mslenc.dbktx.util
 import com.github.mslenc.dbktx.crud.EntityQuery
 import com.github.mslenc.dbktx.crud.FilterBuilder
 import com.github.mslenc.dbktx.expr.FilterExpr
+import com.github.mslenc.dbktx.filters.FilterAnd
+import com.github.mslenc.dbktx.filters.FilterOr
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.RelToSingle
 import com.github.mslenc.dbktx.schema.StringColumn
@@ -98,10 +100,10 @@ class TextSearchBuilder<E: DbEntity<E, *>>(val entityQuery: EntityQuery<E>, val 
         // matches word = (field1 matches word) OR (field2 matches word) OR (...)
 
         entityQuery.filter {
-            FilterExpr.createAND(
-                    subFilters.map { wordFilters ->
-                        FilterExpr.createOR(wordFilters.map { it() })
-                    }
+            FilterAnd.create(
+                subFilters.map { wordFilters ->
+                    FilterOr.create(wordFilters.map { it() })
+                }
             )
         }
     }

@@ -10,7 +10,7 @@ import com.github.mslenc.dbktx.util.Sql
 class FilterContainsChild<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         private val parentTable: TableInQuery<FROM>,
         private val info: ManyToOneInfo<TO, FROM, *>,
-        private val filter: FilterExpr?,
+        private val filter: FilterExpr,
         private val childTable: TableInQuery<TO>,
         private val negated: Boolean = false) : FilterExpr {
 
@@ -44,7 +44,7 @@ class FilterContainsChild<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
     }
 
     override fun remap(remapper: TableRemapper): FilterExpr {
-        return FilterContainsChild(remapper.remap(parentTable), info, filter?.remap(remapper), remapper.remap(childTable), negated)
+        return FilterContainsChild(remapper.remap(parentTable), info, filter.remap(remapper), remapper.remap(childTable), negated)
     }
 
     override fun toString(): String {

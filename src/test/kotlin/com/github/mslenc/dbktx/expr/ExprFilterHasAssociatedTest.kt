@@ -4,7 +4,6 @@ import com.github.mslenc.asyncdb.DbResultSet
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.schemas.test1.Company.Companion.CONTACT_INFO_REF
-import com.github.mslenc.dbktx.schemas.test1.Company
 import com.github.mslenc.dbktx.schemas.test1.ContactInfo
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
@@ -60,6 +59,41 @@ class ExprFilterHasAssociatedTest {
         assertEquals(1, theParams.size)
         assertEquals("qwe", theParams[0])
 
+    }
+
+    @Test
+    fun testAssociatedQueryWithNoCondition() = runBlocking {
+        val called = AtomicBoolean(false)
+        var theSql: String? = null
+        var theParams: List<Any?> = emptyList()
+
+        val connection = object : MockDbConnection() {
+            override fun executeQuery(sql: String, values: MutableList<Any?>): CompletableFuture<DbResultSet> {
+                called.set(true)
+                theSql = sql
+                theParams = values
+
+                return CompletableFuture.completedFuture(MockResultSet.Builder().build())
+            }
+        }
+
+        val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
+
+        val deferred = db.run { async {
+            TestSchema1.COMPANY.query {
+                CONTACT_INFO_REF.isNotNull()
+            }
+        } }
+
+        assertFalse(called.get())
+
+        deferred.await()
+
+        assertTrue(called.get())
+
+        assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C WHERE C.\"id\" IN (SELECT CD.\"company_id\" FROM \"company_details\" AS CD)", theSql)
+
+        assertEquals(0, theParams.size)
     }
 
     @Test

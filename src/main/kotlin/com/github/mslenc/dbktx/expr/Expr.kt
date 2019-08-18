@@ -1,9 +1,10 @@
 package com.github.mslenc.dbktx.expr
 
 import com.github.mslenc.dbktx.crud.TableRemapper
-import com.github.mslenc.dbktx.filters.FilterBoolean
+import com.github.mslenc.dbktx.filters.FilterAnd
 import com.github.mslenc.dbktx.filters.FilterBetween
 import com.github.mslenc.dbktx.filters.FilterIsNull
+import com.github.mslenc.dbktx.filters.FilterOr
 import com.github.mslenc.dbktx.sqltypes.SqlType
 import com.github.mslenc.dbktx.util.Sql
 
@@ -36,11 +37,13 @@ interface Expr<E, T : Any> : SqlEmitter {
 }
 
 interface NullableExpr<E, T : Any> : Expr<E, T> {
-    val isNull: FilterExpr
-        get() = FilterIsNull(this, isNull = true)
+    fun isNull(): FilterExpr {
+        return FilterIsNull(this, isNull = true)
+    }
 
-    val isNotNull: FilterExpr
-        get() = FilterIsNull(this, isNull = false)
+    fun isNotNull(): FilterExpr{
+        return FilterIsNull(this, isNull = false)
+    }
 }
 
 interface NonNullExpr<E, T : Any> : Expr<E, T>
@@ -48,8 +51,6 @@ interface NonNullExpr<E, T : Any> : Expr<E, T>
 
 
 interface OrderedExpr<E, T : Any> : Expr<E, T> {
-
-
     infix fun between(range: SqlRange<in E, T>): FilterExpr {
         return FilterBetween(this, range.minumum, range.maximum, between = true)
     }
@@ -80,13 +81,29 @@ interface FilterExpr : SqlEmitter {
     operator fun not(): FilterExpr
     fun remap(remapper: TableRemapper): FilterExpr
 
+    infix fun and(other: FilterExpr): FilterExpr {
+        return FilterAnd.create(this, other)
+    }
+
+    infix fun or(other: FilterExpr): FilterExpr {
+        return FilterOr.create(this, other)
+    }
+
     companion object {
+        fun createOR(vararg exprs: FilterExpr): FilterExpr {
+            return FilterOr.create(*exprs)
+        }
+
         fun createOR(exprs: Collection<FilterExpr>): FilterExpr {
-            return FilterBoolean.create(FilterBoolean.Op.OR, exprs)
+            return FilterOr.create(exprs)
+        }
+
+        fun createAND(vararg exprs: FilterExpr): FilterExpr {
+            return FilterAnd.create(*exprs)
         }
 
         fun createAND(exprs: Collection<FilterExpr>): FilterExpr {
-            return FilterBoolean.create(FilterBoolean.Op.AND, exprs)
+            return FilterAnd.create(exprs)
         }
     }
 }

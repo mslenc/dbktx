@@ -5,7 +5,8 @@ import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.filters.FilterCompare
 import com.github.mslenc.dbktx.expr.FilterExpr
-import com.github.mslenc.dbktx.filters.FilterDummy
+import com.github.mslenc.dbktx.filters.MatchAnything
+import com.github.mslenc.dbktx.filters.MatchNothing
 
 enum class ColumnInMappingKind {
     COLUMN, // an actual column
@@ -109,7 +110,11 @@ class ColumnMappingLiteral<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TYPE:
             return rawColumnTo.makeLiteral(rawLiteralFromValue) as Expr<FROM, TYPE>
         }
 
-    override fun makeEqRef(ref: TO, tableInQuery: TableInQuery<FROM>): FilterDummy {
-        return FilterDummy(rawLiteralFromValue == rawColumnTo(ref))
+    override fun makeEqRef(ref: TO, tableInQuery: TableInQuery<FROM>): FilterExpr {
+        return if (rawLiteralFromValue == rawColumnTo(ref)) {
+            MatchAnything
+        } else {
+            MatchNothing
+        }
     }
 }

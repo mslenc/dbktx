@@ -7,8 +7,10 @@ import com.github.mslenc.dbktx.util.EntityState.*
 import com.github.mslenc.dbktx.expr.CompositeExpr
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
-import com.github.mslenc.dbktx.filters.FilterBoolean
-import com.github.mslenc.dbktx.filters.FilterDummy
+import com.github.mslenc.dbktx.filters.FilterAnd
+import com.github.mslenc.dbktx.filters.FilterOr
+import com.github.mslenc.dbktx.filters.MatchAnything
+import com.github.mslenc.dbktx.filters.MatchNothing
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.DelayedLoadState
 import com.github.mslenc.dbktx.util.OrderSpec
@@ -35,10 +37,18 @@ internal class SimpleSelectQueryImpl : QueryImpl()
 internal class UpdateQueryImpl : QueryImpl()
 internal class InsertQueryImpl : QueryImpl()
 
+enum class FilteringState {
+    MATCH_ALL,
+    MATCH_NONE,
+    MATCH_SOME
+}
+
 interface FilterableQuery<E : DbEntity<E, *>>: Query {
     val baseTable : TableInQuery<E>
 
     fun require(filter: FilterExpr)
+
+    fun filteringState(): FilteringState
 
     fun exclude(filter: FilterExpr) {
         require(!filter)
@@ -119,31 +129,19 @@ interface FilterableQuery<E : DbEntity<E, *>>: Query {
     }
 
     fun requireAnyOf(filters: Collection<FilterExpr>) {
-        if (filters.isEmpty()) {
-            require(FilterDummy(false))
-        } else {
-            require(FilterExpr.createOR(filters))
-        }
+        require(FilterOr.create(filters))
     }
 
     fun requireAllOf(filters: Collection<FilterExpr>) {
-        if (filters.isNotEmpty()) {
-            require(FilterExpr.createAND(filters))
-        }
+        require(FilterAnd.create(filters))
     }
 
     fun excludeWhenAnyOf(exprs: Collection<FilterExpr>) {
-        if (exprs.isNotEmpty()) {
-            require(!FilterExpr.createOR(exprs))
-        }
+        require(!FilterOr.create(exprs))
     }
 
     fun excludeWhenAllOf(exprs: Collection<FilterExpr>) {
-        if (exprs.isEmpty()) {
-            require(FilterDummy(false))
-        } else {
-            require(!FilterExpr.createAND(exprs))
-        }
+        require(!FilterAnd.create(exprs))
     }
 }
 
@@ -155,17 +153,19 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
 
     protected abstract fun makeBaseTable(table: DbTable<E, *>): TableInQuery<E>
     protected abstract fun checkModifiable()
-    internal var filters: FilterExpr? = null
+    internal var filters: FilterExpr = MatchAnything
 
     override fun require(filter: FilterExpr) {
         checkModifiable()
 
-        val existing = this.filters
+        this.filters = this.filters and filter
+    }
 
-        if (existing != null) {
-            this.filters = FilterBoolean.create(existing, FilterBoolean.Op.AND, filter)
-        } else {
-            this.filters = filter
+    override fun filteringState(): FilteringState {
+        return when (filters) {
+            MatchAnything -> FilteringState.MATCH_ALL
+            MatchNothing -> FilteringState.MATCH_NONE
+            else -> FilteringState.MATCH_SOME
         }
     }
 }
@@ -206,7 +206,7 @@ interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E>, OrderableQuery<E>
     suspend fun countAll(): Long
 
     fun copy(includeOffsetAndLimit: Boolean = false): EntityQuery<E>
-    fun copyAndRemapFilters(dstTable: TableInQuery<E>): FilterExpr?
+    fun copyAndRemapFilters(dstTable: TableInQuery<E>): FilterExpr
 
     suspend fun <OUT: Any> aggregateInto(factory: ()->OUT, queryBuilder: AggrListBuilder<OUT, E>.()->Unit): List<OUT> {
         return makeAggregateListQuery(factory, queryBuilder).run()
@@ -413,7 +413,7 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
         val remapper = TableRemapper(newQuery.baseTable.query)
         remapper.addExplicitMapping(baseTable, newQuery.baseTable)
 
-        newQuery.filters = filters?.remap(remapper)
+        newQuery.filters = filters.remap(remapper)
         _orderBy?.let { orderBy ->
             val newOrder = ArrayList<OrderSpec<*>>()
             orderBy.forEach { newOrder.add(it.remap(remapper)) }
@@ -428,22 +428,18 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
         return newQuery
     }
 
-    override fun copyAndRemapFilters(dstTable: TableInQuery<E>): FilterExpr? {
-        return filters?.let {
-            val remapper = TableRemapper(dstTable.query)
-            remapper.addExplicitMapping(baseTable, dstTable)
-            return it.remap(remapper)
-        }
+    override fun copyAndRemapFilters(dstTable: TableInQuery<E>): FilterExpr {
+        val remapper = TableRemapper(dstTable.query)
+        remapper.addExplicitMapping(baseTable, dstTable)
+        return filters.remap(remapper)
     }
 
     override fun <OUT : Any> makeAggregateListQuery(factory: () -> OUT, queryBuilder: AggrListBuilder<OUT, E>.() -> Unit): AggrListQuery<OUT, E> {
         val query = table.makeAggregateListQuery(db, factory, {}) as AggrListImpl
 
-        filters?.let { oldFilters ->
-            val remapper = TableRemapper(query)
-            remapper.addExplicitMapping(baseTable, query.baseTable)
-            query.filter { oldFilters.remap(remapper) }
-        }
+        val remapper = TableRemapper(query)
+        remapper.addExplicitMapping(baseTable, query.baseTable)
+        query.filter { filters.remap(remapper) }
 
         query.expand(queryBuilder)
 
@@ -453,11 +449,9 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
     override fun makeAggregateStreamQuery(queryBuilder: AggrStreamBuilder<E>.() -> Unit): AggrStreamQuery<E> {
         val query = table.makeAggregateStreamQuery(db, {}) as AggrStreamImpl
 
-        filters?.let { oldFilters ->
-            val remapper = TableRemapper(query)
-            remapper.addExplicitMapping(baseTable, query.baseTable)
-            query.filter { oldFilters.remap(remapper) }
-        }
+        val remapper = TableRemapper(query)
+        remapper.addExplicitMapping(baseTable, query.baseTable)
+        query.filter { filters.remap(remapper) }
 
         query.expand(queryBuilder)
 

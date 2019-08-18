@@ -34,7 +34,7 @@ class FilterOneOf<TABLE, T: Any>(private val needle: Expr<TABLE, T>, private val
     companion object {
         fun <TABLE, T: Any> oneOf(needle: Expr<TABLE, T>, haystack: List<Expr<TABLE, T>>): FilterExpr {
             if (haystack.isEmpty())
-                throw IllegalArgumentException("Empty list supplied to oneOf")
+                return MatchNothing
 
             if (haystack.size == 1)
                 return FilterCompare(needle, FilterCompare.Op.EQ, haystack[0])

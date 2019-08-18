@@ -33,7 +33,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
     infix fun <T: Any> RowProp<E, T>.oneOf(values: Set<T>): FilterExpr {
         return when {
             values.isEmpty() ->
-                throw IllegalArgumentException("Can't have empty set with oneOf")
+                MatchNothing
             values.size == 1 ->
                 this.eq(values.first())
             else ->
@@ -105,9 +105,9 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return FilterBetween(this, minimum, maximum, between = false)
     }
 
-    infix fun <T : Comparable<T>> OrderedProp<E, T>.between(range: ClosedRange<T>): FilterExpr {
+    infix fun <T : Comparable<T>> OrderedProp<E, T>.within(range: ClosedRange<T>): FilterExpr {
         if (range.isEmpty())
-            throw IllegalArgumentException("Can't have an empty range")
+            return MatchNothing
 
         return bind(this).between(makeLiteral(range.start), makeLiteral(range.endInclusive))
     }
@@ -116,9 +116,18 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return bind(this).between(makeLiteral(minimum), makeLiteral(maximum))
     }
 
-    infix fun <T : Comparable<T>> OrderedProp<E, T>.notBetween(range: ClosedRange<T>): FilterExpr {
+    fun <T : Comparable<T>> OrderedProp<E, T>.betweenOpt(minimum: T?, maximum: T?): FilterExpr {
+        return when {
+            minimum != null && maximum != null -> between(minimum, maximum)
+            minimum != null -> this gte minimum
+            maximum != null -> this lte maximum
+            else -> MatchAnything
+        }
+    }
+
+    infix fun <T : Comparable<T>> OrderedProp<E, T>.notWithin(range: ClosedRange<T>): FilterExpr {
         if (range.isEmpty())
-            throw IllegalArgumentException("Can't have an empty range")
+            return MatchAnything
 
         return bind(this).notBetween(makeLiteral(range.start), makeLiteral(range.endInclusive))
     }
@@ -127,6 +136,9 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return bind(this).notBetween(makeLiteral(minimum), makeLiteral(maximum))
     }
 
+    fun <T : Comparable<T>> OrderedProp<E, T>.notBetweenOpt(minimum: T?, maximum: T?): FilterExpr {
+        return !betweenOpt(minimum, maximum)
+    }
 
     infix fun ExprString<E>.contains(value: String): FilterExpr {
         return like("%" + escapeSqlLikePattern(value, '|') + "%", '|')
@@ -190,18 +202,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
     }
 
     infix fun <T : Any> Expr<E, T>.oneOf(values: List<Expr<E, T>>): FilterExpr {
-        if (values.isEmpty())
-            throw IllegalArgumentException("No possibilities specified")
-
         return FilterOneOf.oneOf(this, values)
-    }
-
-    infix fun FilterExpr.and(other: FilterExpr): FilterExpr {
-        return FilterBoolean.create(this, FilterBoolean.Op.AND, other)
-    }
-
-    infix fun FilterExpr.or(other: FilterExpr): FilterExpr {
-        return FilterBoolean.create(this, FilterBoolean.Op.OR, other)
     }
 
     fun <T : Any> NOW(): ExprNow<E, T> {
@@ -211,18 +212,22 @@ interface FilterBuilder<E: DbEntity<E, *>> {
     fun <TO: DbEntity<TO, *>> RelToZeroOrOne<E, TO>.has(block: FilterBuilder<TO>.() -> FilterExpr): FilterExpr {
         val dstTable = currentTable().subQueryOrJoin(this)
         val dstFilter = TableInQueryBoundFilterBuilder(dstTable)
-        val setFilter = dstFilter.block()
-        val relImpl = this as RelToZeroOrOneImpl<E, *, TO>
 
-        return FilterHasAssociated(currentTable(), relImpl.info, setFilter, dstTable)
+        return when (val setFilter = dstFilter.block()) {
+            MatchNothing -> MatchNothing
+            else -> FilterHasAssociated(currentTable(), (this as RelToZeroOrOneImpl<E, *, TO>).info, setFilter, dstTable)
+        }
     }
 
     fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.has(block: FilterBuilder<TO>.() -> FilterExpr): FilterExpr {
         val dstTable = currentTable().subQueryOrJoin(this)
         val dstFilter = TableInQueryBoundFilterBuilder(dstTable)
-        val parentFilter = dstFilter.block()
 
-        return FilterHasParent((this as RelToOneImpl<E, TO, *>).info, parentFilter, currentTable(), dstTable)
+        return when (val parentFilter = dstFilter.block()) {
+            MatchAnything -> this.isNotNull()
+            MatchNothing -> MatchNothing
+            else -> FilterHasParent((this as RelToOneImpl<E, TO, *>).info, parentFilter, currentTable(), dstTable)
+        }
     }
 
     fun <TO : DbEntity<TO, *>> RelToSingle<E, TO>.has(block: FilterBuilder<TO>.() -> FilterExpr): FilterExpr {
@@ -234,15 +239,36 @@ interface FilterBuilder<E: DbEntity<E, *>> {
     }
 
     infix fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.oneOf(parentFilter: EntityQuery<TO>): FilterExpr {
-        parentFilter as EntityQueryImpl<TO>
+        return when (parentFilter.filteringState()) {
+            FilteringState.MATCH_ALL -> this.isNotNull()
+            FilteringState.MATCH_NONE -> MatchNothing
+            FilteringState.MATCH_SOME -> {
+                val dstTable = currentTable().subQueryOrJoin(this)
+                val remappedFilter = parentFilter.copyAndRemapFilters(dstTable)
 
-        if (parentFilter.filters == null)
-            return this.isNotNull()
+                FilterHasParent((this as RelToOneImpl<E, TO, *>).info, remappedFilter, currentTable(), dstTable)
+            }
+        }
+    }
 
-        val dstTable = currentTable().subQueryOrJoin(this)
-        val remappedFilter = parentFilter.copyAndRemapFilters(dstTable)
+    infix fun <TO : DbEntity<TO, *>> RelToZeroOrOne<E, TO>.oneOf(parentFilter: EntityQuery<TO>): FilterExpr {
+        return when (parentFilter.filteringState()) {
+            FilteringState.MATCH_NONE -> MatchNothing
+            else -> {
+                val dstTable = currentTable().subQueryOrJoin(this)
+                val remappedFilter = parentFilter.copyAndRemapFilters(dstTable)
 
-        return FilterHasParent((this as RelToOneImpl<E, TO, *>).info, remappedFilter!!, currentTable(), dstTable)
+                FilterHasAssociated(currentTable(), (this as RelToZeroOrOneImpl<E, *, TO>).info, remappedFilter, dstTable)
+            }
+        }
+    }
+
+    infix fun <TO : DbEntity<TO, *>> RelToSingle<E, TO>.oneOf(parentFilter: EntityQuery<TO>): FilterExpr {
+        return when (this) {
+            is RelToOne -> oneOf(parentFilter)
+            is RelToZeroOrOne -> oneOf(parentFilter)
+            else -> throw IllegalStateException()
+        }
     }
 
     fun NullableRowProp<E, *>.isNull(): FilterExpr = this.makeIsNullExpr(currentTable(), isNull = true)
@@ -261,13 +287,34 @@ interface FilterBuilder<E: DbEntity<E, *>> {
             }
         }
 
-        if (parts.isEmpty())
-            return FilterDummy(false)
-
-        return FilterExpr.createOR(parts)
+        return FilterOr.create(parts)
     }
 
     fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.isNotNull(): FilterExpr = !isNull()
+
+    fun <TO : DbEntity<TO, *>> RelToZeroOrOne<E, TO>.isNotNull(): FilterExpr {
+        return has { MatchAnything }
+    }
+
+    fun <TO : DbEntity<TO, *>> RelToZeroOrOne<E, TO>.isNull(): FilterExpr {
+        return !isNotNull()
+    }
+
+    fun <TO : DbEntity<TO, *>> RelToSingle<E, TO>.isNotNull(): FilterExpr {
+        return when (this) {
+            is RelToOne -> isNotNull()
+            is RelToZeroOrOne -> isNotNull()
+            else -> throw IllegalStateException()
+        }
+    }
+
+    fun <TO : DbEntity<TO, *>> RelToSingle<E, TO>.isNull(): FilterExpr {
+        return when (this) {
+            is RelToOne -> isNull()
+            is RelToZeroOrOne -> isNull()
+            else -> throw IllegalStateException()
+        }
+    }
 
     infix fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.eq(ref: TO): FilterExpr {
         this as RelToOneImpl<E, TO, *>
@@ -286,22 +333,17 @@ interface FilterBuilder<E: DbEntity<E, *>> {
                 ColumnInMappingKind.CONSTANT,
                 ColumnInMappingKind.PARAMETER -> {
                     // here, we have a constant on the from side, and also a constant on the to side..
-                    val fakeEqRef = colMap.makeEqRef(ref, currentTable())
-                    if (fakeEqRef is FilterDummy) {
-                        if (fakeEqRef.matchAll) {
-                            // well then, we can obviously ignore it
-                        } else {
-                            // well then, we will fail everything anyway
-                            return fakeEqRef // (it's already what we'd return, so no point in making a new one..)
-                        }
-                    } else {
-                        throw IllegalStateException("Expected an ExprDummy")
+
+                    when (colMap.makeEqRef(ref, currentTable())) {
+                        MatchAnything -> { /* ignore, it does nothing */ }
+                        MatchNothing -> return MatchNothing // we'll match nothing overall, so..
+                        else -> throw IllegalStateException("Expected MatchAnything or MatchNothing")
                     }
                 }
             }
         }
 
-        return FilterBoolean(parts, FilterBoolean.Op.AND)
+        return FilterAnd(parts)
     }
 
     infix fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.oneOf(refs: Iterable<TO>): FilterExpr {
@@ -325,14 +367,14 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         val dstTable = currentTable().forcedSubQuery(this)
         val relImpl = this as RelToManyImpl<E, *, TO>
 
-        return FilterContainsChild(currentTable(), relImpl.info, null, dstTable)
+        return FilterContainsChild(currentTable(), relImpl.info, MatchAnything, dstTable)
     }
 
     fun <TO: DbEntity<TO, *>> RelToMany<E, TO>.isEmpty(): FilterExpr {
         val dstTable = currentTable().forcedSubQuery(this)
         val relImpl = this as RelToManyImpl<E, *, TO>
 
-        return FilterContainsChild(currentTable(), relImpl.info, null, dstTable, negated = true)
+        return FilterContainsChild(currentTable(), relImpl.info, MatchAnything, dstTable, negated = true)
     }
 
     fun <TO: DbEntity<TO, *>> RelToMany<E, TO>.contains(block: FilterBuilder<TO>.() -> FilterExpr): FilterExpr {
@@ -350,11 +392,6 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         val dstFilter = childQuery.copyAndRemapFilters(dstTable)
 
         return FilterContainsChild(currentTable(), relImpl.info, dstFilter, dstTable)
-    }
-
-    fun <T> combineWithOR(values: Iterable<T>, map: FilterBuilder<E>.(T)->FilterExpr): FilterExpr {
-        var parts = values.map { map(it) }
-        return FilterBoolean.create(FilterBoolean.Op.OR, parts)
     }
 
     infix fun Column<E, Int>.hasAnyOfBits(bits: Int): FilterExpr {

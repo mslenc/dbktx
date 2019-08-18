@@ -20,9 +20,9 @@ class RelToZeroOrOneImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : Db
         this.reverseKeyMapper = reverseKeyMapper
         this.queryExprBuilder = queryExprBuilder
 
-        this.oppositeColumn = (info.columnMappings[0].columnFromAsNullable as? NullableColumn<TO, FROM_KEY>) ?: throw UnsupportedOperationException("With relToZeroOrOne, the opposite column must be nullable and of the same type as source primary key")
+        this.oppositeColumn = (info.columnMappings[0].rawColumnFrom as Column<TO, FROM_KEY>)
         if (info.oneTable.primaryKey.getColumn(1).sqlType.kotlinType != oppositeColumn.sqlType.kotlinType)
-            throw UnsupportedOperationException("With relToZeroOrOne, the opposite column must be nullable and of the same type as source primary key")
+            throw UnsupportedOperationException("With relToZeroOrOne, the opposite column must be of the same type as source primary key")
     }
 
     override val targetTable: DbTable<TO, *>

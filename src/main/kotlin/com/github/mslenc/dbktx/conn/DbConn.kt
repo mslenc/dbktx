@@ -85,7 +85,7 @@ interface DbConn {
      * INTERNAL FUNCTION, use [update] or [DbTable.update] instead.
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeUpdate(table: TableInQuery<E>, filters: FilterExpr?, values: EntityValues<E>, specificIds: Set<ID>?): Long
+    executeUpdate(table: TableInQuery<E>, filters: FilterExpr, values: EntityValues<E>): Long
 
     /**
      * INTERNAL FUNCTION, use [delete] instead.
