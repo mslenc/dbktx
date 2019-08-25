@@ -5,7 +5,7 @@ import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.NonNullColumn
 import com.github.mslenc.dbktx.util.Sql
 
-abstract class CompositeId6<E : DbEntity<E, ID>, T1: Any, T2: Any, T3: Any, T4: Any, T5: Any, T6: Any, ID : CompositeId6<E, T1, T2, T3, T4, T5, T6, ID>>
+abstract class CompositeId6<E : DbEntity<E, *>, T1: Any, T2: Any, T3: Any, T4: Any, T5: Any, T6: Any, ID : CompositeId6<E, T1, T2, T3, T4, T5, T6, ID>>
     private constructor()
     : CompositeId<E, ID>() {
     abstract val column1: NonNullColumn<E, T1>

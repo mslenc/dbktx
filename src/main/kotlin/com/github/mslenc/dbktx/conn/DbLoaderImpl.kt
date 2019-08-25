@@ -6,6 +6,7 @@ import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.schema.Column
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.filters.MatchAnything
+import com.github.mslenc.dbktx.filters.MatchNothing
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.*
 import kotlinx.coroutines.*
@@ -444,6 +445,9 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
     executeUpdate(table: TableInQuery<E>, filters: FilterExpr, values: EntityValues<E>): Long {
+        if (filters == MatchNothing)
+            return 0
+
         val sqlBuilder = createUpdateQuery(table, values, filters) ?: return 0
 
         @Suppress("UNCHECKED_CAST")
@@ -453,6 +457,10 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
     override suspend fun <E : DbEntity<E, *>>
     executeDelete(deleteQuery: DeleteQuery<E>): Long {
         deleteQuery as DeleteQueryImpl<E>
+
+        if (deleteQuery.filters == MatchNothing)
+            return 0
+
         val sql = buildDeleteQuery(deleteQuery)
 
         return deleteQuery.table.callEnqueueDeleteQuery(db, sql)
@@ -517,6 +525,9 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         val entityQuery = EntityQueryImpl(table, this)
         entityQuery.filter(filter)
 
+        if (entityQuery.filteringState() == FilteringState.MATCH_NONE)
+            return 0L
+
         val queryResult = query(buildCountQuery(entityQuery))
         val firstRow = queryResult[0]
         val firstColumn = firstRow[0] as Number
@@ -527,12 +538,18 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
     executeSelect(query: EntityQuery<E>, selectForUpdate: Boolean): List<E> {
         query as EntityQueryImpl<E>
 
+        if (query.filteringState() == FilteringState.MATCH_NONE)
+            return emptyList()
+
         return db.enqueueQuery(query.table, buildSelectQuery(query, selectForUpdate), selectForUpdate)
     }
 
     override suspend fun <E : DbEntity<E, *>>
     executeCount(query: EntityQuery<E>): Long {
         query as EntityQueryImpl<E>
+
+        if (query.filteringState() == FilteringState.MATCH_NONE)
+            return 0L
 
         val queryResult = query(buildCountQuery(query))
         val firstRow = queryResult[0]
@@ -573,6 +590,9 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
 
         query.filter { relation.createCondition(fromKeys, query.baseTable) }
         query.filter(filter)
+
+        if (query.filteringState() == FilteringState.MATCH_NONE)
+            return emptyList()
 
         return query.run()
     }

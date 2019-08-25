@@ -5,7 +5,7 @@ import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.NonNullColumn
 import com.github.mslenc.dbktx.util.Sql
 
-abstract class CompositeId2<E : DbEntity<E, ID>, T1: Any, T2: Any, ID : CompositeId2<E, T1, T2, ID>>
+abstract class CompositeId2<E : DbEntity<E, *>, T1: Any, T2: Any, ID : CompositeId2<E, T1, T2, ID>>
     private constructor()
     : CompositeId<E, ID>() {
     abstract val column1: NonNullColumn<E, T1>
@@ -15,7 +15,7 @@ abstract class CompositeId2<E : DbEntity<E, ID>, T1: Any, T2: Any, ID : Composit
     lateinit var component2: T2 private set
 
     protected constructor(row: DbRow) : this() {
-        this.component1 = column1.invoke(row)
+        this.component1 = column1(row)
         this.component2 = column2(row)
     }
 
