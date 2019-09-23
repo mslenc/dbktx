@@ -63,4 +63,46 @@ class StringExprTest {
         assertEquals("abc", theParams[1])
         assertEquals(companyId.toString(), theParams[2])
     }
+
+    @Test
+    fun testConcatWSOnNullableColumn() = runBlocking {
+        val called = AtomicBoolean(false)
+        var theSql: String? = null
+        var theParams: List<Any?> = emptyList()
+
+        val companyId = UUID.randomUUID()
+
+        val connection = object : MockDbConnection() {
+            override fun execute(sql: String, args: List<Any?>): CompletableFuture<DbExecResult> {
+                called.set(true)
+                theSql = sql
+                theParams = args
+
+                return CompletableFuture.completedFuture(DbQueryResultImpl(3, "OK", null, null))
+            }
+        }
+
+        val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
+
+        val newInfo = "qwe"
+
+        with(Brand) {
+            val update =  updateMany(db) {
+                COMPANY_ID eq companyId
+            }
+
+            update[TAG_LINE] becomes { concatWs(":", +NAME, literal(newInfo), +TAG_LINE) }
+
+            update.execute()
+        }
+
+        assertTrue(called.get())
+
+        assertEquals("UPDATE \"brands\" SET \"tag_line\"=CONCAT_WS(?, \"name\", ?, \"tag_line\") WHERE \"company_id\" = ?", theSql)
+
+        assertEquals(3, theParams.size)
+        assertEquals(":", theParams[0])
+        assertEquals("qwe", theParams[1])
+        assertEquals(companyId.toString(), theParams[2])
+    }
 }
