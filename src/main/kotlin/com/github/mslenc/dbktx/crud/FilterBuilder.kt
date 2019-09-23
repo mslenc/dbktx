@@ -18,19 +18,33 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return FilterCompare(this, FilterCompare.Op.EQ, other)
     }
 
-    infix fun <T: Any> RowProp<E, T>.eq(other: T): FilterExpr {
+    infix fun <T: Any> NonNullRowProp<E, T>.eq(other: T): FilterExpr {
         return FilterCompare(bind(this), FilterCompare.Op.EQ, this.makeLiteral(other))
+    }
+
+    infix fun <T: Any> NullableRowProp<E, T>.eq(other: T?): FilterExpr {
+        return when (other) {
+            null -> isNull()
+            else -> FilterCompare(bind(this), FilterCompare.Op.EQ, this.makeLiteral(other))
+        }
     }
 
     infix fun <T: Any> Expr<E, T>.neq(other: Expr<E, T>): FilterExpr {
         return FilterCompare(this, FilterCompare.Op.NEQ, other)
     }
 
-    infix fun <T: Any> RowProp<E, T>.neq(other: T): FilterExpr {
+    infix fun <T: Any> NonNullRowProp<E, T>.neq(other: T): FilterExpr {
         return FilterCompare(bind(this), FilterCompare.Op.NEQ, this.makeLiteral(other))
     }
 
-    infix fun <T: Any> RowProp<E, T>.oneOf(values: Set<T>): FilterExpr {
+    infix fun <T: Any> NullableRowProp<E, T>.neq(other: T?): FilterExpr {
+        return when (other) {
+            null -> isNotNull()
+            else -> FilterCompare(bind(this), FilterCompare.Op.NEQ, this.makeLiteral(other))
+        }
+    }
+
+    infix fun <T: Any> NonNullRowProp<E, T>.oneOf(values: Set<T>): FilterExpr {
         return when {
             values.isEmpty() ->
                 MatchNothing
@@ -41,13 +55,40 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         }
     }
 
-    infix fun <T: Any> RowProp<E, T>.oneOf(values: Iterable<T>): FilterExpr {
+    infix fun <T: Any> NullableRowProp<E, T>.oneOf(values: Set<T?>): FilterExpr {
+        return when {
+            values.isEmpty() ->
+                MatchNothing
+            values.size == 1 ->
+                this.eq(values.first())
+            else -> {
+                if (values.contains(null)) {
+                    return oneOf(values.filterNotNullTo(HashSet())) or isNull()
+                } else {
+                    values as Set<T>
+                    this.bindForSelect(currentTable()).oneOf(values.map { makeLiteral(it) })
+                }
+            }
+        }
+    }
+
+
+    infix fun <T: Any> NonNullRowProp<E, T>.oneOf(values: Iterable<T>): FilterExpr {
         return if (values is Set) {
             oneOf(values)
         } else {
             oneOf(values.toSet())
         }
     }
+
+    infix fun <T: Any> NullableRowProp<E, T>.oneOf(values: Iterable<T?>): FilterExpr {
+        return if (values is Set) {
+            oneOf(values)
+        } else {
+            oneOf(values.toSet())
+        }
+    }
+
 
     infix fun <T : Any> Expr<E, T>.lt(value: Expr<E, T>): FilterExpr {
         return FilterCompare(this, FilterCompare.Op.LT, value)

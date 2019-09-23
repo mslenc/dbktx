@@ -39,7 +39,12 @@ class RelToZeroOrOneImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : Db
     override suspend fun loadNow(keys: Set<FROM>, db: DbConn): Map<FROM, TO?> {
         val index = keys.associateBy { it.id }
         val query = targetTable.newQuery(db)
-        query.filter { oppositeColumn oneOf index.keys }
+        val opposite = this.oppositeColumn
+        if (opposite is NonNullColumn) {
+            query.filter { opposite oneOf index.keys }
+        } else {
+            query.filter { (opposite as NullableColumn) oneOf index.keys }
+        }
 
         val result = HashMap<FROM, TO?>()
         for (target in query.run()) {

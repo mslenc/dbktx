@@ -2,10 +2,8 @@ package com.github.mslenc.dbktx.crud
 
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.crud.dsl.ColumnUpdateOps
-import com.github.mslenc.dbktx.expr.BinaryOp
-import com.github.mslenc.dbktx.expr.Expr
+import com.github.mslenc.dbktx.expr.*
 import com.github.mslenc.dbktx.expr.ExprBinary
-import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.filters.MatchAnything
 import com.github.mslenc.dbktx.schema.*
 

@@ -3,6 +3,7 @@ package com.github.mslenc.dbktx.crud.dsl
 import com.github.mslenc.dbktx.expr.BinaryOp
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.ExprBinary
+import com.github.mslenc.dbktx.expr.ExprConcatWS
 import com.github.mslenc.dbktx.schema.Column
 import com.github.mslenc.dbktx.schema.DbEntity
 
@@ -56,5 +57,8 @@ interface ColumnUpdateOps<E: DbEntity<E, *>, T: Any> {
     operator fun Column<E, T>.rem(other: Column<E, T>) = bind(this) % bind(other)
     operator fun T.rem(other: Expr<E, T>) = literal(this) % other
     operator fun T.rem(other: Column<E, T>) = literal(this) % bind(other)
+}
 
+fun <E: DbEntity<E, *>> ColumnUpdateOps<E, String>.concatWs(sep: String, first: Expr<E, *>, vararg rest: Expr<E, *>): Expr<E, String> {
+    return ExprConcatWS.create(literal(sep), first, rest.toList())
 }
