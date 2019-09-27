@@ -61,7 +61,7 @@ class DbLoaderTest {
 
                 result.addRow(companyId.toString(), "The Company", "2017-06-27T12:44:21".toLDT(), "2017-06-27T12:44:21".toLDT())
 
-                return CompletableFuture.completedFuture(DbQueryResultImpl(0, null, result.build(), emptyList()))
+                return CompletableFuture.completedFuture(DbQueryResultImpl(0, null, result.build(), null))
             }
         }
 
@@ -111,7 +111,7 @@ class DbLoaderTest {
                 result.addRow(companyId1.toString(), "def", "bk2", "Item 2", "432.45", "2017-06-26T11:59:09".toLDT(), "2017-06-27T12:44:21".toLDT())
                 result.addRow(companyId2.toString(), "ghi", "bk3", "Item 3", "500.45", "2017-06-25T10:00:01".toLDT(), "2017-06-27T22:21:09".toLDT())
 
-                return CompletableFuture.completedFuture(DbQueryResultImpl(0, null, result.build(), emptyList()))
+                return CompletableFuture.completedFuture(DbQueryResultImpl(0, null, result.build(), null))
             }
         }
 
@@ -178,7 +178,7 @@ class DbLoaderTest {
                 result.addRow(comId2.toString(), "baa", "Sheeps Inc.", "Wool and stool!", "2017-02-25T12:21:12".toLDT(), "2017-03-27T09:41:21".toLDT())
                 result.addRow(comId1.toString(), "goo", "Gooey Phooey", "Tee hee mee bee", "2017-03-26T16:51:14".toLDT(), "2017-04-27T10:50:00".toLDT())
 
-                return CompletableFuture.completedFuture(DbQueryResultImpl(0, null, result.build(), emptyList()))
+                return CompletableFuture.completedFuture(DbQueryResultImpl(0, null, result.build(), null))
             }
         }
 
@@ -245,7 +245,7 @@ class DbLoaderTest {
                 result.addRow(id1.companyId.toString(), "TOO001", id1.key, "A fine wool trimmer", "111.11", "2017-04-27T22:58:58".toLDT(), "2017-05-27T00:01:02".toLDT())
                 result.addRow(id2.companyId.toString(), "GOO",    id2.key, "The Goo", "4.50", "2016-01-01T23:59:59".toLDT(), "2016-01-01T01:02:03".toLDT())
 
-                return CompletableFuture.completedFuture(DbQueryResultImpl(0, null, result.build(), emptyList()))
+                return CompletableFuture.completedFuture(DbQueryResultImpl(0, null, result.build(), null))
             }
         }
 

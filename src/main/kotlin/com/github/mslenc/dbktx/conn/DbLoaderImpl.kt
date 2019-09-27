@@ -282,7 +282,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
             @Suppress("UNCHECKED_CAST")
             val idColumn = table.primaryKey.getColumn(1) as Column<E, ID>
 
-            id = idColumn.sqlType.parseDbValue(DbValueLong(keys[0]))
+            id = idColumn.sqlType.parseDbValue(DbValueLong(keys[0].getLong(0)))
         } else {
             id = explicitId ?: throw IllegalStateException("ID missing")
         }

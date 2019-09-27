@@ -2,6 +2,7 @@ package com.github.mslenc.dbktx.updates
 
 import com.github.mslenc.asyncdb.DbExecResult
 import com.github.mslenc.asyncdb.impl.DbQueryResultImpl
+import com.github.mslenc.asyncdb.util.GeneratedIdResult
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.schemas.test1.*
@@ -34,7 +35,7 @@ class InsertTest {
                 theSql = sql
                 theParams = args
 
-                val result = DbQueryResultImpl(1L, null, null, listOf(newPurchaseId))
+                val result = DbQueryResultImpl(1L, null, null, GeneratedIdResult(newPurchaseId))
                 return CompletableFuture.completedFuture(result)
             }
         }
@@ -74,7 +75,7 @@ class InsertTest {
                 theSql = sql
                 theParams = args
 
-                val result = DbQueryResultImpl(1L, null, null, emptyList())
+                val result = DbQueryResultImpl(1L, null, null, null)
                 return CompletableFuture.completedFuture(result)
             }
         }

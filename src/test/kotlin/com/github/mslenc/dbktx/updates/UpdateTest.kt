@@ -41,7 +41,7 @@ class UpdateTest {
                 called.set(true)
                 theSql = sql
                 theParams = values
-                val result = DbQueryResultImpl(1L, null, null, emptyList())
+                val result = DbQueryResultImpl(1L, null, null, null)
                 return CompletableFuture.completedFuture(result)
             }
 
