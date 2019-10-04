@@ -279,6 +279,15 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         }
     }
 
+    fun <TO : DbEntity<TO, *>> Rel<E, TO>.matches(block: FilterBuilder<TO>.() -> FilterExpr): FilterExpr {
+        return when (this) {
+            is RelToOne -> this.has(block)
+            is RelToMany -> this.contains(block)
+            is RelToZeroOrOne -> this.has(block)
+            else -> throw IllegalStateException()
+        }
+    }
+
     infix fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.oneOf(parentFilter: EntityQuery<TO>): FilterExpr {
         return when (parentFilter.filteringState()) {
             FilteringState.MATCH_ALL -> this.isNotNull()

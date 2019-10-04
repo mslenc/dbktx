@@ -16,7 +16,7 @@ import kotlin.reflect.KMutableProperty1
 
 internal typealias FieldSetter<OUT> = (DbRow, OUT)->Unit
 
-internal class AggrListImpl<OUT: Any, E: DbEntity<E, *>>(table: DbTable<E, *>, val db: DbConn, val outFactory: ()->OUT) : AggrQueryImpl<E>(table, db), AggrListQuery<OUT, E> {
+internal class AggrListImpl<OUT: Any, E: DbEntity<E, *>>(table: DbTable<E, *>, db: DbConn, val outFactory: ()->OUT) : AggrQueryImpl<E>(table, db), AggrListQuery<OUT, E> {
     var executing = false
 
     val fieldSetters = ArrayList<FieldSetter<OUT>>()
@@ -48,7 +48,7 @@ internal class AggrListImpl<OUT: Any, E: DbEntity<E, *>>(table: DbTable<E, *>, v
     }
 
     internal fun buildQuery(): Sql {
-        return Sql().apply {
+        return Sql(db.dbType).apply {
             raw("SELECT ")
             for ((idx: Int, selectable: SqlEmitter) in selects.withIndex()) {
                 if (idx > 0)

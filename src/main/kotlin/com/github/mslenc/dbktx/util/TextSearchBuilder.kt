@@ -1,110 +1,181 @@
 package com.github.mslenc.dbktx.util
 
-import com.github.mslenc.dbktx.crud.EntityQuery
 import com.github.mslenc.dbktx.crud.FilterBuilder
+import com.github.mslenc.dbktx.crud.FilterableQuery
+import com.github.mslenc.dbktx.crud.createFilter
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.filters.FilterAnd
 import com.github.mslenc.dbktx.filters.FilterOr
 import com.github.mslenc.dbktx.schema.DbEntity
-import com.github.mslenc.dbktx.schema.RelToSingle
+import com.github.mslenc.dbktx.schema.Rel
 import com.github.mslenc.dbktx.schema.StringColumn
 
-class TextSearchBuilder<E: DbEntity<E, *>>(val entityQuery: EntityQuery<E>, val words: List<String>) {
-    val subFilters: MutableList<MutableList<FilterBuilder<E>.()->FilterExpr>> = ArrayList()
+private class WordGroup(val words: List<String>) {
+    val subFilters: MutableList<MutableList<FilterExpr>> = ArrayList()
     init {
-        for (word in words)
+        repeat(words.size) {
             subFilters.add(ArrayList())
+        }
     }
 
-    constructor(entityQuery: EntityQuery<E>, words: String) :
-            this(entityQuery, extractWordsForSearch(words))
+    inline fun forEachWord(block: (String)->FilterExpr) {
+        for (i in words.indices) {
+            subFilters[i].add(block(words[i]))
+        }
+    }
+}
+
+
+
+class TextSearchBuilder<E: DbEntity<E, *>>(val query: FilterableQuery<E>, wordGroups: List<List<String>>) {
+    private val groups = wordGroups.mapNotNull {
+        when {
+            it.isNotEmpty() -> WordGroup(it)
+            else -> null
+        }
+    }
+
+    private inline fun List<WordGroup>.addWordMatchers(block: FilterBuilder<E>.(String) -> FilterExpr): TextSearchBuilder<E> {
+        forEach { group ->
+            group.forEachWord {
+                query.createFilter { block(it) }
+            }
+        }
+        return this@TextSearchBuilder
+    }
 
     fun matchBeginningOf(field: StringColumn<E>): TextSearchBuilder<E> {
-        for (i in 0 until words.size)
-            subFilters[i].add { field startsWith words[i] }
-
-        return this
+        return groups.addWordMatchers {
+            field startsWith it
+        }
     }
 
     fun matchAnywhereIn(field: StringColumn<E>): TextSearchBuilder<E> {
-        for (i in 0 until words.size)
-            subFilters[i].add { field contains words[i] }
-
-        return this
+        return groups.addWordMatchers {
+            field contains it
+        }
     }
 
-    fun <REF : DbEntity<REF, *>> matchBeginningOf(ref: RelToSingle<E, REF>, field: StringColumn<REF>): TextSearchBuilder<E> {
-        for (i in 0 until words.size)
-            subFilters[i].add { ref.has { field startsWith words[i] } }
-
-        return this
+    fun matchExactly(field: StringColumn<E>): TextSearchBuilder<E> {
+        return groups.addWordMatchers {
+            bind(field) eq field.makeLiteral(it)
+        }
     }
 
-    fun <REF : DbEntity<REF, *>> matchAnywhereIn(ref: RelToSingle<E, REF>, field: StringColumn<REF>): TextSearchBuilder<E> {
-        for (i in 0 until words.size)
-            subFilters[i].add { ref.has { field contains words[i] } }
+    fun <REF : DbEntity<REF, *>> matchBeginningOf(ref: Rel<E, REF>, field: StringColumn<REF>): TextSearchBuilder<E> {
+        return groups.addWordMatchers {
+            ref.matches { field startsWith it }
+        }
+    }
 
-        return this
+    fun <REF : DbEntity<REF, *>> matchAnywhereIn(ref: Rel<E, REF>, field: StringColumn<REF>): TextSearchBuilder<E> {
+        return groups.addWordMatchers {
+            ref.matches { field contains it }
+        }
+    }
+
+    fun <REF : DbEntity<REF, *>> matchExactly(ref: Rel<E, REF>, field: StringColumn<REF>): TextSearchBuilder<E> {
+        return groups.addWordMatchers {
+            ref.matches { bind(field) eq field.makeLiteral(it) }
+        }
     }
 
     fun <REF : DbEntity<REF, *>, NEXT_REF: DbEntity<NEXT_REF, *>>
-    matchBeginningOf(ref: RelToSingle<E, REF>, nextRef: RelToSingle<REF, NEXT_REF>, field: StringColumn<NEXT_REF>): TextSearchBuilder<E> {
-        for (i in 0 until words.size)
-            subFilters[i].add { ref.has { nextRef.has { field startsWith words[i] } } }
-
-        return this
+    matchBeginningOf(ref: Rel<E, REF>, nextRef: Rel<REF, NEXT_REF>, field: StringColumn<NEXT_REF>): TextSearchBuilder<E> {
+        return groups.addWordMatchers {
+            ref.matches { nextRef.matches { field startsWith it } }
+        }
     }
 
     fun <REF : DbEntity<REF, *>, NEXT_REF: DbEntity<NEXT_REF, *>>
-    matchAnywhereIn(ref: RelToSingle<E, REF>, nextRef: RelToSingle<REF, NEXT_REF>, field: StringColumn<NEXT_REF>): TextSearchBuilder<E> {
-        for (i in 0 until words.size)
-            subFilters[i].add { ref.has { nextRef.has { field contains words[i] } } }
+    matchAnywhereIn(ref: Rel<E, REF>, nextRef: Rel<REF, NEXT_REF>, field: StringColumn<NEXT_REF>): TextSearchBuilder<E> {
+        return groups.addWordMatchers {
+            ref.matches { nextRef.matches { field contains it } }
+        }
+    }
 
-        return this
+    fun <REF : DbEntity<REF, *>, NEXT_REF: DbEntity<NEXT_REF, *>>
+    matchExactly(ref: Rel<E, REF>, nextRef: Rel<REF, NEXT_REF>, field: StringColumn<NEXT_REF>): TextSearchBuilder<E> {
+        return groups.addWordMatchers {
+            ref.matches { nextRef.matches { bind(field) eq field.makeLiteral(it) } }
+        }
     }
 
     fun <REF : DbEntity<REF, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>>
-    matchBeginningOf(ref: RelToSingle<E, REF>, ref2: RelToSingle<REF, REF2>, ref3: RelToSingle<REF2, REF3>, field: StringColumn<REF3>): TextSearchBuilder<E> {
-        for (i in 0 until words.size)
-            subFilters[i].add { ref.has { ref2.has { ref3.has { field startsWith words[i] } } } }
-
-        return this
+    matchBeginningOf(ref: Rel<E, REF>, ref2: Rel<REF, REF2>, ref3: Rel<REF2, REF3>, field: StringColumn<REF3>): TextSearchBuilder<E> {
+        return groups.addWordMatchers {
+            ref.matches { ref2.matches { ref3.matches { field startsWith it } } }
+        }
     }
 
     fun <REF : DbEntity<REF, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>>
-    matchAnywhereIn(ref: RelToSingle<E, REF>, ref2: RelToSingle<REF, REF2>, ref3: RelToSingle<REF2, REF3>, field: StringColumn<REF3>): TextSearchBuilder<E> {
-        for (i in 0 until words.size)
-            subFilters[i].add { ref.has { ref2.has { ref3.has { field contains words[i] } } } }
+    matchAnywhereIn(ref: Rel<E, REF>, ref2: Rel<REF, REF2>, ref3: Rel<REF2, REF3>, field: StringColumn<REF3>): TextSearchBuilder<E> {
+        return groups.addWordMatchers {
+            ref.matches { ref2.matches { ref3.matches { field contains it } } }
+        }
+    }
 
-        return this
+    fun <REF : DbEntity<REF, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>>
+    matchExactly(ref: Rel<E, REF>, ref2: Rel<REF, REF2>, ref3: Rel<REF2, REF3>, field: StringColumn<REF3>): TextSearchBuilder<E> {
+        return groups.addWordMatchers {
+            ref.matches { ref2.matches { ref3.matches { bind(field) eq field.makeLiteral(it) } } }
+        }
     }
 
     fun <REF : DbEntity<REF, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>, REF4: DbEntity<REF4, *>>
-    matchBeginningOf(ref: RelToSingle<E, REF>, ref2: RelToSingle<REF, REF2>, ref3: RelToSingle<REF2, REF3>, ref4: RelToSingle<REF3, REF4>, field: StringColumn<REF4>): TextSearchBuilder<E> {
-        for (i in 0 until words.size)
-            subFilters[i].add { ref.has { ref2.has { ref3.has { ref4.has { field startsWith words[i] } } } } }
-
-        return this
+    matchBeginningOf(ref: Rel<E, REF>, ref2: Rel<REF, REF2>, ref3: Rel<REF2, REF3>, ref4: Rel<REF3, REF4>, field: StringColumn<REF4>): TextSearchBuilder<E> {
+        return groups.addWordMatchers {
+            ref.matches { ref2.matches { ref3.matches { ref4.matches { field startsWith it } } } }
+        }
     }
 
     fun <REF : DbEntity<REF, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>, REF4: DbEntity<REF4, *>>
-    matchAnywhereIn(ref: RelToSingle<E, REF>, ref2: RelToSingle<REF, REF2>, ref3: RelToSingle<REF2, REF3>, ref4: RelToSingle<REF3, REF4>, field: StringColumn<REF4>): TextSearchBuilder<E> {
-        for (i in 0 until words.size)
-            subFilters[i].add { ref.has { ref2.has { ref3.has { ref4.has { field contains words[i] } } } } }
+    matchAnywhereIn(ref: Rel<E, REF>, ref2: Rel<REF, REF2>, ref3: Rel<REF2, REF3>, ref4: Rel<REF3, REF4>, field: StringColumn<REF4>): TextSearchBuilder<E> {
+        return groups.addWordMatchers {
+            ref.matches { ref2.matches { ref3.matches { ref4.matches { field contains it } } } }
+        }
+    }
 
-        return this
+    fun <REF : DbEntity<REF, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>, REF4: DbEntity<REF4, *>>
+    matchExactly(ref: Rel<E, REF>, ref2: Rel<REF, REF2>, ref3: Rel<REF2, REF3>, ref4: Rel<REF3, REF4>, field: StringColumn<REF4>): TextSearchBuilder<E> {
+        return groups.addWordMatchers {
+            ref.matches { ref2.matches { ref3.matches { ref4.matches { bind(field) eq field.makeLiteral(it) } } } }
+        }
+    }
+
+    fun createFilterExpr(): FilterExpr {
+        // combined = (group1) OR (group2) OR (...)
+        // group = (match word1) AND (match word2) AND (...)
+        // match word = (field1 matches word) OR (field2 matches word) OR (...)
+
+        return (
+            FilterOr.create(
+                groups.map { group ->
+                    FilterAnd.create(
+                        group.subFilters.map { wordFilters ->
+                            FilterOr.create(wordFilters)
+                        }
+                    )
+                }
+            )
+        )
     }
 
     fun applyToQuery() {
-        // combined = (matches word1) AND (matches word2) AND (...)
-        // matches word = (field1 matches word) OR (field2 matches word) OR (...)
+        query.require(createFilterExpr())
+    }
 
-        entityQuery.filter {
-            FilterAnd.create(
-                subFilters.map { wordFilters ->
-                    FilterOr.create(wordFilters.map { it() })
+    companion object {
+        operator fun <E: DbEntity<E, *>> invoke(query: FilterableQuery<E>, words: String): TextSearchBuilder<E> {
+            val wordGroups = words.split(',').mapNotNull {
+                val wordsFound = extractWordsForSearch(it)
+                when {
+                    wordsFound.isEmpty() -> null
+                    else -> wordsFound
                 }
-            )
+            }
+
+            return TextSearchBuilder(query, wordGroups)
         }
     }
 }

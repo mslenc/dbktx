@@ -23,19 +23,21 @@ class FilterContainsChild<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         // but it's unclear if it'd be actually useful anywhere, so postponing for now
 
         sql.expr(topLevel) {
-            paren(n > 1) {
-                tuple(mappings) {
-                    sql(it.bindColumnTo(parentTable), false)
+            sql.subQueryWrapper(negated) { IN ->
+                paren(n > 1) {
+                    tuple(mappings) {
+                        sql(it.bindColumnTo(parentTable), false)
+                    }
                 }
+                +IN
+                +"(SELECT DISTINCT "
+                tuple(mappings) {
+                    +it.bindColumnFrom(childTable)
+                }
+                FROM(info.manyTable, childTable.tableAlias)
+                WHERE(filter)
+                +")"
             }
-            +(if (negated) " NOT IN " else " IN ")
-            +"(SELECT DISTINCT "
-            tuple(mappings) {
-                +it.bindColumnFrom(childTable)
-            }
-            FROM(info.manyTable, childTable.tableAlias)
-            WHERE(filter)
-            +")"
         }
     }
 

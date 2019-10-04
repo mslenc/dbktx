@@ -5,6 +5,7 @@ import com.github.mslenc.asyncdb.impl.DbQueryResultImpl
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
+import com.github.mslenc.dbktx.crud.filter
 import com.github.mslenc.dbktx.schemas.test1.Brand
 import com.github.mslenc.dbktx.schemas.test1.Company
 import com.github.mslenc.dbktx.schemas.test1.Item
@@ -137,7 +138,7 @@ class DbLoaderTest {
         assertTrue(called)
 
         assertEquals("SELECT I.\"company_id\", I.\"sku\", I.\"brand_key\", I.\"name\", I.\"price\", I.\"t_created\", I.\"t_updated\" " +
-                     "FROM \"items\" AS I WHERE (I.\"company_id\", I.\"sku\") IN ((?, ?), (?, ?), (?, ?), (?, ?))", theSql)
+                     "FROM \"items\" AS I WHERE (TRUE IS NOT DISTINCT FROM ((I.\"company_id\", I.\"sku\") IN ((?, ?), (?, ?), (?, ?), (?, ?))))", theSql)
 
         checkParams(theParams, id0.company_id.toString(), id0.sku,
                                id1.company_id.toString(), id1.sku,
@@ -205,7 +206,7 @@ class DbLoaderTest {
 
         assertTrue(called)
 
-        assertEquals("SELECT B.\"company_id\", B.\"key\", B.\"name\", B.\"tag_line\", B.\"t_created\", B.\"t_updated\" FROM \"brands\" AS B WHERE B.\"company_id\" IN (?, ?, ?)", theSql)
+        assertEquals("SELECT B.\"company_id\", B.\"key\", B.\"name\", B.\"tag_line\", B.\"t_created\", B.\"t_updated\" FROM \"brands\" AS B WHERE (TRUE IS NOT DISTINCT FROM (B.\"company_id\" IN (?, ?, ?)))", theSql)
         assertEquals(comId2.toString(), theParams[0] as String)
         assertEquals(comId0.toString(), theParams[1] as String)
         assertEquals(comId1.toString(), theParams[2] as String)
@@ -277,7 +278,7 @@ class DbLoaderTest {
 
         assertTrue(called)
 
-        assertEquals("SELECT I.\"company_id\", I.\"sku\", I.\"brand_key\", I.\"name\", I.\"price\", I.\"t_created\", I.\"t_updated\" FROM \"items\" AS I WHERE (I.\"brand_key\", I.\"company_id\") IN ((?, ?), (?, ?), (?, ?))", theSql!!)
+        assertEquals("SELECT I.\"company_id\", I.\"sku\", I.\"brand_key\", I.\"name\", I.\"price\", I.\"t_created\", I.\"t_updated\" FROM \"items\" AS I WHERE (TRUE IS NOT DISTINCT FROM ((I.\"brand_key\", I.\"company_id\") IN ((?, ?), (?, ?), (?, ?))))", theSql!!)
 
         checkParams(theParams, id0.key, id0.companyId.toString(),
                                id1.key, id1.companyId.toString(),

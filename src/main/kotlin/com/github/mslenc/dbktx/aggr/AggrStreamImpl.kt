@@ -16,7 +16,7 @@ import com.github.mslenc.dbktx.util.Sql
 
 typealias RowCallback = (DbRow)->Unit
 
-internal class AggrStreamImpl<E: DbEntity<E, *>>(table: DbTable<E, *>, val db: DbConn) : AggrQueryImpl<E>(table, db), AggrStreamQuery<E> {
+internal class AggrStreamImpl<E: DbEntity<E, *>>(table: DbTable<E, *>, db: DbConn) : AggrQueryImpl<E>(table, db), AggrStreamQuery<E> {
     var executing = false
 
     val rowStartCallbacks = ArrayList<RowCallback>()
@@ -58,7 +58,7 @@ internal class AggrStreamImpl<E: DbEntity<E, *>>(table: DbTable<E, *>, val db: D
     }
 
     internal fun buildQuery(): Sql {
-        return Sql().apply {
+        return Sql(db.dbType).apply {
             raw("SELECT ")
             for ((idx: Int, selectable: SqlEmitter) in selects.withIndex()) {
                 if (idx > 0)

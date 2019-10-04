@@ -2,10 +2,10 @@ package com.github.mslenc.dbktx.schema
 
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
-import com.github.mslenc.dbktx.conn.DbLoaderInternal
 import com.github.mslenc.dbktx.crud.EntityQuery
 import com.github.mslenc.dbktx.crud.FilterBuilder
 import com.github.mslenc.dbktx.crud.TableInQuery
+import com.github.mslenc.dbktx.crud.filter
 import com.github.mslenc.dbktx.expr.FilterExpr
 import java.util.ArrayList
 

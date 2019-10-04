@@ -3,6 +3,7 @@ package com.github.mslenc.dbktx.aggr
 import com.github.mslenc.asyncdb.DbQueryResultObserver
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
+import com.github.mslenc.dbktx.crud.filter
 import com.github.mslenc.dbktx.schemas.test2.*
 import com.github.mslenc.dbktx.schemas.test3.*
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
@@ -136,10 +137,10 @@ class AggregateTest {
             "INNER JOIN \"comp_results\" AS CR ON CR.\"id_person\" = CE.\"id_person\" AND CR.\"id_country\" = CE.\"id_country\" AND CR.\"id_weight\" = CE.\"weight_id\" " +
             "WHERE (CE.\"id_country\" = 123) " +
             "AND (" +
-                "(C.\"id_competition\" IN " +
+                "((TRUE IS NOT DISTINCT FROM (C.\"id_competition\" IN " +
                     "(SELECT DISTINCT CE2.\"id_comp\" FROM \"comp_entries\" AS CE2 " +
-                    "WHERE CE2.\"weight_id\" IN (12, 13, 14))" +
-                ")" +
+                    "WHERE (TRUE IS NOT DISTINCT FROM (CE2.\"weight_id\" IN (12, 13, 14))))" +
+                ")))" +
             ") AND (LN.\"name\" LIKE ? ESCAPE '|') " +
               "AND (LN2.\"name\" LIKE ? ESCAPE '|') " +
             "GROUP BY W.\"name\", LN.\"name\", LN2.\"name\", W.\"id_weight\", CE.\"id_country\" " +

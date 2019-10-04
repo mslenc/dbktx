@@ -31,19 +31,21 @@ class FilterOneOfRelToOne<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
         val multiColumn = info.columnMappings.size > 1
 
         sql.expr(topLevel) {
-            paren(showParens = multiColumn) {
-                tuple(info.columnMappings) {
-                    +it.bindFrom(tableInQuery)
+            sql.inLiteralSetWrapper(negated) { IN ->
+                paren(showParens = multiColumn) {
+                    tuple(info.columnMappings) {
+                        +it.bindFrom(tableInQuery)
+                    }
                 }
-            }
 
-            +(if (negated) " NOT IN " else " IN ")
+                +IN
 
-            paren {
-                tuple(refs) { ref ->
-                    paren(showParens = multiColumn) {
-                        tuple(info.columnMappings) { colMap ->
-                            writeLiteral(colMap.rawColumnTo, ref, sql)
+                paren {
+                    tuple(refs) { ref ->
+                        paren(showParens = multiColumn) {
+                            tuple(info.columnMappings) { colMap ->
+                                writeLiteral(colMap.rawColumnTo, ref, sql)
+                            }
                         }
                     }
                 }

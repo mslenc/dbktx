@@ -10,8 +10,8 @@ interface DeleteQuery<E : DbEntity<E, *>>: FilterableQuery<E> {
 
 internal class DeleteQueryImpl<E : DbEntity<E, *>>(
         table: DbTable<E, *>,
-        loader: DbConn)
-    : FilterableQueryImpl<E>(table, loader), DeleteQuery<E> {
+        db: DbConn)
+    : FilterableQueryImpl<E>(table, db), DeleteQuery<E> {
 
     override fun makeBaseTable(table: DbTable<E, *>): TableInQuery<E> {
         return BaseTableInUpdateQuery(this, table)
@@ -26,7 +26,7 @@ internal class DeleteQueryImpl<E : DbEntity<E, *>>(
         checkModifiable()
 
         executed = true
-        return loader.executeDelete(this)
+        return db.executeDelete(this)
     }
 
     override fun checkModifiable() {

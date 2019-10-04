@@ -1,5 +1,6 @@
 package com.github.mslenc.dbktx.util
 
+import com.github.mslenc.asyncdb.DbType
 import com.github.mslenc.asyncdb.util.ULong
 import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.expr.FilterExpr
@@ -10,7 +11,7 @@ import com.github.mslenc.dbktx.sqltypes.toHexString
 import java.math.BigDecimal
 import java.time.*
 
-class Sql {
+class Sql(val dbType: DbType) {
     private val sql = StringBuilder()
     val params = ArrayList<Any>()
 
@@ -294,6 +295,58 @@ class Sql {
             if (index > 0)
                 raw(", ")
             group.toSql(this, true)
+        }
+    }
+
+    fun subQueryWrapper(negated: Boolean, block: Sql.(String)->Unit) {
+        when (dbType) {
+            DbType.MYSQL -> {
+                if (negated) {
+                    raw("(NOT (")
+                    this.block(" <=> SOME ")
+                    raw("))")
+                } else {
+                    this.block(" <=> SOME ")
+                }
+            }
+            DbType.POSTGRES -> {
+                if (negated) {
+                    raw("(TRUE IS DISTINCT FROM (")
+                    this.block(" IN ")
+                    raw("))")
+                } else {
+                    raw("(TRUE IS NOT DISTINCT FROM (")
+                    this.block(" IN ")
+                    raw("))")
+                }
+            }
+        }
+    }
+
+    fun inLiteralSetWrapper(negated: Boolean, block: Sql.(String)->Unit) {
+        when (dbType) {
+            DbType.MYSQL -> {
+                if (negated) {
+                    raw("NOT (TRUE <=> (")
+                    this.block(" IN ")
+                    raw("))")
+                } else {
+                    raw("(TRUE <=> (")
+                    this.block(" IN ")
+                    raw("))")
+                }
+            }
+            DbType.POSTGRES -> {
+                if (negated) {
+                    raw("(TRUE IS DISTINCT FROM (")
+                    this.block(" IN ")
+                    raw("))")
+                } else {
+                    raw("(TRUE IS NOT DISTINCT FROM (")
+                    this.block(" IN ")
+                    raw("))")
+                }
+            }
         }
     }
 

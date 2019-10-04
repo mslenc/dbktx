@@ -55,7 +55,7 @@ class ExprFilterContainsChildTest {
 
         assertTrue(called.get())
 
-        assertEquals("SELECT B.\"company_id\", B.\"key\", B.\"name\", B.\"tag_line\", B.\"t_created\", B.\"t_updated\" FROM \"brands\" AS B WHERE (B.\"key\", B.\"company_id\") IN (SELECT DISTINCT I.\"brand_key\", I.\"company_id\" FROM \"items\" AS I WHERE I.\"name\" IN (?, ?))", theSql)
+        assertEquals("SELECT B.\"company_id\", B.\"key\", B.\"name\", B.\"tag_line\", B.\"t_created\", B.\"t_updated\" FROM \"brands\" AS B WHERE (TRUE IS NOT DISTINCT FROM ((B.\"key\", B.\"company_id\") IN (SELECT DISTINCT I.\"brand_key\", I.\"company_id\" FROM \"items\" AS I WHERE (TRUE IS NOT DISTINCT FROM (I.\"name\" IN (?, ?))))))", theSql)
 
         assertEquals(2, theParams.size)
 

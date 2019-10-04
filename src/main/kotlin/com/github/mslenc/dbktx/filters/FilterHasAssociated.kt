@@ -24,19 +24,21 @@ class FilterHasAssociated<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         // but it's unclear if it'd be actually useful anywhere, so postponing for now
         if (childTable.incomingJoin?.joinType == JoinType.SUB_QUERY) {
             sql.expr(topLevel) {
-                paren(n > 1) {
-                    tuple(mappings) {
-                        sql(it.bindColumnTo(parentTable), false)
+                sql.subQueryWrapper(negated) { IN ->
+                    paren(n > 1) {
+                        tuple(mappings) {
+                            sql(it.bindColumnTo(parentTable), false)
+                        }
                     }
+                    +IN
+                    +"(SELECT "
+                        tuple(mappings) {
+                            +it.bindColumnFrom(childTable)
+                        }
+                        FROM(info.manyTable, childTable.tableAlias)
+                        WHERE(filter)
+                    +")"
                 }
-                +(if (negated) " NOT IN " else " IN ")
-                +"(SELECT "
-                    tuple(mappings) {
-                        +it.bindColumnFrom(childTable)
-                    }
-                    FROM(info.manyTable, childTable.tableAlias)
-                    WHERE(filter)
-                +")"
             }
         } else {
             sql.expr(topLevel) {

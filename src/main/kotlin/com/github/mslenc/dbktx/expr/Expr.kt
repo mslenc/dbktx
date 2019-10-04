@@ -1,5 +1,6 @@
 package com.github.mslenc.dbktx.expr
 
+import com.github.mslenc.asyncdb.DbType
 import com.github.mslenc.dbktx.crud.TableRemapper
 import com.github.mslenc.dbktx.filters.FilterAnd
 import com.github.mslenc.dbktx.filters.FilterBetween
@@ -12,7 +13,7 @@ interface SqlEmitter {
     fun toSql(sql: Sql, topLevel: Boolean = false)
 
     fun toSqlStringForDebugging(): String {
-        val sql = Sql()
+        val sql = Sql(DbType.POSTGRES)
         toSql(sql, true)
         return sql.getSql()
     }

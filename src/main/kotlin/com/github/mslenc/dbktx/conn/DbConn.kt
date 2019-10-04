@@ -15,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 interface DbConn {
     val requestTime: RequestTime
     val scope: CoroutineScope
+    val dbType: DbType
 
     suspend fun startTransaction()
     suspend fun startTransaction(isolation: DbTxIsolation)

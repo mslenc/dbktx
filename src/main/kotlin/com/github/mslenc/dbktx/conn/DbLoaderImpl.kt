@@ -23,7 +23,7 @@ import kotlin.coroutines.suspendCoroutine
 internal fun <E : DbEntity<E, *>>
 buildSelectQuery(query: EntityQueryImpl<E>, selectForUpdate: Boolean): Sql {
 
-    return Sql().apply {
+    return Sql(query.db.dbType).apply {
         SELECT(query.table.defaultColumnNames)
         FROM(query.baseTable)
         WHERE(query.filters)
@@ -54,7 +54,7 @@ buildSelectQuery(query: EntityQueryImpl<E>, selectForUpdate: Boolean): Sql {
 internal fun <E : DbEntity<E, *>>
 buildCountQuery(query: EntityQueryImpl<E>): Sql {
 
-    return Sql().apply {
+    return Sql(query.db.dbType).apply {
         SELECT("COUNT(*)")
         FROM(query.baseTable)
         WHERE(query.filters)
@@ -66,7 +66,7 @@ buildDeleteQuery(query: DeleteQueryImpl<E>): Sql {
     if (query.filters == MatchAnything)
         throw RuntimeException("Missing filters")
 
-    return Sql().apply {
+    return Sql(query.db.dbType).apply {
         raw("DELETE FROM ")
         raw(query.baseTable.table.quotedDbName)
         WHERE(query.filters)
@@ -75,11 +75,11 @@ buildDeleteQuery(query: DeleteQueryImpl<E>): Sql {
 
 
 private fun <E : DbEntity<E, ID>, ID: Any>
-createUpdateQuery(table: TableInQuery<E>, values: EntityValues<E>, filter: FilterExpr): Sql? {
+createUpdateQuery(table: TableInQuery<E>, values: EntityValues<E>, filter: FilterExpr, dbType: DbType): Sql? {
     if (values.isEmpty())
         return null
 
-    return Sql().apply {
+    return Sql(dbType).apply {
         +"UPDATE "
         raw(table.table.quotedDbName)
         +" SET "
@@ -93,7 +93,7 @@ createUpdateQuery(table: TableInQuery<E>, values: EntityValues<E>, filter: Filte
 }
 
 private fun <E : DbEntity<E, ID>, ID: Any> createInsertQuery(table: DbTable<E, ID>, values: EntityValues<E>, dbType: DbType, keyAutogenerates: Boolean): Sql {
-    return Sql().apply {
+    return Sql(dbType).apply {
         +"INSERT INTO "
         raw(table.quotedDbName)
         paren {
@@ -251,7 +251,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
         val filterBuilder = TableInQueryBoundFilterBuilder(boundTable)
         val filterExpr = filterBuilder.filter()
 
-        val sb = Sql().apply {
+        val sb = Sql(publicDb.dbType).apply {
             SELECT(table.defaultColumnNames)
             FROM(boundTable)
             WHERE(filterExpr)
@@ -384,6 +384,9 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
 class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, override val requestTime: RequestTime) : DbConn {
     private val db = DbLoaderInternal(this, conn)
 
+    override val dbType: DbType
+        get() = db.conn.config.type()
+
     override suspend fun
     query(sqlBuilder: Sql): DbResultSet {
         val sql = sqlBuilder.getSql()
@@ -448,7 +451,7 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         if (filters == MatchNothing)
             return 0
 
-        val sqlBuilder = createUpdateQuery(table, values, filters) ?: return 0
+        val sqlBuilder = createUpdateQuery(table, values, filters, dbType) ?: return 0
 
         @Suppress("UNCHECKED_CAST")
         return db.enqueueUpdateQuery(table.table as DbTable<E, ID>, sqlBuilder)

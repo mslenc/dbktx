@@ -21,19 +21,21 @@ class FilterHasParent<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
 
         if (dstTable.incomingJoin?.joinType == JoinType.SUB_QUERY) {
             sql.expr(topLevel) {
-                paren(n > 1) {
-                    tuple(info.columnMappings) {
-                        +it.bindFrom(srcTable)
+                sql.subQueryWrapper(negated) { IN ->
+                    paren(n > 1) {
+                        tuple(info.columnMappings) {
+                            +it.bindFrom(srcTable)
+                        }
                     }
+                    +IN
+                    +"(SELECT "
+                    tuple(info.columnMappings) {
+                        columnForSelect(it.bindColumnTo(dstTable))
+                    }
+                    FROM(dstTable)
+                    WHERE(filter)
+                    +")"
                 }
-                +(if (negated) " NOT IN " else " IN ")
-                +"(SELECT "
-                tuple(info.columnMappings) {
-                    columnForSelect(it.bindColumnTo(dstTable))
-                }
-                FROM(dstTable)
-                WHERE(filter)
-                +")"
             }
         } else {
             sql.expr(topLevel) {

@@ -2,6 +2,7 @@ package com.github.mslenc.dbktx.schema
 
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.crud.TableInQuery
+import com.github.mslenc.dbktx.crud.filter
 import com.github.mslenc.dbktx.expr.FilterExpr
 
 class RelToZeroOrOneImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntity<TO, *>> : RelToZeroOrOne<FROM, TO> {

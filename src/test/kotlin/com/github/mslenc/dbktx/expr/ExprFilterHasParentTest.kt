@@ -3,6 +3,7 @@ package com.github.mslenc.dbktx.expr
 import com.github.mslenc.asyncdb.DbResultSet
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
+import com.github.mslenc.dbktx.crud.filter
 import com.github.mslenc.dbktx.schemas.test1.Brand.Companion.COMPANY_REF
 import com.github.mslenc.dbktx.schemas.test1.Company
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
@@ -54,7 +55,7 @@ class ExprFilterHasParentTest {
 
         assertTrue(called.get())
 
-        assertEquals("SELECT B.\"company_id\", B.\"key\", B.\"name\", B.\"tag_line\", B.\"t_created\", B.\"t_updated\" FROM \"brands\" AS B WHERE B.\"company_id\" IN (SELECT C.\"id\" FROM \"companies\" AS C WHERE C.\"name\" >= ?)", theSql)
+        assertEquals("SELECT B.\"company_id\", B.\"key\", B.\"name\", B.\"tag_line\", B.\"t_created\", B.\"t_updated\" FROM \"brands\" AS B WHERE (TRUE IS NOT DISTINCT FROM (B.\"company_id\" IN (SELECT C.\"id\" FROM \"companies\" AS C WHERE C.\"name\" >= ?)))", theSql)
 
         assertEquals(1, theParams.size)
         assertEquals("qwe", theParams[0])
