@@ -185,27 +185,47 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return like("%" + escapeSqlLikePattern(value, '|') + "%", '|')
     }
 
+    infix fun ExprString<E>.icontains(value: String): FilterExpr {
+        return like("%" + escapeSqlLikePattern(value, '|') + "%", '|', caseInsensitive = true)
+    }
+
     infix fun ExprString<E>.startsWith(value: String): FilterExpr {
         return like(escapeSqlLikePattern(value, '|') + "%", '|')
+    }
+
+    infix fun ExprString<E>.istartsWith(value: String): FilterExpr {
+        return like(escapeSqlLikePattern(value, '|') + "%", '|', caseInsensitive = true)
     }
 
     infix fun ExprString<E>.endsWith(value: String): FilterExpr {
         return like("%" + escapeSqlLikePattern(value, '|'), '|')
     }
 
+    infix fun ExprString<E>.iendsWith(value: String): FilterExpr {
+        return like("%" + escapeSqlLikePattern(value, '|'), '|', caseInsensitive = true)
+    }
+
     infix fun ExprString<E>.like(pattern: String): FilterExpr {
         return like(pattern, '|')
+    }
+
+    infix fun ExprString<E>.ilike(pattern: String): FilterExpr {
+        return like(pattern, '|', caseInsensitive = true)
     }
 
     infix fun ExprString<E>.like(pattern: Expr<in E, String>): FilterExpr {
         return like(pattern, '|')
     }
 
-    fun ExprString<E>.like(pattern: String, escapeChar: Char): FilterExpr {
-        return like(SqlTypeVarchar.makeLiteral(pattern), escapeChar)
+    infix fun ExprString<E>.ilike(pattern: Expr<in E, String>): FilterExpr {
+        return like(pattern, '|', caseInsensitive = true)
     }
 
-    fun ExprString<E>.like(pattern: Expr<in E, String>, escapeChar: Char): FilterExpr {
+    fun ExprString<E>.like(pattern: String, escapeChar: Char, caseInsensitive: Boolean = false): FilterExpr {
+        return like(SqlTypeVarchar.makeLiteral(pattern), escapeChar, caseInsensitive = caseInsensitive)
+    }
+
+    fun ExprString<E>.like(pattern: Expr<in E, String>, escapeChar: Char, caseInsensitive: Boolean = false): FilterExpr {
         return FilterLike(this, pattern, escapeChar)
     }
 
@@ -214,28 +234,48 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return like("%" + escapeSqlLikePattern(value, '|') + "%", '|')
     }
 
+    infix fun StringColumn<E>.icontains(value: String): FilterExpr {
+        return like("%" + escapeSqlLikePattern(value, '|') + "%", '|', caseInsensitive = true)
+    }
+
     infix fun StringColumn<E>.startsWith(value: String): FilterExpr {
         return like(escapeSqlLikePattern(value, '|') + "%", '|')
+    }
+
+    infix fun StringColumn<E>.istartsWith(value: String): FilterExpr {
+        return like(escapeSqlLikePattern(value, '|') + "%", '|', caseInsensitive = true)
     }
 
     infix fun StringColumn<E>.endsWith(value: String): FilterExpr {
         return like("%" + escapeSqlLikePattern(value, '|'), '|')
     }
 
+    infix fun StringColumn<E>.iendsWith(value: String): FilterExpr {
+        return like("%" + escapeSqlLikePattern(value, '|'), '|', caseInsensitive = true)
+    }
+
     infix fun StringColumn<E>.like(pattern: String): FilterExpr {
         return like(pattern, '|')
+    }
+
+    infix fun StringColumn<E>.ilike(pattern: String): FilterExpr {
+        return like(pattern, '|', caseInsensitive = true)
     }
 
     infix fun StringColumn<E>.like(pattern: Expr<in E, String>): FilterExpr {
         return like(pattern, '|')
     }
 
-    fun StringColumn<E>.like(pattern: String, escapeChar: Char): FilterExpr {
-        return like(SqlTypeVarchar.makeLiteral(pattern), escapeChar)
+    infix fun StringColumn<E>.ilike(pattern: Expr<in E, String>): FilterExpr {
+        return like(pattern, '|', caseInsensitive = true)
     }
 
-    fun StringColumn<E>.like(pattern: Expr<in E, String>, escapeChar: Char): FilterExpr {
-        return FilterLike(bind(this), pattern, escapeChar)
+    fun StringColumn<E>.like(pattern: String, escapeChar: Char, caseInsensitive: Boolean = false): FilterExpr {
+        return like(SqlTypeVarchar.makeLiteral(pattern), escapeChar, caseInsensitive = caseInsensitive)
+    }
+
+    fun StringColumn<E>.like(pattern: Expr<in E, String>, escapeChar: Char, caseInsensitive: Boolean = false): FilterExpr {
+        return FilterLike(bind(this), pattern, escapeChar, caseInsensitive = caseInsensitive)
     }
 
     infix fun StringSetColumn<E>.contains(value: String): FilterExpr {

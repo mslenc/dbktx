@@ -46,13 +46,13 @@ class TextSearchBuilder<E: DbEntity<E, *>>(val query: FilterableQuery<E>, wordGr
 
     fun matchBeginningOf(field: StringColumn<E>): TextSearchBuilder<E> {
         return groups.addWordMatchers {
-            field startsWith it
+            field istartsWith it
         }
     }
 
     fun matchAnywhereIn(field: StringColumn<E>): TextSearchBuilder<E> {
         return groups.addWordMatchers {
-            field contains it
+            field icontains it
         }
     }
 
@@ -64,13 +64,13 @@ class TextSearchBuilder<E: DbEntity<E, *>>(val query: FilterableQuery<E>, wordGr
 
     fun <REF : DbEntity<REF, *>> matchBeginningOf(ref: Rel<E, REF>, field: StringColumn<REF>): TextSearchBuilder<E> {
         return groups.addWordMatchers {
-            ref.matches { field startsWith it }
+            ref.matches { field istartsWith it }
         }
     }
 
     fun <REF : DbEntity<REF, *>> matchAnywhereIn(ref: Rel<E, REF>, field: StringColumn<REF>): TextSearchBuilder<E> {
         return groups.addWordMatchers {
-            ref.matches { field contains it }
+            ref.matches { field icontains it }
         }
     }
 
@@ -83,14 +83,14 @@ class TextSearchBuilder<E: DbEntity<E, *>>(val query: FilterableQuery<E>, wordGr
     fun <REF : DbEntity<REF, *>, NEXT_REF: DbEntity<NEXT_REF, *>>
     matchBeginningOf(ref: Rel<E, REF>, nextRef: Rel<REF, NEXT_REF>, field: StringColumn<NEXT_REF>): TextSearchBuilder<E> {
         return groups.addWordMatchers {
-            ref.matches { nextRef.matches { field startsWith it } }
+            ref.matches { nextRef.matches { field istartsWith it } }
         }
     }
 
     fun <REF : DbEntity<REF, *>, NEXT_REF: DbEntity<NEXT_REF, *>>
     matchAnywhereIn(ref: Rel<E, REF>, nextRef: Rel<REF, NEXT_REF>, field: StringColumn<NEXT_REF>): TextSearchBuilder<E> {
         return groups.addWordMatchers {
-            ref.matches { nextRef.matches { field contains it } }
+            ref.matches { nextRef.matches { field icontains it } }
         }
     }
 
@@ -104,14 +104,14 @@ class TextSearchBuilder<E: DbEntity<E, *>>(val query: FilterableQuery<E>, wordGr
     fun <REF : DbEntity<REF, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>>
     matchBeginningOf(ref: Rel<E, REF>, ref2: Rel<REF, REF2>, ref3: Rel<REF2, REF3>, field: StringColumn<REF3>): TextSearchBuilder<E> {
         return groups.addWordMatchers {
-            ref.matches { ref2.matches { ref3.matches { field startsWith it } } }
+            ref.matches { ref2.matches { ref3.matches { field istartsWith it } } }
         }
     }
 
     fun <REF : DbEntity<REF, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>>
     matchAnywhereIn(ref: Rel<E, REF>, ref2: Rel<REF, REF2>, ref3: Rel<REF2, REF3>, field: StringColumn<REF3>): TextSearchBuilder<E> {
         return groups.addWordMatchers {
-            ref.matches { ref2.matches { ref3.matches { field contains it } } }
+            ref.matches { ref2.matches { ref3.matches { field icontains it } } }
         }
     }
 
@@ -125,14 +125,14 @@ class TextSearchBuilder<E: DbEntity<E, *>>(val query: FilterableQuery<E>, wordGr
     fun <REF : DbEntity<REF, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>, REF4: DbEntity<REF4, *>>
     matchBeginningOf(ref: Rel<E, REF>, ref2: Rel<REF, REF2>, ref3: Rel<REF2, REF3>, ref4: Rel<REF3, REF4>, field: StringColumn<REF4>): TextSearchBuilder<E> {
         return groups.addWordMatchers {
-            ref.matches { ref2.matches { ref3.matches { ref4.matches { field startsWith it } } } }
+            ref.matches { ref2.matches { ref3.matches { ref4.matches { field istartsWith it } } } }
         }
     }
 
     fun <REF : DbEntity<REF, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>, REF4: DbEntity<REF4, *>>
     matchAnywhereIn(ref: Rel<E, REF>, ref2: Rel<REF, REF2>, ref3: Rel<REF2, REF3>, ref4: Rel<REF3, REF4>, field: StringColumn<REF4>): TextSearchBuilder<E> {
         return groups.addWordMatchers {
-            ref.matches { ref2.matches { ref3.matches { ref4.matches { field contains it } } } }
+            ref.matches { ref2.matches { ref3.matches { ref4.matches { field icontains it } } } }
         }
     }
 
