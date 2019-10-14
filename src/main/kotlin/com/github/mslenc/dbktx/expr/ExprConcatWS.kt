@@ -17,6 +17,9 @@ class ExprConcatWS<E> private constructor (private val sep: Expr<E, String>, pri
         sql.raw(")")
     }
 
+    override val couldBeNull: Boolean
+        get() = sep.couldBeNull // nulls in parts are ignored by CONCAT_WS
+
     override fun remap(remapper: TableRemapper): Expr<E, String> {
         return ExprConcatWS(sep.remap(remapper), parts.map { it.remap(remapper) })
     }

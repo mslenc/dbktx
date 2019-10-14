@@ -55,7 +55,7 @@ class ExprFilterHasAssociatedTest {
 
         assertTrue(called.get())
 
-        assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C WHERE (TRUE IS NOT DISTINCT FROM (C.\"id\" IN (SELECT CD.\"company_id\" FROM \"company_details\" AS CD WHERE CD.\"address\" >= ?)))", theSql)
+        assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C WHERE C.\"id\" IN (SELECT CD.\"company_id\" FROM \"company_details\" AS CD WHERE CD.\"address\" >= ?)", theSql)
 
         assertEquals(1, theParams.size)
         assertEquals("qwe", theParams[0])
@@ -92,7 +92,7 @@ class ExprFilterHasAssociatedTest {
 
         assertTrue(called.get())
 
-        assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C WHERE (TRUE IS NOT DISTINCT FROM (C.\"id\" IN (SELECT CD.\"company_id\" FROM \"company_details\" AS CD)))", theSql)
+        assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C WHERE C.\"id\" IN (SELECT CD.\"company_id\" FROM \"company_details\" AS CD)", theSql)
 
         assertEquals(0, theParams.size)
     }

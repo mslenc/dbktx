@@ -13,7 +13,7 @@ class FilterOneOf<TABLE, T: Any>(private val needle: Expr<TABLE, T>, private val
 
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.expr(topLevel) {
-            sql.inLiteralSetWrapper(negated) { IN ->
+            sql.inLiteralSetWrapper(negated, needleCanBeNull = needle.couldBeNull) { IN ->
                 +needle
                 +IN
                 paren { tuple(haystack) { +it } }

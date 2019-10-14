@@ -9,6 +9,9 @@ class ExprNow<ENTITY, T: Any>() : Expr<ENTITY, T> {
         sql.raw("NOW()")
     }
 
+    override val couldBeNull: Boolean
+        get() = false
+
     override val isComposite: Boolean
         get() = false
 

@@ -247,6 +247,9 @@ class BoundColumnForSelect<E: DbEntity<E, *>, T : Any>(val column: Column<E, T>,
         sql.raw(column.quotedFieldName)
     }
 
+    override val couldBeNull: Boolean
+        get() = column.nullable
+
     override fun getSqlType(): SqlType<T> {
         return column.sqlType
     }
@@ -263,6 +266,9 @@ class BoundColumnForSelect<E: DbEntity<E, *>, T : Any>(val column: Column<E, T>,
 class BoundMultiColumnForSelect<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(val multiColumn: MultiColumnKeyDef<E, ID>, val tableInQuery: TableInQuery<E>) : CompositeExpr<E, ID> {
     override val numParts: Int
         get() = multiColumn.numColumns
+
+    override val couldBeNull: Boolean
+        get() = false
 
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.paren {

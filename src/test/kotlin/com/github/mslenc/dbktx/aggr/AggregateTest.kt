@@ -137,10 +137,10 @@ class AggregateTest {
             "INNER JOIN \"comp_results\" AS CR ON CR.\"id_person\" = CE.\"id_person\" AND CR.\"id_country\" = CE.\"id_country\" AND CR.\"id_weight\" = CE.\"weight_id\" " +
             "WHERE (CE.\"id_country\" = 123) " +
             "AND (" +
-                "((TRUE IS NOT DISTINCT FROM (C.\"id_competition\" IN " +
+                "(C.\"id_competition\" IN " +
                     "(SELECT DISTINCT CE2.\"id_comp\" FROM \"comp_entries\" AS CE2 " +
-                    "WHERE (TRUE IS NOT DISTINCT FROM (CE2.\"weight_id\" IN (12, 13, 14))))" +
-                ")))" +
+                    "WHERE CE2.\"weight_id\" IN (12, 13, 14))" +
+                ")" +
             ") AND (LN.\"name\" LIKE ? ESCAPE '|') " +
               "AND (LN2.\"name\" LIKE ? ESCAPE '|') " +
             "GROUP BY W.\"name\", LN.\"name\", LN2.\"name\", W.\"id_weight\", CE.\"id_country\" " +

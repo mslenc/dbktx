@@ -6,6 +6,7 @@ import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.crud.filter
 import com.github.mslenc.dbktx.schemas.test1.Brand.Companion.COMPANY_REF
 import com.github.mslenc.dbktx.schemas.test1.Company
+import com.github.mslenc.dbktx.schemas.test1.ContactInfo
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
@@ -55,7 +56,7 @@ class ExprFilterHasParentTest {
 
         assertTrue(called.get())
 
-        assertEquals("SELECT B.\"company_id\", B.\"key\", B.\"name\", B.\"tag_line\", B.\"t_created\", B.\"t_updated\" FROM \"brands\" AS B WHERE (TRUE IS NOT DISTINCT FROM (B.\"company_id\" IN (SELECT C.\"id\" FROM \"companies\" AS C WHERE C.\"name\" >= ?)))", theSql)
+        assertEquals("SELECT B.\"company_id\", B.\"key\", B.\"name\", B.\"tag_line\", B.\"t_created\", B.\"t_updated\" FROM \"brands\" AS B WHERE B.\"company_id\" IN (SELECT C.\"id\" FROM \"companies\" AS C WHERE C.\"name\" >= ?)", theSql)
 
         assertEquals(1, theParams.size)
         assertEquals("qwe", theParams[0])
@@ -98,6 +99,47 @@ class ExprFilterHasParentTest {
         assertTrue(called.get())
 
         assertEquals("SELECT B.\"company_id\", B.\"key\", B.\"name\", B.\"tag_line\", B.\"t_created\", B.\"t_updated\" FROM \"brands\" AS B INNER JOIN \"companies\" AS C ON C.\"id\" = B.\"company_id\" WHERE (C.\"name\" >= ?) ORDER BY C.\"name\"", theSql)
+
+        assertEquals(1, theParams.size)
+        assertEquals("qwe", theParams[0])
+
+    }
+
+    @Test
+    fun testParentQueryWhenParentIsNullable() = runBlocking {
+        val called = AtomicBoolean(false)
+        var theSql: String? = null
+        var theParams: List<Any?> = emptyList()
+
+        val connection = object : MockDbConnection() {
+            override fun executeQuery(sql: String, values: MutableList<Any?>): CompletableFuture<DbResultSet> {
+                called.set(true)
+                theSql = sql
+                theParams = values
+
+                return CompletableFuture.completedFuture(MockResultSet.Builder().build())
+            }
+        }
+
+        val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
+
+        val deferred = db.run { async {
+            val query = newQuery(TestSchema1.CONTACT_INFO)
+            query.filter {
+                ContactInfo.COMPANY_REF.has {
+                    Company.NAME gte "qwe"
+                }
+            }
+            query.run()
+        } }
+
+        assertFalse(called.get())
+
+        deferred.await()
+
+        assertTrue(called.get())
+
+        assertEquals("SELECT CD.\"id\", CD.\"company_id\", CD.\"address\" FROM \"company_details\" AS CD WHERE (TRUE IS NOT DISTINCT FROM (CD.\"company_id\" IN (SELECT C.\"id\" FROM \"companies\" AS C WHERE C.\"name\" >= ?)))", theSql)
 
         assertEquals(1, theParams.size)
         assertEquals("qwe", theParams[0])

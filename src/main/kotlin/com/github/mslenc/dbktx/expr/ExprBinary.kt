@@ -10,6 +10,9 @@ internal class ExprBinary<E: DbEntity<E, *>, T: Any>(private val left: Expr<in E
         return left.getSqlType()
     }
 
+    override val couldBeNull: Boolean
+        get() = left.couldBeNull || right.couldBeNull
+
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.expr(topLevel) {
             +left

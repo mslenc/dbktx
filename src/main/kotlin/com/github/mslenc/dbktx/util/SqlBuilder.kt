@@ -298,54 +298,70 @@ class Sql(val dbType: DbType) {
         }
     }
 
-    fun subQueryWrapper(negated: Boolean, block: Sql.(String)->Unit) {
-        when (dbType) {
-            DbType.MYSQL -> {
-                if (negated) {
-                    raw("(NOT (")
-                    this.block(" <=> SOME ")
-                    raw("))")
-                } else {
-                    this.block(" <=> SOME ")
+    fun subQueryWrapper(negated: Boolean, needleCanBeNull: Boolean, block: Sql.(String)->Unit) {
+        if (needleCanBeNull) {
+            when (dbType) {
+                DbType.MYSQL -> {
+                    if (negated) {
+                        raw("(NOT (")
+                        this.block(" <=> SOME ")
+                        raw("))")
+                    } else {
+                        this.block(" <=> SOME ")
+                    }
+                }
+                DbType.POSTGRES -> {
+                    if (negated) {
+                        raw("(TRUE IS DISTINCT FROM (")
+                        this.block(" IN ")
+                        raw("))")
+                    } else {
+                        raw("(TRUE IS NOT DISTINCT FROM (")
+                        this.block(" IN ")
+                        raw("))")
+                    }
                 }
             }
-            DbType.POSTGRES -> {
-                if (negated) {
-                    raw("(TRUE IS DISTINCT FROM (")
-                    this.block(" IN ")
-                    raw("))")
-                } else {
-                    raw("(TRUE IS NOT DISTINCT FROM (")
-                    this.block(" IN ")
-                    raw("))")
-                }
+        } else {
+            if (negated) {
+                this.block(" NOT IN ")
+            } else {
+                this.block(" IN ")
             }
         }
     }
 
-    fun inLiteralSetWrapper(negated: Boolean, block: Sql.(String)->Unit) {
-        when (dbType) {
-            DbType.MYSQL -> {
-                if (negated) {
-                    raw("NOT (TRUE <=> (")
-                    this.block(" IN ")
-                    raw("))")
-                } else {
-                    raw("(TRUE <=> (")
-                    this.block(" IN ")
-                    raw("))")
+    fun inLiteralSetWrapper(negated: Boolean, needleCanBeNull: Boolean, block: Sql.(String)->Unit) {
+        if (needleCanBeNull) {
+            when (dbType) {
+                DbType.MYSQL -> {
+                    if (negated) {
+                        raw("NOT (TRUE <=> (")
+                        this.block(" IN ")
+                        raw("))")
+                    } else {
+                        raw("(TRUE <=> (")
+                        this.block(" IN ")
+                        raw("))")
+                    }
+                }
+                DbType.POSTGRES -> {
+                    if (negated) {
+                        raw("(TRUE IS DISTINCT FROM (")
+                        this.block(" IN ")
+                        raw("))")
+                    } else {
+                        raw("(TRUE IS NOT DISTINCT FROM (")
+                        this.block(" IN ")
+                        raw("))")
+                    }
                 }
             }
-            DbType.POSTGRES -> {
-                if (negated) {
-                    raw("(TRUE IS DISTINCT FROM (")
-                    this.block(" IN ")
-                    raw("))")
-                } else {
-                    raw("(TRUE IS NOT DISTINCT FROM (")
-                    this.block(" IN ")
-                    raw("))")
-                }
+        } else {
+            if (negated) {
+                this.block(" NOT IN ")
+            } else {
+                this.block(" IN ")
             }
         }
     }

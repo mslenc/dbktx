@@ -9,6 +9,9 @@ class Literal<E, T: Any>(private val value: T, private val type: SqlType<T>) : E
         type.toSql(value, sql)
     }
 
+    override val couldBeNull: Boolean
+        get() = false
+
     override fun getSqlType(): SqlType<T> {
         return type
     }

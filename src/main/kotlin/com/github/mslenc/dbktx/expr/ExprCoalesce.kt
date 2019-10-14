@@ -14,6 +14,14 @@ class ExprCoalesce<E, T: Any> private constructor (private val options: List<Exp
         sql.raw(")")
     }
 
+    override val couldBeNull: Boolean
+        get() {
+            for (option in options)
+                if (!option.couldBeNull)
+                    return false
+            return true
+        }
+
     override fun remap(remapper: TableRemapper): Expr<E, T> {
         return ExprCoalesce(options.map { it.remap(remapper) })
     }

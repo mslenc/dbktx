@@ -19,9 +19,11 @@ class FilterHasParent<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         val mappings = info.columnMappings
         val n = mappings.size
 
+        val needleCanBeNull = info.columnMappings.any { it.columnFromAsNullable != null }
+
         if (dstTable.incomingJoin?.joinType == JoinType.SUB_QUERY) {
             sql.expr(topLevel) {
-                sql.subQueryWrapper(negated) { IN ->
+                sql.subQueryWrapper(negated, needleCanBeNull) { IN ->
                     paren(n > 1) {
                         tuple(info.columnMappings) {
                             +it.bindFrom(srcTable)

@@ -33,6 +33,7 @@ interface Expr<E, T : Any> : SqlEmitter {
 
     fun makeLiteral(value: T): Expr<E, T> = Literal(value, getSqlType())
 
+    val couldBeNull: Boolean
     val isComposite: Boolean
         get() = false
 }
@@ -45,9 +46,15 @@ interface NullableExpr<E, T : Any> : Expr<E, T> {
     fun isNotNull(): FilterExpr{
         return FilterIsNull(this, isNull = false)
     }
+
+    override val couldBeNull: Boolean
+        get() = true
 }
 
-interface NonNullExpr<E, T : Any> : Expr<E, T>
+interface NonNullExpr<E, T : Any> : Expr<E, T> {
+    override val couldBeNull: Boolean
+        get() = false
+}
 
 
 

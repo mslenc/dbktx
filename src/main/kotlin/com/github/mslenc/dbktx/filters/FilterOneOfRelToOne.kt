@@ -30,8 +30,10 @@ class FilterOneOfRelToOne<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
     override fun toSql(sql: Sql, topLevel: Boolean) {
         val multiColumn = info.columnMappings.size > 1
 
+        val needleCanBeNull = info.columnMappings.any { it.columnFromAsNullable != null }
+
         sql.expr(topLevel) {
-            sql.inLiteralSetWrapper(negated) { IN ->
+            sql.inLiteralSetWrapper(negated, needleCanBeNull) { IN ->
                 paren(showParens = multiColumn) {
                     tuple(info.columnMappings) {
                         +it.bindFrom(tableInQuery)

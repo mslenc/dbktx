@@ -10,6 +10,9 @@ class ExprNull<ENTITY, T : Any>(private val type: SqlType<T>) : Expr<ENTITY, T> 
         sql.raw("NULL")
     }
 
+    override val couldBeNull: Boolean
+        get() = true
+
     override fun getSqlType(): SqlType<T> {
         return type
     }
