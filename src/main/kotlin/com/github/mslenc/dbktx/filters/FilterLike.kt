@@ -54,7 +54,7 @@ class FilterLike<E> (
     }
 
     override fun remap(remapper: TableRemapper): FilterExpr {
-        return FilterLike(value.remap(remapper), pattern.remap(remapper), escapeChar, negated)
+        return FilterLike(value.remap(remapper), pattern.remap(remapper), escapeChar, negated, caseInsensitive)
     }
 
     override fun toString(): String {
