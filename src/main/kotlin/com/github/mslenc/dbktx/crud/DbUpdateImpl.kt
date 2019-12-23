@@ -15,7 +15,7 @@ internal class DbUpdateImpl<E : DbEntity<E, ID>, ID: Any>(
 
     private var filters: FilterExpr = MatchAnything
 
-    internal fun filter(block: FilterBuilder<E>.()->FilterExpr) {
+    override fun filter(block: FilterBuilder<E>.()->FilterExpr) {
         filters = filters and TableInQueryBoundFilterBuilder(table).block()
     }
 
@@ -29,7 +29,7 @@ internal class DbUpdateImpl<E : DbEntity<E, ID>, ID: Any>(
             values.set(column, value)
     }
 
-    override fun <T : Any> set(column: Column<E, T>, value: Expr<E, T>) {
+    override fun <T : Any> set(column: Column<E, T>, value: Expr<T>) {
         values.set(column, value)
     }
 
@@ -47,7 +47,7 @@ internal class DbUpdateImpl<E : DbEntity<E, ID>, ID: Any>(
 }
 
 internal class DbColumnMutationImpl<E: DbEntity<E, *>, T: Any>(private val update: DbUpdateImpl<E, *>, private val column: Column<E, T>) : DbColumnMutation<E, T> {
-    fun setDeltaValue(op: BinaryOp, delta: Expr<E, T>) {
+    fun setDeltaValue(op: BinaryOp, delta: Expr<T>) {
         update[column] = ExprBinary(column.bindForSelect(update.table), op, delta)
     }
 
@@ -71,37 +71,37 @@ internal class DbColumnMutationImpl<E: DbEntity<E, *>, T: Any>(private val updat
         remAssign(column.makeLiteral(value))
     }
 
-    override fun plusAssign(value: Expr<E, T>) {
+    override fun plusAssign(value: Expr<T>) {
         setDeltaValue(BinaryOp.PLUS, value)
     }
 
-    override fun minusAssign(value: Expr<E, T>) {
+    override fun minusAssign(value: Expr<T>) {
         setDeltaValue(BinaryOp.MINUS, value)
     }
 
-    override fun timesAssign(value: Expr<E, T>) {
+    override fun timesAssign(value: Expr<T>) {
         setDeltaValue(BinaryOp.TIMES, value)
     }
 
-    override fun divAssign(value: Expr<E, T>) {
+    override fun divAssign(value: Expr<T>) {
         setDeltaValue(BinaryOp.DIV, value)
     }
 
-    override fun remAssign(value: Expr<E, T>) {
+    override fun remAssign(value: Expr<T>) {
         setDeltaValue(BinaryOp.REM, value)
     }
 
-    override fun becomes(value: ColumnUpdateOps<E, T>.() -> Expr<E, T>) {
+    override fun becomes(value: ColumnUpdateOps<E, T>.() -> Expr<T>) {
         update[column] = ColumnUpdateOpsImpl(column, update).value()
     }
 }
 
 internal class ColumnUpdateOpsImpl<E : DbEntity<E, *>, T : Any>(internal val column: Column<E, T>, internal val update: DbUpdateImpl<E, *>) : ColumnUpdateOps<E, T> {
-    override fun literal(value: T): Expr<E, T> {
+    override fun literal(value: T): Expr<T> {
         return column.makeLiteral(value)
     }
 
-    override fun bind(column: Column<E, T>): Expr<E, T> {
+    override fun bind(column: Column<E, T>): Expr<T> {
         return column.bindForSelect(update.table)
     }
 }

@@ -2,8 +2,10 @@ package com.github.mslenc.dbktx.conn
 
 import com.github.mslenc.asyncdb.DbDataSource
 import com.github.mslenc.asyncdb.DbConnection
+import com.github.mslenc.dbktx.util.makeDbContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.withContext
 import mu.KLogging
 
 /**
@@ -31,7 +33,9 @@ class DbConnectorImpl(
             val requestTime = timeProvider.getTime(wrappedConn)
             val dbConn = DbLoaderImpl(wrappedConn, scope, requestTime)
 
-            block(dbConn)
+            withContext(makeDbContext(dbConn)) {
+                block(dbConn)
+            }
         } finally {
             rawConn.close()
         }

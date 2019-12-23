@@ -10,6 +10,7 @@ import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.util.EntityIndex
 import com.github.mslenc.dbktx.util.FakeRowData
 import com.github.mslenc.dbktx.util.Sql
+import com.github.mslenc.dbktx.util.getContextDb
 import kotlin.reflect.KClass
 
 private fun createPrefixForTableName(tableName: String): String {
@@ -76,12 +77,8 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
     val numColumns: Int
         get() = columns.size
 
-    fun newQuery(dbLoader: DbConn): EntityQuery<E> {
-        return EntityQueryImpl(this, dbLoader)
-    }
-
-    fun newDeleteQuery(dbLoader: DbConn): DeleteQuery<E> {
-        return DeleteQueryImpl(this, dbLoader)
+    fun newQuery(db: DbConn = getContextDb()): EntityQuery<E> {
+        return db.newQuery(this)
     }
 
     fun toJsonObject(entity: E): Map<String, Any?> {
@@ -118,59 +115,6 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return result
     }
 
-    fun insertion(db: DbConn): DbInsert<E, ID> {
-        val query = InsertQueryImpl()
-        val boundTable = BaseTableInUpdateQuery(query, this)
-        return DbInsertImpl(db, boundTable)
-    }
-
-    fun updateAll(db: DbConn): DbUpdate<E> {
-        return DbUpdateImpl(db, this, null)
-    }
-
-    fun updateMany(db: DbConn, filter: FilterBuilder<E>.()->FilterExpr): DbUpdate<E> {
-        val update = DbUpdateImpl(db, this, null)
-        update.filter(filter)
-        return update
-    }
-
-    fun update(db: DbConn, entity: E): DbUpdate<E> {
-        val update = DbUpdateImpl(db, this, entity)
-        update.filter { primaryKey eq entity.id }
-        return update
-    }
-
-    fun updateById(db: DbConn, id: ID): DbUpdate<E> {
-        val update = DbUpdateImpl(db, this, null)
-        update.filter { primaryKey eq id }
-        return update
-    }
-
-//    fun update(db: DbConn, vararg entities: E): DbUpdate<E> {
-//        return update(db, listOf(*entities))
-//    }
-
-    fun updateByIds(db: DbConn, vararg ids: ID): DbUpdate<E> {
-        val update = DbUpdateImpl(db, this, null)
-        update.filter { primaryKey oneOf ids.toSet() }
-        return update
-    }
-
-    fun update(db: DbConn, entities: Collection<E>): DbUpdate<E> {
-        entities.singleOrNull()?.let {
-            return update(db, it)
-        }
-
-        val update = DbUpdateImpl(db, this, null)
-        update.filter { primaryKey oneOf entities.mapTo(HashSet()) { it.id } }
-        return update
-    }
-
-    fun updateByIds(db: DbConn, ids: Collection<ID>): DbUpdate<E> {
-        val update = DbUpdateImpl(db, this, null)
-        update.filter { primaryKey oneOf ids.toSet() }
-        return update
-    }
 
     internal fun callInsertAndResolveEntityInIndex(entityIndex: EntityIndex<E>, db: DbConn, row: DbRow, selectForUpdate: Boolean): E {
         return entityIndex.insertAndResolveEntityInIndex(db, this, row, selectForUpdate)
@@ -178,12 +122,6 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
 
     internal suspend fun callEnqueueDeleteQuery(db: DbLoaderInternal, sql: Sql): Long {
         return db.enqueueDeleteQuery(this, sql)
-    }
-
-    fun <OUT: Any> makeAggregateListQuery(db: DbConn, factory: ()->OUT, builder: AggrListBuilder<OUT, E>.()->Unit): AggrListQuery<OUT, E> {
-        val query = AggrListImpl(this, db, factory)
-        query.expand(builder)
-        return query
     }
 
     fun makeAggregateStreamQuery(db: DbConn, builder: AggrStreamTopLevelBuilder<E>.()->Unit): AggrStreamQuery<E> {

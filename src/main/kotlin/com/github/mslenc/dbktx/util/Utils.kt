@@ -8,7 +8,7 @@ import java.lang.Long.reverseBytes
 import java.util.regex.Pattern
 
 private object HexUtil {
-    val reverseHex: IntArray = kotlin.IntArray(256).apply {
+    val reverseHex: IntArray = IntArray(256).apply {
         fill(-1)
 
         for (a in 0..9)

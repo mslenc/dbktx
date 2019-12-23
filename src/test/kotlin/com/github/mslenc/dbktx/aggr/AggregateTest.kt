@@ -1,6 +1,8 @@
 package com.github.mslenc.dbktx.aggr
 
+import com.github.mslenc.asyncdb.DbExecResult
 import com.github.mslenc.asyncdb.DbQueryResultObserver
+import com.github.mslenc.asyncdb.impl.DbQueryResultImpl
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.crud.filter
@@ -16,6 +18,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicBoolean
 
 class AggregateTest {
@@ -24,18 +27,18 @@ class AggregateTest {
         TestSchema3.numberOfTables
     }
 
-    class CompAggr {
-        lateinit var weightName: String
-        var averageScore: Double? = null
-        var minScore: Int? = null
-        lateinit var countryName: String
-        lateinit var compName: String
-        var entityCount: Long = 0L
-        var entityDistinctCount: Long = 0L
-        var avgPlace: Double? = null
-        var idWeight: Int = 0
-        var idCountry: Int = 0
-    }
+    data class CompAggr(
+        val weightName: String,
+        val averageScore: Double?,
+        val minScore: Int?,
+        val countryName: String,
+        val compName: String,
+        val entityCount: Long,
+        val entityDistinctCount: Long,
+        val avgPlace: Double?,
+        val idWeight: Int,
+        val idCountry: Int
+    )
 
     @Test
     fun testComplexQuery() = runBlocking {
@@ -60,17 +63,30 @@ class AggregateTest {
 
         val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
 
+        var weightName: String = ""
+        var averageScore: Double? = null
+        var minScore: Int? = null
+        var countryName: String = ""
+        var compName: String = ""
+        var entityCount: Long = 0L
+        var entityDistinctCount: Long = 0L
+        var avgPlace: Double? = null
+        var idWeight: Int = 0
+        var idCountry: Int = 0
+
+        val result = ArrayList<CompAggr>()
+
         val query =
-            Weight.makeAggregateListQuery(db, ::CompAggr) {
-                CompAggr::weightName becomes Weight.NAME
+            Weight.makeAggregateStreamQuery(db) {
+                Weight.NAME into { weightName = it }
 
                 innerJoin(Weight.ENTRIES_SET) {
                     filter {
                         CompEntry.ID_COUNTRY eq 123
                     }
 
-                    CompAggr::averageScore becomes average { +CompEntry.FINAL_SCORE }
-                    CompAggr::minScore becomes min { +CompEntry.FINAL_SCORE }
+                    average { +CompEntry.FINAL_SCORE } into { averageScore = it }
+                    min { +CompEntry.FINAL_SCORE } into { minScore = it }
 
                     filter {
                         CompEntry.REF_COMPETITION.has {
@@ -82,7 +98,7 @@ class AggregateTest {
 
                     innerJoin(CompEntry.REF_COUNTRY) {
                         innerJoin(Country.REF_LOCALNAME("en")) {
-                            CompAggr::countryName becomes LocalName.NAME
+                            LocalName.NAME into { countryName = it }
 
                             filter {
                                 LocalName.NAME.contains("a")
@@ -92,9 +108,9 @@ class AggregateTest {
 
                     innerJoin(CompEntry.REF_COMPETITION) {
                         innerJoin(Competition.REF_LOCALNAME("sl")) {
-                            CompAggr::compName becomes LocalName.NAME
-                            CompAggr::entityCount becomes count { +LocalName.ENTITY_ID }
-                            CompAggr::entityDistinctCount becomes countDistinct { +LocalName.ENTITY_ID }
+                            LocalName.NAME into { compName = it }
+                            count { +LocalName.ENTITY_ID } into { entityCount = it }
+                            countDistinct { +LocalName.ENTITY_ID } into { entityDistinctCount = it }
 
                             filter {
                                 LocalName.NAME.contains("prix")
@@ -103,7 +119,7 @@ class AggregateTest {
                     }
 
                     innerJoin(CompEntry.REF_RESULT) {
-                        CompAggr::avgPlace becomes average { +CompResult.PLACE }
+                        average { +CompResult.PLACE } into { avgPlace = it }
                     }
                 }
             }
@@ -111,17 +127,21 @@ class AggregateTest {
         query.orderBy(Weight.NAME)
 
         query.expand {
-            CompAggr::idWeight becomes Weight.ID_WEIGHT
+            Weight.ID_WEIGHT into { idWeight = it }
             innerJoin(Weight.ENTRIES_SET) {
-                CompAggr::idCountry becomes CompEntry.ID_COUNTRY
+                CompEntry.ID_COUNTRY into { idCountry = it }
             }
         }
 
-        val deferred = async { query.run() }
+        query.onRowEnd {
+            result += CompAggr(weightName, averageScore, minScore, countryName, compName, entityCount, entityDistinctCount, avgPlace, idWeight, idCountry)
+        }
+
+        val deferred = async { query.execute() }
 
         Assert.assertFalse(called.get())
 
-        val result = deferred.await()
+        deferred.await()
 
         Assert.assertTrue(called.get())
 
@@ -179,13 +199,6 @@ class AggregateTest {
 
     }
 
-    class InvoiceSummary {
-        var numInvoices: Long = 0
-        var hours: BigDecimal? = null
-        var totalFee: BigDecimal? = null
-        var firstDate: LocalDate? = null
-        var lastDate: LocalDate? = null
-    }
 
     @Test
     fun testSimpleQuery() = runBlocking {
@@ -209,24 +222,29 @@ class AggregateTest {
 
         val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
 
-        val query =
-            Invoice.makeAggregateListQuery(db, ::InvoiceSummary) {
-                InvoiceSummary::numInvoices becomes countDistinct { +Invoice.ID }
+        var numInvoices: Long = 0
+        var hours: BigDecimal? = null
+        var totalFee: BigDecimal? = null
+        var firstDate: LocalDate? = null
+        var lastDate: LocalDate? = null
 
-                InvoiceSummary::hours becomes sum { Invoice.TIME_ITEMS_SET..InvoiceTimeItem.DAILY_ITEMS_SET..InvoiceDailyTimeItem.HOURS }
+        val query = Invoice.makeAggregateStreamQuery(db) {
+                countDistinct { +Invoice.ID } into { numInvoices = it }
+
+                sum { Invoice.TIME_ITEMS_SET..InvoiceTimeItem.DAILY_ITEMS_SET..InvoiceDailyTimeItem.HOURS } into { hours = it }
 
                 innerJoin(Invoice.TIME_ITEMS_SET) {
-                    InvoiceSummary::totalFee becomes sum { InvoiceTimeItem.HOURLY_RATE * (InvoiceTimeItem.DAILY_ITEMS_SET..InvoiceDailyTimeItem.HOURS) }
+                    sum { InvoiceTimeItem.HOURLY_RATE * (InvoiceTimeItem.DAILY_ITEMS_SET..InvoiceDailyTimeItem.HOURS) } into { totalFee = it }
 
                     innerJoin(InvoiceTimeItem.DAILY_ITEMS_SET) {
-                        InvoiceSummary::firstDate becomes min { +InvoiceDailyTimeItem.DATE_WORKED }
+                        min { +InvoiceDailyTimeItem.DATE_WORKED } into { firstDate = it }
                     }
                 }
 
-                InvoiceSummary::lastDate becomes max { Invoice.TIME_ITEMS_SET..InvoiceTimeItem.DAILY_ITEMS_SET..InvoiceDailyTimeItem.DATE_WORKED }
+                max { Invoice.TIME_ITEMS_SET..InvoiceTimeItem.DAILY_ITEMS_SET..InvoiceDailyTimeItem.DATE_WORKED } into { lastDate = it }
             }
 
-        val result = query.run().first()
+        query.execute()
 
         assertEquals(
                 "SELECT COUNT(DISTINCT I.\"id\"), " +
@@ -241,18 +259,11 @@ class AggregateTest {
 
         assertEquals(0, theParams.size)
 
-        assertEquals(12L, result.numInvoices)
-        assertEquals(42.5.toBigDecimal(), result.hours)
-        assertEquals(1521.6.toBigDecimal(), result.totalFee)
-        assertEquals("2019-02-01".toLD(), result.firstDate)
-        assertEquals("2019-02-27".toLD(), result.lastDate)
-    }
-
-    class ExpenseSummary {
-        var numInvoices: Long = 0
-        var numExpenses: Long = 0
-        var baseAmount: BigDecimal? = null
-        var totalAmount: BigDecimal? = null
+        assertEquals(12L, numInvoices)
+        assertEquals(42.5.toBigDecimal(), hours)
+        assertEquals(1521.6.toBigDecimal(), totalFee)
+        assertEquals("2019-02-01".toLD(), firstDate)
+        assertEquals("2019-02-27".toLD(), lastDate)
     }
 
     @Test
@@ -279,23 +290,28 @@ class AggregateTest {
 
         val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
 
+        var numInvoices: Long = 0
+        var numExpenses: Long = 0
+        var baseAmount: BigDecimal? = null
+        var totalAmount: BigDecimal? = null
+
         val query =
-            Invoice.makeAggregateListQuery(db, ::ExpenseSummary) {
-                ExpenseSummary::numInvoices becomes countDistinct { +Invoice.ID }
-                ExpenseSummary::numExpenses becomes countDistinct { Invoice.EXPENSE_ITEMS_SET..InvoiceExpenseItem.ID }
+            Invoice.makeAggregateStreamQuery(db) {
+                countDistinct { +Invoice.ID } into { numInvoices = it }
+                countDistinct { Invoice.EXPENSE_ITEMS_SET..InvoiceExpenseItem.ID } into { numExpenses = it }
 
                 innerJoin(Invoice.EXPENSE_ITEMS_SET) {
                     filter { InvoiceExpenseItem.BILLABLE eq true }
 
                     innerJoin(InvoiceExpenseItem.DAILY_ITEMS_SET) {
-                        ExpenseSummary::baseAmount becomes sum { +InvoiceDailyExpenseItem.AMOUNT }
+                        sum { +InvoiceDailyExpenseItem.AMOUNT } into { baseAmount = it }
 
-                        ExpenseSummary::totalAmount becomes sum { InvoiceDailyExpenseItem.AMOUNT * (1.0.toBigDecimal() + InvoiceDailyExpenseItem.MARKUP_PERC.orZero() / 100.toBigDecimal()) + InvoiceDailyExpenseItem.MARKUP_AMOUNT.orZero() }
+                        sum { InvoiceDailyExpenseItem.AMOUNT * (1.0.toBigDecimal() + InvoiceDailyExpenseItem.MARKUP_PERC.orZero() / 100.toBigDecimal()) + InvoiceDailyExpenseItem.MARKUP_AMOUNT.orZero() } into { totalAmount = it }
                     }
                 }
             }
 
-        val result = query.run().first()
+        query.execute()
 
         assertEquals(
                 "SELECT COUNT(DISTINCT I.\"id\"), " +
@@ -310,9 +326,63 @@ class AggregateTest {
 
         assertEquals(0, theParams.size)
 
-        assertEquals(3L, result.numInvoices)
-        assertEquals(25L, result.numExpenses)
-        assertEquals(541.6.toBigDecimal(), result.baseAmount)
-        assertEquals(851.44.toBigDecimal(), result.totalAmount)
+        assertEquals(3L, numInvoices)
+        assertEquals(25L, numExpenses)
+        assertEquals(541.6.toBigDecimal(), baseAmount)
+        assertEquals(851.44.toBigDecimal(), totalAmount)
+    }
+
+    @Test
+    fun testInsertSelect() = runBlocking {
+        val called = AtomicBoolean(false)
+        var theSql: String? = null
+        var theParams: List<Any?> = emptyList()
+
+        val connection = object : MockDbConnection() {
+            override fun execute(sql: String, args: List<Any?>): CompletableFuture<DbExecResult> {
+                theSql = sql
+                theParams = args
+                called.set(true)
+
+                println(sql)
+
+                val result = DbQueryResultImpl(1L, null, null, null)
+                return CompletableFuture.completedFuture(result)
+            }
+        }
+
+        val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
+
+        with (db) {
+            InvoiceDailyTimeItem.insertSelect(DailyTimeItem) {
+                filter { DailyTimeItem.DATE_WORKED.between(LocalDate.parse("2019-11-01"), LocalDate.parse("2019-11-30")) }
+
+                InvoiceDailyTimeItem.DATE_WORKED becomes DailyTimeItem.DATE_WORKED
+
+                InvoiceDailyTimeItem.HOURS becomes sum { +DailyTimeItem.HOURS }
+                InvoiceDailyTimeItem.NB_HOURS becomes BigDecimal("15.55")
+                InvoiceDailyTimeItem.TOTAL_HOURS becomes sum { DailyTimeItem.HOURS + DailyTimeItem.NB_HOURS }
+
+                innerJoin(DailyTimeItem.TIME_ITEM_REF) {
+                    filter { TimeItem.BILLABLE eq true }
+                    filter { TimeItem.TASK_ID eq 554L }
+
+                    InvoiceDailyTimeItem.INVOICE_TIME_ITEM_ID becomes TimeItem.EMPLOYEE_ID // yes, this doesn't really make sense :)
+                }
+            }
+        }
+
+        assertEquals(
+            "INSERT INTO \"invoice_daily_time_item\"(\"date_worked\", \"hours\", \"nb_hours\", \"total_hours\", \"invoice_time_item_id\") " +
+                     "SELECT DTI.\"date_worked\", SUM(DTI.\"hours\"), 15.55, SUM(DTI.\"hours\" + DTI.\"nb_hours\"), TI.\"employee_id\" " +
+                     "FROM \"daily_time_item\" AS DTI " +
+                       "INNER JOIN \"time_item\" AS TI ON TI.\"id\" = DTI.\"time_item_id\" " +
+                     "WHERE (DTI.\"date_worked\" BETWEEN '2019-11-01' AND '2019-11-30') " +
+                       "AND (TI.\"billable\" = TRUE) " +
+                       "AND (TI.\"task_id\" = 554) " +
+                     "GROUP BY DTI.\"date_worked\", TI.\"employee_id\"",
+            theSql)
+
+        assertEquals(0, theParams.size)
     }
 }

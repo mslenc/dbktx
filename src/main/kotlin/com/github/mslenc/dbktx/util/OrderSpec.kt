@@ -7,7 +7,7 @@ import com.github.mslenc.dbktx.schema.DbEntity
 
 internal class OrderSpec<E : DbEntity<E, *>>(
     val table: TableInQuery<E>,
-    val expr: Expr<in E, *>,
+    val expr: Expr<*>,
     val isAscending: Boolean
 ) {
 

@@ -19,7 +19,7 @@ abstract class CompositeId<E : DbEntity<E, *>, ID : CompositeId<E, ID>> : Compos
 
     abstract val tableMetainfo: DbTable<E, *>
 
-    override fun getPart(index: Int): Expr<E, *> {
+    override fun getPart(index: Int): Expr<*> {
         return doGetPart(getColumn(index))
     }
 
@@ -29,11 +29,11 @@ abstract class CompositeId<E : DbEntity<E, *>, ID : CompositeId<E, ID>> : Compos
     override val couldBeNull: Boolean
         get() = false
 
-    private fun <T: Any> doGetPart(column: NonNullColumn<E, T>): Expr<E, T> {
+    private fun <T: Any> doGetPart(column: NonNullColumn<E, T>): Expr<T> {
         return column.makeLiteral(get(column))
     }
 
-    override fun remap(remapper: TableRemapper): Expr<E, ID> {
+    override fun remap(remapper: TableRemapper): Expr<ID> {
         return this
     }
 

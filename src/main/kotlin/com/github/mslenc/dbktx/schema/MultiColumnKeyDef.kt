@@ -19,7 +19,7 @@ class MultiColumnKeyDef<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(
     override val numColumns: Int
         get() = prototype.numColumns
 
-    override fun makeLiteral(value: ID): Expr<E, ID> {
+    override fun makeLiteral(value: ID): Expr<ID> {
         return value
     }
 

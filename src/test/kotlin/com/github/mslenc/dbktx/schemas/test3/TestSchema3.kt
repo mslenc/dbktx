@@ -9,6 +9,9 @@ object TestSchema3 : DbSchema() {
     val INVOICE_DAILY_TIME_ITEM = InvoiceDailyTimeItem
     val INVOICE_EXPENSE_ITEM = InvoiceExpenseItem
     val INVOICE_DAILY_EXPENSE_ITEM = InvoiceDailyExpenseItem
+    val TIME_ITEM = TimeItem
+    val DAILY_TIME_ITEM = DailyTimeItem
+    val TASK = Task
 
     init {
         finishInit()

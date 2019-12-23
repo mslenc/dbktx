@@ -52,11 +52,11 @@ internal class SingleColumnKeyDefImpl<E: DbEntity<E, *>, T: Any>(
         throw IllegalArgumentException("$index is not a valid index")
     }
 
-    override fun makeLiteral(value: T): Expr<E, T> {
+    override fun makeLiteral(value: T): Expr<T> {
         return column.makeLiteral(value)
     }
 
-    override fun bindForSelect(tableInQuery: TableInQuery<E>): Expr<E, T> {
+    override fun bindForSelect(tableInQuery: TableInQuery<E>): Expr<T> {
         return column.bindForSelect(tableInQuery)
     }
 

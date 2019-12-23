@@ -48,7 +48,7 @@ class TextSearchBuilderTest {
 
         val otherQuery = db.newQuery(Company)
         otherQuery.filter { Company.BRANDS_SET contains brands }
-        otherQuery.run()
+        otherQuery.execute()
 
 
         Assert.assertTrue(called.get())

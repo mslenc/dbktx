@@ -9,7 +9,7 @@ import com.github.mslenc.dbktx.util.Sql
 import com.github.mslenc.dbktx.util.SqlBuilderHelpers
 import java.lang.UnsupportedOperationException
 
-internal class ExprFields<E : DbEntity<E, *>, TYPE : Any>(val columnMappings: Array<ColumnMapping<*, *, *>>, val tableInQuery: TableInQuery<E>) : Expr<E, TYPE> {
+internal class ExprFields<E : DbEntity<E, *>, TYPE : Any>(val columnMappings: Array<ColumnMapping<*, *, *>>, val tableInQuery: TableInQuery<E>) : Expr<TYPE> {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.paren(true) {
             sql.tuple(columnMappings) {
@@ -25,7 +25,7 @@ internal class ExprFields<E : DbEntity<E, *>, TYPE : Any>(val columnMappings: Ar
         throw UnsupportedOperationException("getSqlType called on ExprFields")
     }
 
-    override fun remap(remapper: TableRemapper): Expr<E, TYPE> {
+    override fun remap(remapper: TableRemapper): Expr<TYPE> {
         return ExprFields(columnMappings, remapper.remap(tableInQuery))
     }
 

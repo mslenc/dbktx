@@ -17,7 +17,7 @@ internal enum class AggrOp {
     COUNT_DISTINCT
 }
 
-internal class NonNullAggrExprImpl<E: DbEntity<E, *>, T : Any>(val op: AggrOp, val expr: Expr<*, *>, val columnIndex: Int, val sqlType: SqlType<T>) : NonNullAggrExpr<E, T>, SqlEmitter {
+internal class NonNullAggrExprImpl<E: DbEntity<E, *>, T : Any>(val op: AggrOp, val expr: Expr<*>, val columnIndex: Int, val sqlType: SqlType<T>) : NonNullAggrExpr<E, T>, SqlEmitter {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.raw(when(op) {
             AggrOp.COUNT -> "COUNT("
@@ -34,7 +34,7 @@ internal class NonNullAggrExprImpl<E: DbEntity<E, *>, T : Any>(val op: AggrOp, v
     }
 }
 
-internal class NullableAggrExprImpl<E: DbEntity<E, *>, T : Any>(val op: AggrOp, val expr: Expr<*, *>, val columnIndex: Int, val sqlType: SqlType<T>) : NullableAggrExpr<E, T>, SqlEmitter {
+internal class NullableAggrExprImpl<E: DbEntity<E, *>, T : Any>(val op: AggrOp, val expr: Expr<*>, val columnIndex: Int, val sqlType: SqlType<T>) : NullableAggrExpr<E, T>, SqlEmitter {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.raw(when(op) {
             AggrOp.SUM -> "SUM("

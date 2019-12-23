@@ -6,9 +6,9 @@ import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.util.Sql
 
-class FilterLike<E> (
-        private val value: Expr<in E, String>,
-        private val pattern: Expr<in E, String>,
+class FilterLike (
+        private val value: Expr<String>,
+        private val pattern: Expr<String>,
         private val escapeChar: Char = '|',
         private val negated: Boolean = false,
         private val caseInsensitive: Boolean = false) : FilterExpr {

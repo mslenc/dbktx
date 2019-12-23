@@ -4,7 +4,7 @@ import com.github.mslenc.dbktx.crud.TableRemapper
 import com.github.mslenc.dbktx.sqltypes.SqlType
 import com.github.mslenc.dbktx.util.Sql
 
-class ExprNow<ENTITY, T: Any>() : Expr<ENTITY, T> {
+class ExprNow<T: Any> : Expr<T> {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.raw("NOW()")
     }
@@ -19,11 +19,11 @@ class ExprNow<ENTITY, T: Any>() : Expr<ENTITY, T> {
         throw UnsupportedOperationException("getSqlType() called on ExprNow")
     }
 
-    override fun rangeTo(other: Expr<in ENTITY, T>): SqlRange<ENTITY, T> {
+    override fun rangeTo(other: Expr<T>): SqlRange<T> {
         throw UnsupportedOperationException("NOW() can't be used for comparisons")
     }
 
-    override fun remap(remapper: TableRemapper): Expr<ENTITY, T> {
+    override fun remap(remapper: TableRemapper): Expr<T> {
         return this
     }
 

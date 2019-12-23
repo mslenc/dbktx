@@ -123,7 +123,7 @@ class ExprFilterHasAssociatedTest {
                 }
             }
             query.orderBy(CONTACT_INFO_REF, ContactInfo.ADDRESS)
-            query.run()
+            query.execute()
         } }
 
         assertFalse(called.get())

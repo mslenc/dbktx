@@ -5,6 +5,7 @@ import com.github.mslenc.asyncdb.impl.DbQueryResultImpl
 import com.github.mslenc.asyncdb.util.GeneratedIdResult
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
+import com.github.mslenc.dbktx.conn.insert
 import com.github.mslenc.dbktx.schemas.test1.*
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import kotlinx.coroutines.runBlocking
@@ -44,12 +45,10 @@ class InsertTest {
         val companyId = UUID.randomUUID()
         val db = DbLoaderImpl(connection, this, now)
 
-        val purchaseId = db.run {
-            Purchase.insert {
-                it[Purchase.COMPANY_ID] = companyId
-                it[Purchase.T_CREATED] = now.localDateTime
-                it[Purchase.T_UPDATED] = now.localDateTime
-            }
+        val purchaseId = Purchase.insert(db) {
+            it[COMPANY_ID] = companyId
+            it[T_CREATED] = now.localDateTime
+            it[T_UPDATED] = now.localDateTime
         }
 
         assertTrue(called.get())
@@ -85,13 +84,11 @@ class InsertTest {
         val newPurchaseId = 5235345L
         val db = DbLoaderImpl(connection, this, now)
 
-        val purchaseId = db.run {
-            Purchase.insert {
-                it[Purchase.ID] = 5235345L
-                it[Purchase.COMPANY_ID] = companyId
-                it[Purchase.T_CREATED] = now.localDateTime
-                it[Purchase.T_UPDATED] = now.localDateTime
-            }
+        val purchaseId = Purchase.insert(db) {
+            it[ID] = 5235345L
+            it[COMPANY_ID] = companyId
+            it[T_CREATED] = now.localDateTime
+            it[T_UPDATED] = now.localDateTime
         }
 
         assertTrue(called.get())

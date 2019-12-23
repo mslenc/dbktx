@@ -38,7 +38,7 @@ interface Column<E: DbEntity<E, *>, T : Any> : RowProp<E, T> {
         return values.getValue(this)
     }
 
-    override fun makeLiteral(value: T): Expr<E, T> {
+    override fun makeLiteral(value: T): Expr<T> {
         return Literal(value, sqlType)
     }
 
@@ -112,7 +112,7 @@ class NonNullColumnImpl<E : DbEntity<E, *>, T: Any>(
     : ColumnImpl<E, T>(table, getter, fieldName, sqlType, indexInRow),
         NonNullColumn<E, T> {
 
-    override val nonNull: Boolean = true
+    override val nonNull get() = true
 
     override fun invoke(entity: E): T {
         return getter(entity)
@@ -129,7 +129,7 @@ open class NullableColumnImpl<E : DbEntity<E, *>, T: Any>(
     : ColumnImpl<E, T>(table, getter, fieldName, sqlType, indexInRow),
         NullableColumn<E, T> {
 
-    override val nonNull: Boolean = false
+    override val nonNull get() = false
 
     override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): FilterExpr {
         return FilterIsNull(bindForSelect(currentTable), isNull)
@@ -167,7 +167,7 @@ class NonNullOrderedColumnImpl<E : DbEntity<E, *>, T: Comparable<T>>(
     : OrderedColumnImpl<E, T>(table, getter, fieldName, sqlType, indexInRow),
         NonNullOrderedColumn<E, T> {
 
-    override val nonNull = true
+    override val nonNull get() = true
 
     override fun invoke(entity: E): T {
         return getter(entity)
@@ -184,7 +184,7 @@ class NullableOrderedColumnImpl<E : DbEntity<E, *>, T: Comparable<T>>(
     : OrderedColumnImpl<E, T>(table, getter, fieldName, sqlType, indexInRow),
         NullableOrderedColumn<E, T> {
 
-    override val nonNull = false
+    override val nonNull get() = false
 
     override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): FilterExpr {
         return FilterIsNull(bindForSelect(currentTable), isNull)
@@ -224,7 +224,7 @@ class NonNullStringColumnImpl<E : DbEntity<E, *>>(
     : StringColumnImpl<E>(table, getter, fieldName, sqlType, indexInRow),
         NonNullStringColumn<E>
 {
-    override val nonNull = true
+    override val nonNull get() = true
 
     override fun invoke(entity: E): String {
         return getter(entity)
@@ -240,7 +240,7 @@ class NullableStringColumnImpl<E : DbEntity<E, *>>(
     : StringColumnImpl<E>(table, getter, fieldName, sqlType, indexInRow),
         NullableStringColumn<E> {
 
-    override val nonNull = false
+    override val nonNull get() = false
 
     override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): FilterExpr {
         return FilterIsNull(bindForSelect(currentTable), isNull)
@@ -279,7 +279,7 @@ class NonNullStringSetColumnImpl<E : DbEntity<E, *>>(
     : StringSetColumnImpl<E>(table, getter, fieldName, sqlType, indexInRow),
         NonNullStringSetColumn<E>
 {
-    override val nonNull = true
+    override val nonNull get() = true
 
     override fun invoke(entity: E): StringSet {
         return getter(entity)
@@ -295,7 +295,7 @@ class NullableStringSetColumnImpl<E : DbEntity<E, *>>(
     : StringSetColumnImpl<E>(table, getter, fieldName, sqlType, indexInRow),
         NullableStringSetColumn<E> {
 
-    override val nonNull = false
+    override val nonNull get() = false
 
     override fun makeIsNullExpr(currentTable: TableInQuery<E>, isNull: Boolean): FilterExpr {
         return FilterIsNull(bindForSelect(currentTable), isNull)

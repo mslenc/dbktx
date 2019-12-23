@@ -1,11 +1,15 @@
 package com.github.mslenc.dbktx.conn
 
 import com.github.mslenc.asyncdb.*
+import com.github.mslenc.dbktx.aggr.AggrInsertSelectBuilderImpl
+import com.github.mslenc.dbktx.aggr.AggrInsertSelectQueryImpl
+import com.github.mslenc.dbktx.aggr.AggrInsertSelectTopLevelBuilder
 import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.BatchingLoader
 import com.github.mslenc.dbktx.util.Sql
+import com.github.mslenc.dbktx.util.getContextDb
 import kotlinx.coroutines.CoroutineScope
 
 /**
@@ -81,6 +85,12 @@ interface DbConn {
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
     executeInsert(table: TableInQuery<E>, values: EntityValues<E>): ID
+
+    /**
+     * INTERNAL FUNCTION, use [insert] or [newInsertion] instead.
+     */
+    suspend fun <E : DbEntity<E, *>>
+    executeInsertSelect(sql: Sql, outTable: DbTable<E, *>): Long
 
     /**
      * INTERNAL FUNCTION, use [update] or [DbTable.update] instead.
@@ -164,31 +174,6 @@ interface DbConn {
     suspend fun <KEY: Any, RESULT>
     loadForAll(loader: BatchingLoader<KEY, RESULT>, keys: Collection<KEY>): Map<KEY, RESULT>
 
-    /**
-     * Shortcut for [loadById]. Use like this:
-     * ```
-     * val id = 1536
-     * val competition = with(db) { COMPETITIONS(id) }
-     * ```
-     */
-    suspend operator fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.invoke(id: ID): E {
-        return loadById(this, id)
-    }
-
-//    suspend operator get() is not supported (yet).. when it becomes supported, uncomment this..
-//
-//    /**
-//     * Shortcut for [findById]. Use like this:
-//     * ```
-//     * val id = 1536
-//     * val competitionMaybe = with(db) { COMPETITIONS[id] }
-//     * ```
-//     */
-//    suspend operator fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-//    Z.get(id: ID): E? {
-//        return findById(this, id)
-//    }
 
 
     // ease-of-use functions
@@ -197,7 +182,7 @@ interface DbConn {
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
     queryAll(table: DbTable<E, ID>) : List<E> {
-        return table.newQuery(this).run()
+        return table.newQuery(this).execute()
     }
 
     /**
@@ -208,20 +193,6 @@ interface DbConn {
         return table.newQuery(this).countAll()
     }
 
-    /**
-     * A shortcut for building and executing a count query. Use like this:
-     * ```
-     * val count = db.count(SOME_TABLE) {
-     *     SOME_FIELD eq "foo"
-     * }
-     * ```
-     */
-    suspend fun <E : DbEntity<E, *>>
-    count(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> FilterExpr): Long {
-        val query = table.newQuery(this)
-        query.filter(filter)
-        return query.countAll()
-    }
 
     /**
      * Deletes the entity from DB.
@@ -240,9 +211,9 @@ interface DbConn {
      * }
      * ```
      */
-    suspend fun <E : DbEntity<E, *>>
-    deleteMany(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> FilterExpr): Long {
-        val query = table.newDeleteQuery(this)
+    suspend fun <E : DbEntity<E, ID>, ID: Any>
+    deleteMany(table: DbTable<E, ID>, filter: FilterBuilder<E>.() -> FilterExpr): Long {
+        val query = newDeleteQuery(table)
         query.filter(filter)
         return query.deleteAllMatchingRows()
     }
@@ -255,7 +226,7 @@ interface DbConn {
         if (ids.isEmpty())
             return 0L
 
-        val query = table.newDeleteQuery(this)
+        val query = newDeleteQuery(table)
         query.filter { table.primaryKey oneOf ids }
         return query.deleteAllMatchingRows()
     }
@@ -284,7 +255,7 @@ interface DbConn {
     Z.query(filter: FilterBuilder<E>.() -> FilterExpr): List<E> {
         val query = newQuery(this)
         query.filter(filter)
-        return query.run()
+        return query.execute()
     }
 
     /**
@@ -294,59 +265,51 @@ interface DbConn {
      * ```
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-            Z.countAll(filter: FilterBuilder<E>.() -> FilterExpr): Long {
+    Z.countAll(filter: FilterBuilder<E>.() -> FilterExpr): Long {
         val query = newQuery(this)
         query.filter(filter)
         return query.countAll()
     }
 
-    /**
-     * Shortcut for defining and executing an insertion. Use like this:
-     * ```
-     * val newId = with(db) { SOME_TABLE.insert {
-     *     SOME_FIELD += "some field value"
-     *     OTHER_FIELD += 15
-     * } }
-     * ```
-     */
-    suspend fun <E: DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.insert(builder: (DbInsert<E, ID>) -> Unit): ID {
-        val insertion = insertion(this@DbConn)
-        builder(insertion)
-        return insertion.execute()
+    fun <E: DbEntity<E, ID>, ID: Any>
+    newInsert(table: DbTable<E, ID>): DbInsert<E, ID> {
+        val query = InsertQueryImpl()
+        val boundTable = BaseTableInUpdateQuery(query, table)
+        return DbInsertImpl(this, boundTable)
     }
 
-    /**
-     * Similar to [insert], but returns the insertion so that it may be further modified, before [DbInsert.execute] is called.
-     */
-    fun <E: DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.newInsertion(builder: (DbInsert<E, ID>) -> Unit): DbInsert<E, ID> {
-        val insertion = insertion(this@DbConn)
-        builder(insertion)
-        return insertion
+    fun <E: DbEntity<E, ID>, ID: Any>
+    newUpdate(table: DbTable<E, ID>, specificEntity: E? = null): DbUpdate<E> {
+        val update = DbUpdateImpl(this, table, specificEntity)
+        if (specificEntity != null) {
+            update.filter { table.primaryKey eq specificEntity.id }
+        }
+        return update
     }
 
-    /**
-     * Updates a single entity. Use like this:
-     * ```
-     * with(db) { SOME_TABLE.update(entity) {
-     *     SOME_FIELD += "new field value"
-     * } }
-     * ```
-     */
-    suspend fun <E: DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.update(entity: E, builder: (DbUpdate<E>) -> Unit): Boolean {
-        val update = update(this@DbConn, entity)
-        builder(update)
-        return update.execute() > 0
+
+    suspend fun <OUT: DbEntity<OUT, *>, OUTTABLE: DbTable<OUT, *>, ROOT: DbEntity<ROOT, *>, ROOTTABLE: DbTable<ROOT, *>>
+    OUTTABLE.insertSelect(queryRoot: ROOTTABLE, block: AggrInsertSelectTopLevelBuilder<OUT, ROOT>.() -> Unit) {
+        val query = AggrInsertSelectQueryImpl(this, queryRoot, this@DbConn)
+        val builder = AggrInsertSelectBuilderImpl(query, query.baseTable)
+        builder.block()
+        query.execute()
     }
+
+
 
     /**
      * Creates a new query. Use [EntityQuery.filter], [EntityQuery.orderBy], etc. to set it up,
-     * then finish with [EntityQuery.run] and/or [EntityQuery.countAll].
+     * then finish with [EntityQuery.execute] and/or [EntityQuery.countAll].
      */
     fun <E : DbEntity<E, ID>, ID: Any>
-    newQuery(table: DbTable<E, ID>) = table.newQuery(this)
+    newQuery(table: DbTable<E, ID>): EntityQuery<E>
+
+    /**
+     * Creates a new delete query.
+     */
+    fun <E : DbEntity<E, ID>, ID: Any>
+    newDeleteQuery(table: DbTable<E, ID>): DeleteQuery<E>
 
     /**
      * Flushes all internal caches. Note that if there are any outstanding queries, they will all
@@ -364,4 +327,102 @@ interface DbConn {
      */
     fun <E : DbEntity<E, ID>, ID: Any>
     flushTableCache(table: DbTable<E, ID>)
+}
+
+
+
+/**
+ * Shortcut for defining and executing an insertion. Use like this:
+ * ```
+ * val newId = SOME_TABLE.insert {
+ *     it[SOME_FIELD] += "some field value"
+ *     it[OTHER_FIELD] += 15
+ * }
+ * ```
+ */
+suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.insert(db: DbConn = getContextDb(), builder: TABLE.(DbInsert<E, ID>) -> Unit): ID {
+    val query = db.newInsert(this)
+    builder(query)
+    return query.execute()
+}
+
+inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.newUpdate(db: DbConn = getContextDb()): DbUpdate<E> {
+    return db.newUpdate(this)
+}
+
+/**
+ * Updates a single entity. Use like this:
+ * ```
+ * SOME_TABLE.update(entity) {
+ *     it[SOME_FIELD] = "new field value"
+ * }
+ * ```
+ */
+suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.update(entity: E, db: DbConn = getContextDb(), builder: TABLE.(DbUpdate<E>) -> Unit): Boolean {
+    val update = db.newUpdate(this, entity)
+    builder(update)
+    return update.execute() > 0
+}
+
+/**
+ * Updates a single entity. Use like this:
+ * ```
+ * SOME_TABLE.update(entity) {
+ *     it[SOME_FIELD] = "new field value"
+ * }
+ * ```
+ */
+
+
+suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.updateAll(db: DbConn = getContextDb(), builder: TABLE.(DbUpdate<E>) -> Unit): Long {
+    val update = db.newUpdate(this)
+    builder(update)
+    return update.execute()
+}
+
+suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.updateById(id: ID, db: DbConn = getContextDb(), builder: TABLE.(DbUpdate<E>) -> Unit): Boolean {
+    val update = db.newUpdate(this)
+    update.filter { primaryKey eq id }
+    builder(update)
+    return update.execute() > 0
+}
+
+suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.updateMany(entities: List<E>, db: DbConn = getContextDb(), builder: TABLE.(DbUpdate<E>) -> Unit): Long {
+    return when {
+        entities.isEmpty() -> 0
+        else -> updateByIds(entities.map { it.id }, db, builder)
+    }
+}
+
+suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.updateByIds(ids: List<ID>, db: DbConn = getContextDb(), builder: TABLE.(DbUpdate<E>) -> Unit): Long {
+    if (ids.isEmpty())
+        return 0
+
+    val update = db.newUpdate(this)
+    update.filter { primaryKey oneOf ids }
+    builder(update)
+    return update.execute()
+}
+
+
+/**
+ * A shortcut for building and executing a count query. Use like this:
+ * ```
+ * val count = db.count(SOME_TABLE) {
+ *     SOME_FIELD eq "foo"
+ * }
+ * ```
+ */
+suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.count(db: DbConn = getContextDb(), filter: FilterBuilder<E>.() -> FilterExpr): Long {
+    val query = newQuery(db)
+    query.filter(filter)
+    return query.countAll()
 }

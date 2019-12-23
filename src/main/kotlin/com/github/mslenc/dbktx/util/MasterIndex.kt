@@ -32,7 +32,7 @@ internal class MasterIndex(val scope: CoroutineScope) {
         }
     }
 
-    fun <E : DbEntity<E, ID>, ID: Any> flushRelated(table: DbTable<E, ID>) {
+    fun <E : DbEntity<E, *>> flushRelated(table: DbTable<E, *>) {
         val cleanUp = ArrayList<()->Unit>()
 
         tableIndex[table]?.flushAll(cleanUp)

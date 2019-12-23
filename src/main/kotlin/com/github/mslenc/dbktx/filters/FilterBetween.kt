@@ -5,10 +5,10 @@ import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.util.Sql
 
-class FilterBetween<E, T: Any>(
-        private val value: Expr<in E, T>,
-        private val minimum: Expr<in E, T>,
-        private val maximum: Expr<in E, T>,
+class FilterBetween<T: Any>(
+        private val value: Expr<T>,
+        private val minimum: Expr<T>,
+        private val maximum: Expr<T>,
         private val between: Boolean
 ): FilterExpr {
     override fun toSql(sql: Sql, topLevel: Boolean) {

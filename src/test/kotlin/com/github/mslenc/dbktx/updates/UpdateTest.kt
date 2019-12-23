@@ -6,11 +6,10 @@ import com.github.mslenc.asyncdb.impl.DbQueryResultImpl
 import com.github.mslenc.asyncdb.util.FutureUtils.failedFuture
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
+import com.github.mslenc.dbktx.conn.update
 import com.github.mslenc.dbktx.schemas.test1.Item
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
-import com.github.mslenc.dbktx.schemas.test1.Item.Companion.NAME
-import com.github.mslenc.dbktx.schemas.test1.Item.Companion.PRICE
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
 import com.github.mslenc.dbktx.util.testing.toLDT
 import kotlinx.coroutines.runBlocking
@@ -65,12 +64,12 @@ class UpdateTest {
 
         val item = db.loadById(Item, Item.Id(companyId, "LOG0001"))
 
-        val updated = db.run { item.executeUpdate {
+        val updated = Item.update(item, db) {
             it[NAME] = "abc"
             it[PRICE] += 2.3.toBigDecimal()
             it[PRICE] becomes { PRICE + BigDecimal("12.0") }
             it[PRICE] becomes { PRICE + PRICE / 2.toBigDecimal() }
-        } }
+        }
 
         assertTrue(called.get())
 

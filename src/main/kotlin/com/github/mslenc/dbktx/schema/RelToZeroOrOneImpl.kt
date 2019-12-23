@@ -48,7 +48,7 @@ class RelToZeroOrOneImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : Db
         }
 
         val result = HashMap<FROM, TO?>()
-        for (target in query.run()) {
+        for (target in query.execute()) {
             val id = oppositeColumn(target)
             val entity = index[id] ?: continue
             result[entity] = target

@@ -18,7 +18,7 @@ internal abstract class DbMutationImpl<E : DbEntity<E, ID>, ID: Any> protected c
         values.set(column, value)
     }
 
-    override fun <T : Any> set(column: Column<E, T>, value: Expr<E, T>) {
+    override fun <T : Any> set(column: Column<E, T>, value: Expr<T>) {
         values.set(column, value)
     }
 

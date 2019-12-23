@@ -4,7 +4,7 @@ import com.github.mslenc.dbktx.crud.TableRemapper
 import com.github.mslenc.dbktx.sqltypes.SqlType
 import com.github.mslenc.dbktx.util.Sql
 
-class Literal<E, T: Any>(private val value: T, private val type: SqlType<T>) : Expr<E, T> {
+class Literal<T: Any>(private val value: T, private val type: SqlType<T>) : Expr<T> {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         type.toSql(value, sql)
     }
@@ -16,7 +16,7 @@ class Literal<E, T: Any>(private val value: T, private val type: SqlType<T>) : E
         return type
     }
 
-    override fun remap(remapper: TableRemapper): Expr<E, T> {
+    override fun remap(remapper: TableRemapper): Expr<T> {
         return this
     }
 

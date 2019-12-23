@@ -13,37 +13,37 @@ import com.github.mslenc.dbktx.schema.RelToOne
 internal class RelPathImpl<BASE: DbEntity<BASE, *>, LAST: DbEntity<LAST, *>>(val tableInQuery: TableInQuery<LAST>) : RelPath<BASE, LAST>
 
 internal class AggrExprBuilderImpl<E: DbEntity<E, *>>(val tableInQuery: TableInQuery<E>) : AggrExprBuilder<E> {
-    override fun <T : Any> Column<E, T>.itself(): Expr<E, T> {
+    override fun <T : Any> Column<E, T>.itself(): Expr<T> {
         return this.bindForSelect(tableInQuery)
     }
 
     override fun <T : Any>
-    binary(left: Expr<E, T>, op: BinaryOp, right: Expr<E, T>): Expr<E, T> {
+    binary(left: Expr<T>, op: BinaryOp, right: Expr<T>): Expr<T> {
         return ExprBinary(left, op, right)
     }
 
     override fun <MID : DbEntity<MID, *>, T : Any>
-    RelToOne<E, MID>.rangeTo(column: Column<MID, T>): Expr<E, T> {
+    RelToOne<E, MID>.rangeTo(column: Column<MID, T>): Expr<T> {
         val nextTable = tableInQuery.innerJoin(this)
         val boundColumn = column.bindForSelect(nextTable)
         @Suppress("UNCHECKED_CAST")
-        return boundColumn as Expr<E, T>
+        return boundColumn as Expr<T>
     }
 
     override fun <MID : DbEntity<MID, *>, T : Any>
-    RelToMany<E, MID>.rangeTo(column: Column<MID, T>): Expr<E, T> {
+    RelToMany<E, MID>.rangeTo(column: Column<MID, T>): Expr<T> {
         val nextTable = tableInQuery.innerJoin(this)
         val boundColumn = column.bindForSelect(nextTable)
         @Suppress("UNCHECKED_CAST")
-        return boundColumn as Expr<E, T>
+        return boundColumn as Expr<T>
     }
 
     override fun <MID : DbEntity<MID, *>, T : Any>
-    RelPath<E, MID>.rangeTo(column: Column<MID, T>): Expr<E, T> {
+    RelPath<E, MID>.rangeTo(column: Column<MID, T>): Expr<T> {
         val path = this as RelPathImpl
         val boundColumn = column.bindForSelect(path.tableInQuery)
         @Suppress("UNCHECKED_CAST")
-        return boundColumn as Expr<E, T>
+        return boundColumn as Expr<T>
     }
 
     override fun <MID : DbEntity<MID, *>, NEXT : DbEntity<NEXT, *>>
@@ -88,7 +88,7 @@ internal class AggrExprBuilderImpl<E: DbEntity<E, *>>(val tableInQuery: TableInQ
         return RelPathImpl(nextTable)
     }
 
-    override fun <T : Any> coalesce(vararg options: Expr<E, T>, ifAllNull: T?): Expr<E, T> {
+    override fun <T : Any> coalesce(vararg options: Expr<T>, ifAllNull: T?): Expr<T> {
         return ExprCoalesce.create(options.toList(), ifAllNull)
     }
 }

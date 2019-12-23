@@ -89,7 +89,7 @@ class ExprFilterHasParentTest {
                 }
             }
             query.orderBy(COMPANY_REF, Company.NAME)
-            query.run()
+            query.execute()
         } }
 
         assertFalse(called.get())
@@ -130,7 +130,7 @@ class ExprFilterHasParentTest {
                     Company.NAME gte "qwe"
                 }
             }
-            query.run()
+            query.execute()
         } }
 
         assertFalse(called.get())

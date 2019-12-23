@@ -12,9 +12,9 @@ annotation class SqlExprBuilder
 @SqlExprBuilder
 interface FilterBuilder<E: DbEntity<E, *>> {
     fun currentTable(): TableInQuery<E>
-    fun <T: Any> bind(prop: RowProp<E, T>): Expr<E, T>
+    fun <T: Any> bind(prop: RowProp<E, T>): Expr<T>
 
-    infix fun <T: Any> Expr<E, T>.eq(other: Expr<E, T>): FilterExpr {
+    infix fun <T: Any> Expr<T>.eq(other: Expr<T>): FilterExpr {
         return FilterCompare(this, FilterCompare.Op.EQ, other)
     }
 
@@ -29,7 +29,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         }
     }
 
-    infix fun <T: Any> Expr<E, T>.neq(other: Expr<E, T>): FilterExpr {
+    infix fun <T: Any> Expr<T>.neq(other: Expr<T>): FilterExpr {
         return FilterCompare(this, FilterCompare.Op.NEQ, other)
     }
 
@@ -90,7 +90,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
     }
 
 
-    infix fun <T : Any> Expr<E, T>.lt(value: Expr<E, T>): FilterExpr {
+    infix fun <T : Any> Expr<T>.lt(value: Expr<T>): FilterExpr {
         return FilterCompare(this, FilterCompare.Op.LT, value)
     }
 
@@ -98,11 +98,11 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return FilterCompare(bind(this), FilterCompare.Op.LT, makeLiteral(value))
     }
 
-    infix fun <T : Comparable<T>> OrderedProp<E, T>.lt(value: Expr<E, T>): FilterExpr {
+    infix fun <T : Comparable<T>> OrderedProp<E, T>.lt(value: Expr<T>): FilterExpr {
         return FilterCompare(bind(this), FilterCompare.Op.LT, value)
     }
 
-    infix fun <T : Any> Expr<E, T>.lte(value: Expr<E, T>): FilterExpr {
+    infix fun <T : Any> Expr<T>.lte(value: Expr<T>): FilterExpr {
         return FilterCompare(this, FilterCompare.Op.LTE, value)
     }
 
@@ -110,11 +110,11 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return FilterCompare(bind(this), FilterCompare.Op.LTE, makeLiteral(value))
     }
 
-    infix fun <T : Comparable<T>> OrderedProp<E, T>.lte(value: Expr<E, T>): FilterExpr {
+    infix fun <T : Comparable<T>> OrderedProp<E, T>.lte(value: Expr<T>): FilterExpr {
         return FilterCompare(bind(this), FilterCompare.Op.LTE, value)
     }
 
-    infix fun <T : Any> Expr<E, T>.gt(value: Expr<E, T>): FilterExpr {
+    infix fun <T : Any> Expr<T>.gt(value: Expr<T>): FilterExpr {
         return FilterCompare(this, FilterCompare.Op.GT, value)
     }
 
@@ -122,11 +122,11 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return FilterCompare(bind(this), FilterCompare.Op.GT, makeLiteral(value))
     }
 
-    infix fun <T : Comparable<T>> OrderedProp<E, T>.gt(value: Expr<E, T>): FilterExpr {
+    infix fun <T : Comparable<T>> OrderedProp<E, T>.gt(value: Expr<T>): FilterExpr {
         return FilterCompare(bind(this), FilterCompare.Op.GT, value)
     }
 
-    infix fun <T : Any> Expr<E, T>.gte(value: Expr<E, T>): FilterExpr {
+    infix fun <T : Any> Expr<T>.gte(value: Expr<T>): FilterExpr {
         return FilterCompare(this, FilterCompare.Op.GTE, value)
     }
 
@@ -134,15 +134,15 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return FilterCompare(bind(this), FilterCompare.Op.GTE, makeLiteral(value))
     }
 
-    infix fun <T : Comparable<T>> OrderedProp<E, T>.gte(value: Expr<E, T>): FilterExpr {
+    infix fun <T : Comparable<T>> OrderedProp<E, T>.gte(value: Expr<T>): FilterExpr {
         return FilterCompare(bind(this), FilterCompare.Op.GTE, value)
     }
 
-    fun <T : Comparable<T>> Expr<E, T>.between(minimum: Expr<E, T>, maximum: Expr<E, T>): FilterExpr {
+    fun <T : Comparable<T>> Expr<T>.between(minimum: Expr<T>, maximum: Expr<T>): FilterExpr {
         return FilterBetween(this, minimum, maximum, between = true)
     }
 
-    fun <T : Comparable<T>> Expr<E, T>.notBetween(minimum: Expr<E, T>, maximum: Expr<E, T>): FilterExpr {
+    fun <T : Comparable<T>> Expr<T>.notBetween(minimum: Expr<T>, maximum: Expr<T>): FilterExpr {
         return FilterBetween(this, minimum, maximum, between = false)
     }
 
@@ -181,51 +181,51 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return !betweenOpt(minimum, maximum)
     }
 
-    infix fun ExprString<E>.contains(value: String): FilterExpr {
+    infix fun ExprString.contains(value: String): FilterExpr {
         return like("%" + escapeSqlLikePattern(value, '|') + "%", '|')
     }
 
-    infix fun ExprString<E>.icontains(value: String): FilterExpr {
+    infix fun ExprString.icontains(value: String): FilterExpr {
         return like("%" + escapeSqlLikePattern(value, '|') + "%", '|', caseInsensitive = true)
     }
 
-    infix fun ExprString<E>.startsWith(value: String): FilterExpr {
+    infix fun ExprString.startsWith(value: String): FilterExpr {
         return like(escapeSqlLikePattern(value, '|') + "%", '|')
     }
 
-    infix fun ExprString<E>.istartsWith(value: String): FilterExpr {
+    infix fun ExprString.istartsWith(value: String): FilterExpr {
         return like(escapeSqlLikePattern(value, '|') + "%", '|', caseInsensitive = true)
     }
 
-    infix fun ExprString<E>.endsWith(value: String): FilterExpr {
+    infix fun ExprString.endsWith(value: String): FilterExpr {
         return like("%" + escapeSqlLikePattern(value, '|'), '|')
     }
 
-    infix fun ExprString<E>.iendsWith(value: String): FilterExpr {
+    infix fun ExprString.iendsWith(value: String): FilterExpr {
         return like("%" + escapeSqlLikePattern(value, '|'), '|', caseInsensitive = true)
     }
 
-    infix fun ExprString<E>.like(pattern: String): FilterExpr {
+    infix fun ExprString.like(pattern: String): FilterExpr {
         return like(pattern, '|')
     }
 
-    infix fun ExprString<E>.ilike(pattern: String): FilterExpr {
+    infix fun ExprString.ilike(pattern: String): FilterExpr {
         return like(pattern, '|', caseInsensitive = true)
     }
 
-    infix fun ExprString<E>.like(pattern: Expr<in E, String>): FilterExpr {
+    infix fun ExprString.like(pattern: Expr<String>): FilterExpr {
         return like(pattern, '|')
     }
 
-    infix fun ExprString<E>.ilike(pattern: Expr<in E, String>): FilterExpr {
+    infix fun ExprString.ilike(pattern: Expr<String>): FilterExpr {
         return like(pattern, '|', caseInsensitive = true)
     }
 
-    fun ExprString<E>.like(pattern: String, escapeChar: Char, caseInsensitive: Boolean = false): FilterExpr {
+    fun ExprString.like(pattern: String, escapeChar: Char, caseInsensitive: Boolean = false): FilterExpr {
         return like(SqlTypeVarchar.makeLiteral(pattern), escapeChar, caseInsensitive = caseInsensitive)
     }
 
-    fun ExprString<E>.like(pattern: Expr<in E, String>, escapeChar: Char, caseInsensitive: Boolean = false): FilterExpr {
+    fun ExprString.like(pattern: Expr<String>, escapeChar: Char, caseInsensitive: Boolean = false): FilterExpr {
         return FilterLike(this, pattern, escapeChar)
     }
 
@@ -262,11 +262,11 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return like(pattern, '|', caseInsensitive = true)
     }
 
-    infix fun StringColumn<E>.like(pattern: Expr<in E, String>): FilterExpr {
+    infix fun StringColumn<E>.like(pattern: Expr<String>): FilterExpr {
         return like(pattern, '|')
     }
 
-    infix fun StringColumn<E>.ilike(pattern: Expr<in E, String>): FilterExpr {
+    infix fun StringColumn<E>.ilike(pattern: Expr<String>): FilterExpr {
         return like(pattern, '|', caseInsensitive = true)
     }
 
@@ -274,7 +274,7 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return like(SqlTypeVarchar.makeLiteral(pattern), escapeChar, caseInsensitive = caseInsensitive)
     }
 
-    fun StringColumn<E>.like(pattern: Expr<in E, String>, escapeChar: Char, caseInsensitive: Boolean = false): FilterExpr {
+    fun StringColumn<E>.like(pattern: Expr<String>, escapeChar: Char, caseInsensitive: Boolean = false): FilterExpr {
         return FilterLike(bind(this), pattern, escapeChar, caseInsensitive = caseInsensitive)
     }
 
@@ -282,11 +282,11 @@ interface FilterBuilder<E: DbEntity<E, *>> {
         return ExprFindInSet(SqlTypeVarchar.makeLiteral(value), bindForSelect(currentTable()))
     }
 
-    infix fun <T : Any> Expr<E, T>.oneOf(values: List<Expr<E, T>>): FilterExpr {
+    infix fun <T : Any> Expr<T>.oneOf(values: List<Expr<T>>): FilterExpr {
         return FilterOneOf.oneOf(this, values)
     }
 
-    fun <T : Any> NOW(): ExprNow<E, T> {
+    fun <T : Any> NOW(): ExprNow<T> {
         return ExprNow()
     }
 

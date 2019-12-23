@@ -5,7 +5,7 @@ import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.util.Sql
 
-internal class FilterCompare<E, T: Any>(private val left: Expr<in E, T>, private val op: Op, private val right: Expr<in E, T>) : FilterExpr {
+internal class FilterCompare<T: Any>(private val left: Expr<T>, private val op: Op, private val right: Expr<T>) : FilterExpr {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.expr(topLevel) {
             +left

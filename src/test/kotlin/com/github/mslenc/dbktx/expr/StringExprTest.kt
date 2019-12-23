@@ -4,6 +4,7 @@ import com.github.mslenc.asyncdb.DbExecResult
 import com.github.mslenc.asyncdb.impl.DbQueryResultImpl
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
+import com.github.mslenc.dbktx.conn.newUpdate
 import com.github.mslenc.dbktx.crud.dsl.concatWs
 import com.github.mslenc.dbktx.schemas.test1.Brand
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
@@ -45,7 +46,8 @@ class StringExprTest {
         val newInfo = "abc"
 
         with(Brand) {
-            val update =  updateMany(db) {
+            val update = newUpdate(db)
+            update.filter {
                 COMPANY_ID eq companyId
             }
 
@@ -87,7 +89,8 @@ class StringExprTest {
         val newInfo = "qwe"
 
         with(Brand) {
-            val update =  updateMany(db) {
+            val update = newUpdate(db)
+            update.filter {
                 COMPANY_ID eq companyId
             }
 

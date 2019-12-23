@@ -5,8 +5,8 @@ import com.github.mslenc.dbktx.filters.FilterNegate
 import com.github.mslenc.dbktx.util.Sql
 import com.github.mslenc.dbktx.util.StringSet
 
-class ExprFindInSet<E>(private val value: Expr<E, String>,
-                       private val set: Expr<E, StringSet>): FilterExpr {
+class ExprFindInSet(private val value: Expr<String>,
+                    private val set: Expr<StringSet>): FilterExpr {
 
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.raw("FIND_IN_SET(")

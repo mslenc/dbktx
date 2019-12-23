@@ -6,7 +6,6 @@ import com.github.mslenc.dbktx.util.Sql
 
 import java.util.Base64
 
-import java.nio.charset.StandardCharsets.ISO_8859_1
 import kotlin.reflect.KClass
 
 // VARBINARY, BLOB, etc => byte[]

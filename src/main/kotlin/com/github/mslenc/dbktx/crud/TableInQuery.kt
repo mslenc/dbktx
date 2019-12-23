@@ -238,7 +238,7 @@ internal class BaseTableInUpdateQuery<E: DbEntity<E, *>>(query: QueryImpl, table
 
 
 
-class BoundColumnForSelect<E: DbEntity<E, *>, T : Any>(val column: Column<E, T>, val tableInQuery: TableInQuery<E>) : Expr<E, T> {
+class BoundColumnForSelect<E: DbEntity<E, *>, T : Any>(val column: Column<E, T>, val tableInQuery: TableInQuery<E>) : Expr<T> {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         if (tableInQuery.tableAlias.isNotEmpty()) {
             sql.raw(tableInQuery.tableAlias)
@@ -254,7 +254,7 @@ class BoundColumnForSelect<E: DbEntity<E, *>, T : Any>(val column: Column<E, T>,
         return column.sqlType
     }
 
-    override fun remap(remapper: TableRemapper): Expr<E, T> {
+    override fun remap(remapper: TableRemapper): Expr<T> {
         return BoundColumnForSelect(column, remapper.remap(tableInQuery))
     }
 
@@ -282,11 +282,11 @@ class BoundMultiColumnForSelect<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(val
         }
     }
 
-    override fun getPart(index: Int): Expr<E, *> {
+    override fun getPart(index: Int): Expr<*> {
         return BoundColumnForSelect(multiColumn.getColumn(index), tableInQuery)
     }
 
-    override fun remap(remapper: TableRemapper): Expr<E, ID> {
+    override fun remap(remapper: TableRemapper): Expr<ID> {
         return BoundMultiColumnForSelect(multiColumn, remapper.remap(tableInQuery))
     }
 

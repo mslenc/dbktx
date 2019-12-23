@@ -20,13 +20,13 @@ interface ColumnMapping<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TYPE: An
     fun bindColumnFrom(tableInQuery: TableInQuery<FROM>): BoundColumnForSelect<FROM, TYPE>
     fun bindColumnTo(tableInQuery: TableInQuery<TO>): BoundColumnForSelect<TO, TYPE>
 
-    fun bindFrom(tableInQuery: TableInQuery<FROM>): Expr<FROM, TYPE>
+    fun bindFrom(tableInQuery: TableInQuery<FROM>): Expr<TYPE>
     fun makeEqRef(ref: TO, tableInQuery: TableInQuery<FROM>): FilterExpr
 
     val columnFromAsNullable: NullableColumn<FROM, TYPE>?
     val columnFromAsNonNull: NonNullColumn<FROM, TYPE>?
 
-    val columnFromLiteral: Expr<FROM, TYPE>
+    val columnFromLiteral: Expr<TYPE>
 
     val rawColumnTo: NonNullColumn<TO, TYPE>
     val rawColumnFrom: Column<FROM, TYPE>
@@ -53,7 +53,7 @@ class ColumnMappingActualColumn<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, 
         return BoundColumnForSelect(rawColumnTo, tableInQuery)
     }
 
-    override fun bindFrom(tableInQuery: TableInQuery<FROM>): Expr<FROM, TYPE> {
+    override fun bindFrom(tableInQuery: TableInQuery<FROM>): Expr<TYPE> {
         return bindColumnFrom(tableInQuery)
     }
 
@@ -63,7 +63,7 @@ class ColumnMappingActualColumn<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, 
     override val columnFromAsNonNull: NonNullColumn<FROM, TYPE>?
         get() = rawColumnFrom as? NonNullColumn<FROM, TYPE>
 
-    override val columnFromLiteral: Expr<FROM, TYPE>
+    override val columnFromLiteral: Expr<TYPE>
         get() = throw IllegalStateException("Not a literal")
 
     override val rawLiteralFromValue: TYPE
@@ -93,7 +93,7 @@ class ColumnMappingLiteral<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TYPE:
         return BoundColumnForSelect(rawColumnTo, tableInQuery)
     }
 
-    override fun bindFrom(tableInQuery: TableInQuery<FROM>): Expr<FROM, TYPE> {
+    override fun bindFrom(tableInQuery: TableInQuery<FROM>): Expr<TYPE> {
         return columnFromLiteral // (literals aren't bound to tables anyway)
     }
 
@@ -103,11 +103,9 @@ class ColumnMappingLiteral<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TYPE:
     override val columnFromAsNonNull: NonNullColumn<FROM, TYPE>?
         get() = null
 
-    override val columnFromLiteral: Expr<FROM, TYPE>
+    override val columnFromLiteral: Expr<TYPE>
         get() {
-            // it's ok to use the target column to make literal, as that's the column the value will actually be compared with..
-            @Suppress("UNCHECKED_CAST")
-            return rawColumnTo.makeLiteral(rawLiteralFromValue) as Expr<FROM, TYPE>
+            return rawColumnTo.makeLiteral(rawLiteralFromValue)
         }
 
     override fun makeEqRef(ref: TO, tableInQuery: TableInQuery<FROM>): FilterExpr {

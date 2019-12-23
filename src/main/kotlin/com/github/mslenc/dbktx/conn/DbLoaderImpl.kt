@@ -290,8 +290,8 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
         return id
     }
 
-    internal suspend fun <E : DbEntity<E, ID>, ID: Any>
-    enqueueUpdateQuery(table: DbTable<E, ID>, sqlBuilder: Sql): Long {
+    internal suspend fun <E : DbEntity<E, *>>
+    enqueueUpdateQuery(table: DbTable<E, *>, sqlBuilder: Sql): Long {
         val sql = sqlBuilder.getSql()
         val params = sqlBuilder.params
 
@@ -443,8 +443,9 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         return db.enqueueInsert(dbTable, sqlBuilder, explicitId)
     }
 
-
-
+    override suspend fun <E : DbEntity<E, *>> executeInsertSelect(sql: Sql, outTable: DbTable<E, *>): Long {
+        return db.enqueueUpdateQuery(outTable, sql)
+    }
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
     executeUpdate(table: TableInQuery<E>, filters: FilterExpr, values: EntityValues<E>): Long {
@@ -523,18 +524,12 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         result
     }
 
-    override suspend fun <E : DbEntity<E, *>>
-    count(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> FilterExpr): Long {
-        val entityQuery = EntityQueryImpl(table, this)
-        entityQuery.filter(filter)
+    override fun <E : DbEntity<E, ID>, ID : Any> newQuery(table: DbTable<E, ID>): EntityQuery<E> {
+        return EntityQueryImpl(table, this)
+    }
 
-        if (entityQuery.filteringState() == FilteringState.MATCH_NONE)
-            return 0L
-
-        val queryResult = query(buildCountQuery(entityQuery))
-        val firstRow = queryResult[0]
-        val firstColumn = firstRow[0] as Number
-        return firstColumn.toLong()
+    override fun <E : DbEntity<E, ID>, ID : Any> newDeleteQuery(table: DbTable<E, ID>): DeleteQuery<E> {
+        return DeleteQueryImpl(table, this)
     }
 
     override suspend fun <E : DbEntity<E,*>>
@@ -597,7 +592,7 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         if (query.filteringState() == FilteringState.MATCH_NONE)
             return emptyList()
 
-        return query.run()
+        return query.execute()
     }
 
     override suspend fun rollback() {

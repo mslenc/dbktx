@@ -530,24 +530,24 @@ internal constructor(
 
     inline fun <reified ENUM : Enum<ENUM>>
             nullableIntEnum(fieldName: String,
+                            typeDef: SqlTypeDef,
                             noinline getter: (E) -> ENUM?,
                             noinline toDbRep: (ENUM)->Int,
-                            noinline fromDbRep: (Int)->ENUM,
-                            typeDef: SqlTypeDef
+                            noinline fromDbRep: (Int)->ENUM
                             ): NullableColumn<E, ENUM> {
 
         val klass = ENUM::class
         val dummyValue = enumValues<ENUM>()[0]
 
-        return nullableIntEnum(fieldName, getter, toDbRep, fromDbRep, typeDef, klass, dummyValue)
+        return nullableIntEnum(fieldName, typeDef, getter, toDbRep, fromDbRep, klass, dummyValue)
     }
 
     fun <ENUM : Enum<ENUM>>
             nullableIntEnum(fieldName: String,
+                            typeDef: SqlTypeDef,
                             getter: (E) -> ENUM?,
                             toDbRep: (ENUM)->Int,
                             fromDbRep: (Int)->ENUM,
-                            typeDef: SqlTypeDef,
                             klass: KClass<ENUM>,
                             dummyValue: ENUM
                             ): NullableColumn<E, ENUM> {
@@ -594,26 +594,26 @@ internal constructor(
 
     inline fun <reified ENUM : Enum<ENUM>>
             nullableLongEnum(fieldName: String,
+                             typeDef: SqlTypeDef,
                              noinline getter: (E) -> ENUM?,
                              noinline toDbRep: (ENUM)->Long,
-                             noinline fromDbRep: (Long)->ENUM,
-                             typeDef: SqlTypeDef
+                             noinline fromDbRep: (Long)->ENUM
                              ): NullableColumn<E, ENUM> {
 
         val klass = ENUM::class
         val dummyValue = enumValues<ENUM>()[0]
 
-        return nullableLongEnum(fieldName, getter, toDbRep, fromDbRep, typeDef, klass, dummyValue)
+        return nullableLongEnum(fieldName, typeDef, getter, toDbRep, fromDbRep, klass, dummyValue)
     }
 
     fun <ENUM : Enum<ENUM>>
             nullableLongEnum(fieldName: String,
-                            getter: (E) -> ENUM?,
-                            toDbRep: (ENUM)->Long,
-                            fromDbRep: (Long)->ENUM,
-                            typeDef: SqlTypeDef,
-                            klass: KClass<ENUM>,
-                            dummyValue: ENUM
+                             typeDef: SqlTypeDef,
+                             getter: (E) -> ENUM?,
+                             toDbRep: (ENUM)->Long,
+                             fromDbRep: (Long)->ENUM,
+                             klass: KClass<ENUM>,
+                             dummyValue: ENUM
     ): NullableColumn<E, ENUM> {
 
         val sqlType = SqlTypes.makeEnumToLong(klass, dummyValue, typeDef.sqlTypeKind, toDbRep, fromDbRep, isNotNull = true)

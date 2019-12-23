@@ -12,14 +12,8 @@ abstract class DbEntity<E : DbEntity<E, ID>, ID: Any>(
 
     abstract val metainfo: DbTable<E, ID>
 
-    fun createUpdate(): DbUpdate<E> {
-        return metainfo.updateById(db, id)
-    }
-
-    suspend fun executeUpdate(modifier: (DbUpdate<E>) -> Unit): Boolean {
-        val update = createUpdate()
-        modifier(update)
-        return update.execute() > 0
+    fun newUpdate(): DbUpdate<E> {
+        return db.newUpdate(metainfo)
     }
 
     override fun toString(): String {

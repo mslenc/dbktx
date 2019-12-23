@@ -4,7 +4,6 @@ import com.github.mslenc.asyncdb.DbType
 import com.github.mslenc.dbktx.crud.TableRemapper
 import com.github.mslenc.dbktx.filters.FilterAnd
 import com.github.mslenc.dbktx.filters.FilterBetween
-import com.github.mslenc.dbktx.filters.FilterIsNull
 import com.github.mslenc.dbktx.filters.FilterOr
 import com.github.mslenc.dbktx.sqltypes.SqlType
 import com.github.mslenc.dbktx.util.Sql
@@ -19,70 +18,50 @@ interface SqlEmitter {
     }
 }
 
-class SqlRange<E, T : Any>(val minumum: Expr<in E, T>,
-                           val maximum: Expr<in E, T>)
+class SqlRange<T : Any>(val minumum: Expr<T>,
+                        val maximum: Expr<T>)
 
-interface Expr<E, T : Any> : SqlEmitter {
-    operator fun rangeTo(other: Expr<in E, T>): SqlRange<E, T> {
+interface Expr<T : Any> : SqlEmitter {
+    operator fun rangeTo(other: Expr<T>): SqlRange<T> {
         return SqlRange(this, other)
     }
 
-    fun remap(remapper: TableRemapper): Expr<E, T>
+    fun remap(remapper: TableRemapper): Expr<T>
 
     fun getSqlType(): SqlType<T>
 
-    fun makeLiteral(value: T): Expr<E, T> = Literal(value, getSqlType())
+    fun makeLiteral(value: T): Expr<T> = Literal(value, getSqlType())
 
     val couldBeNull: Boolean
     val isComposite: Boolean
         get() = false
 }
 
-interface NullableExpr<E, T : Any> : Expr<E, T> {
-    fun isNull(): FilterExpr {
-        return FilterIsNull(this, isNull = true)
-    }
 
-    fun isNotNull(): FilterExpr{
-        return FilterIsNull(this, isNull = false)
-    }
-
-    override val couldBeNull: Boolean
-        get() = true
-}
-
-interface NonNullExpr<E, T : Any> : Expr<E, T> {
-    override val couldBeNull: Boolean
-        get() = false
-}
-
-
-
-interface OrderedExpr<E, T : Any> : Expr<E, T> {
-    infix fun between(range: SqlRange<in E, T>): FilterExpr {
+interface OrderedExpr<T : Any> : Expr<T> {
+    infix fun between(range: SqlRange<T>): FilterExpr {
         return FilterBetween(this, range.minumum, range.maximum, between = true)
     }
 
-    fun between(minimum: Expr<in E, T>, maximum: Expr<in E, T>): FilterExpr {
+    fun between(minimum: Expr<T>, maximum: Expr<T>): FilterExpr {
         return FilterBetween(this, minimum, maximum, between = true)
     }
 
-    infix fun notBetween(range: SqlRange<in E, T>): FilterExpr {
+    infix fun notBetween(range: SqlRange<T>): FilterExpr {
         return FilterBetween(this, range.minumum, range.maximum, between = false)
     }
 
-    fun notBetween(minimum: Expr<in E, T>, maximum: Expr<in E, T>): FilterExpr {
+    fun notBetween(minimum: Expr<T>, maximum: Expr<T>): FilterExpr {
         return FilterBetween(this, minimum, maximum, between = false)
     }
 }
 
-interface NullableOrderedExpr<E, T : Any>: OrderedExpr<E, T>, NullableExpr<E, T>
-interface NonNullOrderedExpr<E, T : Any>: OrderedExpr<E, T>, NonNullExpr<E, T>
+interface ExprString : OrderedExpr<String>
 
 
-interface ExprString<E> : OrderedExpr<E, String>
-interface NullableExprString<E>: ExprString<E>, NullableExpr<E, String>
-interface NonNullExprString<E>: ExprString<E>, NonNullExpr<E, String>
+operator fun Expr<Boolean>.not() {
+
+}
 
 
 interface FilterExpr : SqlEmitter {

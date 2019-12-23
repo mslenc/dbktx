@@ -71,7 +71,7 @@ class DbLoaderTest {
         val query = loader.newQuery(Company)
         query.filter { Company.ID eq companyId }
 
-        val result = query.run(selectForUpdate = true)
+        val result = query.execute(selectForUpdate = true)
 
         assertTrue(called)
 

@@ -5,7 +5,7 @@ import com.github.mslenc.dbktx.sqltypes.SqlType
 import com.github.mslenc.dbktx.util.Sql
 import java.lang.IllegalArgumentException
 
-class ExprCoalesce<E, T: Any> private constructor (private val options: List<Expr<E, T>>) : Expr<E, T> {
+class ExprCoalesce<T: Any> private constructor (private val options: List<Expr<T>>) : Expr<T> {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.raw("COALESCE(")
         sql.tuple(options) {
@@ -22,7 +22,7 @@ class ExprCoalesce<E, T: Any> private constructor (private val options: List<Exp
             return true
         }
 
-    override fun remap(remapper: TableRemapper): Expr<E, T> {
+    override fun remap(remapper: TableRemapper): Expr<T> {
         return ExprCoalesce(options.map { it.remap(remapper) })
     }
 
@@ -31,7 +31,7 @@ class ExprCoalesce<E, T: Any> private constructor (private val options: List<Exp
     }
 
     companion object {
-        fun <E, T: Any> create(options: List<Expr<E, T>>, ifAllNull: T? = null): Expr<E, T> {
+        fun <T: Any> create(options: List<Expr<T>>, ifAllNull: T? = null): Expr<T> {
             if (options.isEmpty())
                 throw IllegalArgumentException("There must be at least one option for coalesce")
 
@@ -40,7 +40,7 @@ class ExprCoalesce<E, T: Any> private constructor (private val options: List<Exp
 
             return if (ifAllNull != null) {
                 val sqlType = options[0].getSqlType()
-                val literal: Expr<E, T> = Literal(ifAllNull, sqlType)
+                val literal: Expr<T> = Literal(ifAllNull, sqlType)
                 val combinedOptions = options + literal
                 ExprCoalesce(combinedOptions)
             } else {

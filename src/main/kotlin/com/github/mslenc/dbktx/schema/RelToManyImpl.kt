@@ -47,7 +47,7 @@ class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntit
         query.filter { createCondition(setOf(info.oneKey(from)), query.baseTable) }
         query.filter(block)
 
-        return query.run()
+        return query.execute()
     }
 
     override suspend fun countAll(from: FROM): Long {
@@ -76,7 +76,7 @@ class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntit
 
         val query = info.manyTable.newQuery(db)
         query.filter { createCondition(index.keys, currentTable()) }
-        val result = query.run()
+        val result = query.execute()
 
         val mapped = LinkedHashMap<FROM, ArrayList<TO>>()
         for (to in result) {

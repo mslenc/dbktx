@@ -1,11 +1,12 @@
 package com.github.mslenc.dbktx.aggr
 
-import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.conn.DbConn
-import com.github.mslenc.dbktx.crud.*
-import com.github.mslenc.dbktx.crud.BaseTableInQuery
+import com.github.mslenc.dbktx.crud.FilterableQuery
+import com.github.mslenc.dbktx.crud.FilteringState
 import com.github.mslenc.dbktx.crud.OrderableFilterableQueryImpl
+import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.expr.Expr
+import com.github.mslenc.dbktx.expr.ExprNull
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.expr.SqlEmitter
 import com.github.mslenc.dbktx.schema.*
@@ -14,35 +15,16 @@ import com.github.mslenc.dbktx.sqltypes.SqlTypeDouble
 import com.github.mslenc.dbktx.sqltypes.SqlTypeLong
 import com.github.mslenc.dbktx.util.Sql
 
-typealias RowCallback = (DbRow)->Unit
-
-internal class AggrStreamImpl<E: DbEntity<E, *>>(table: DbTable<E, *>, db: DbConn) : OrderableFilterableQueryImpl<E>(table, db), AggrStreamQuery<E> {
+internal class AggrInsertSelectQueryImpl<OUT: DbEntity<OUT, *>, ROOT: DbEntity<ROOT, *>>(val outTable: DbTable<OUT, *>, queryRoot: DbTable<ROOT, *>, db: DbConn) : OrderableFilterableQueryImpl<ROOT>(queryRoot, db), AggrInsertSelectQuery<OUT, ROOT> {
     var executing = false
 
-    val rowStartCallbacks = ArrayList<RowCallback>()
-    val rowProcessCallbacks = ArrayList<RowCallback>()
-    val rowEndCallbacks = ArrayList<RowCallback>()
-
+    val outColumns = ArrayList<Column<OUT, *>>()
     val selects = ArrayList<SqlEmitter>()
     val groupBy = ArrayList<SqlEmitter>()
-
-    override fun makeBaseTable(table: DbTable<E, *>): TableInQuery<E> {
-        return BaseTableInQuery(this, table)
-    }
 
     public override fun checkModifiable() {
         if (executing)
             throw IllegalStateException("Already querying")
-    }
-
-    override fun onRowStart(callback: (DbRow) -> Unit) {
-        checkModifiable()
-        rowStartCallbacks.add(callback)
-    }
-
-    override fun onRowEnd(callback: (DbRow) -> Unit) {
-        checkModifiable()
-        rowEndCallbacks.add(callback)
     }
 
     override suspend fun execute(): Long {
@@ -51,19 +33,18 @@ internal class AggrStreamImpl<E: DbEntity<E, *>>(table: DbTable<E, *>, db: DbCon
 
         executing = true
 
-        val allCallbacks = (rowStartCallbacks + rowProcessCallbacks + rowEndCallbacks).toTypedArray()
-        val sql = buildQuery()
-
-        return db.streamQuery(sql) { row ->
-            for (i in 0 until allCallbacks.size) {
-                allCallbacks[i].invoke(row)
-            }
-        }
+        return db.executeInsertSelect(buildQuery(), outTable)
     }
 
     internal fun buildQuery(): Sql {
         return Sql(db.dbType).apply {
-            raw("SELECT ")
+            raw("INSERT INTO ")(outTable).raw("(")
+            for ((idx, col) in outColumns.withIndex()) {
+                if (idx > 0)
+                    raw(", ")
+                raw(col.quotedFieldName)
+            }
+            raw(") SELECT ")
             for ((idx: Int, selectable: SqlEmitter) in selects.withIndex()) {
                 if (idx > 0)
                     raw(", ")
@@ -92,13 +73,14 @@ internal class AggrStreamImpl<E: DbEntity<E, *>>(table: DbTable<E, *>, db: DbCon
         }
     }
 
-    override fun expand(block: AggrStreamTopLevelBuilder<E>.() -> Unit) {
+    override fun expand(block: AggrInsertSelectTopLevelBuilder<OUT, ROOT>.() -> Unit) {
         checkModifiable()
-        AggrStreamBuilderImpl(this, baseTable).block()
+        val builder = AggrInsertSelectBuilderImpl(this, baseTable)
+        builder.block()
     }
 }
 
-internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>(val query: AggrStreamImpl<E>, val tableInQuery: TableInQuery<CURR>): AggrStreamTopLevelBuilder<CURR>, FilterableQuery<CURR> {
+internal class AggrInsertSelectBuilderImpl<OUT: DbEntity<OUT, *>, ROOT: DbEntity<ROOT, *>, CURR: DbEntity<CURR, *>>(val query: AggrInsertSelectQueryImpl<OUT, ROOT>, val tableInQuery: TableInQuery<CURR>): AggrInsertSelectTopLevelBuilder<OUT, CURR>, FilterableQuery<CURR> {
     override val baseTable: TableInQuery<CURR>
         get() = tableInQuery
 
@@ -164,95 +146,71 @@ internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>
         return addNullableAggregate(AggrOp.AVG, block, SqlTypeDouble.INSTANCE_FOR_AVG)
     }
 
-    override fun <T: Any> NullableAggrExpr<CURR, T>.into(receiver: (T?) -> Unit) {
+    override fun <T : Any> expr(block: AggrExprBuilder<CURR>.() -> Expr<T>): NonNullAggrExpr<CURR, T> {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    override fun <T : Any> NonNullColumn<OUT, T>.becomes(literal: T) {
         query.checkModifiable()
+        query.outColumns += this
+        query.selects.add(makeLiteral(literal))
+    }
 
-        val aggrExpr = this as NullableAggrExprImpl
-
-        query.rowProcessCallbacks.add { row ->
-            receiver(aggrExpr.retrieveValue(row))
+    override fun <T : Any> NullableColumn<OUT, T>.becomes(literal: T?) {
+        query.checkModifiable()
+        query.outColumns += this
+        if (literal != null) {
+            query.selects.add(makeLiteral(literal))
+        } else {
+            query.selects.add(ExprNull(sqlType))
         }
     }
 
-    override fun <T: Any> NonNullAggrExpr<CURR, T>.into(receiver: (T) -> Unit) {
+    override fun <T : Any> NonNullColumn<OUT, T>.becomes(column: NonNullColumn<CURR, T>) {
         query.checkModifiable()
-
-        val aggrExpr = this as NonNullAggrExprImpl
-
-        query.rowProcessCallbacks.add { row ->
-            receiver(aggrExpr.retrieveValue(row))
-        }
-    }
-
-    override fun <T : Any> NullableColumn<CURR, T>.into(receiver: (T?) -> Unit) {
-        query.checkModifiable()
-
-        val column = this
-        val sqlType = column.sqlType
         val boundColumn = column.bindForSelect(tableInQuery)
-        val colIndex = query.selects.size
+        query.outColumns += this
         query.selects.add(boundColumn)
         query.groupBy.add(boundColumn)
-
-        query.rowProcessCallbacks.add { row ->
-            val value = row.getValue(colIndex)
-            if (value.isNull) {
-                receiver.invoke(null)
-            } else {
-                receiver.invoke(sqlType.parseDbValue(value))
-            }
-        }
     }
 
-    override fun <T : Any> NonNullColumn<CURR, T>.into(receiver: (T) -> Unit) {
+    override fun <T : Any> NullableColumn<OUT, T>.becomes(column: Column<CURR, T>) {
         query.checkModifiable()
-
-        val column = this
-        val sqlType = column.sqlType
         val boundColumn = column.bindForSelect(tableInQuery)
-        val colIndex = query.selects.size
+        query.outColumns += this
         query.selects.add(boundColumn)
         query.groupBy.add(boundColumn)
-
-        query.rowProcessCallbacks.add { row ->
-            val value = row.getValue(colIndex)
-            receiver.invoke(sqlType.parseDbValue(value))
-        }
     }
 
-    override fun onRowStart(block: (DbRow) -> Unit) {
-        query.onRowStart(block)
+    override fun <T : Any> Column<OUT, T>.becomes(expr: AggrExpr<CURR, T>) {
+        query.outColumns += this
     }
 
-    override fun onRowEnd(block: (DbRow) -> Unit) {
-        query.onRowEnd(block)
-    }
-
-    override fun <REF : DbEntity<REF, *>> innerJoin(ref: RelToSingle<CURR, REF>, block: AggrStreamBuilder<REF>.() -> Unit) {
+    override fun <REF : DbEntity<REF, *>> innerJoin(ref: RelToSingle<CURR, REF>, block: AggrInsertSelectBuilder<OUT, REF>.() -> Unit) {
         query.checkModifiable()
         val subTable = tableInQuery.innerJoin(ref)
-        val subBuilder = AggrStreamBuilderImpl(query, subTable)
+        val subBuilder = AggrInsertSelectBuilderImpl(query, subTable)
         subBuilder.block()
     }
 
-    override fun <REF : DbEntity<REF, *>> innerJoin(set: RelToMany<CURR, REF>, block: AggrStreamBuilder<REF>.() -> Unit) {
+    override fun <REF : DbEntity<REF, *>> innerJoin(set: RelToMany<CURR, REF>, block: AggrInsertSelectBuilder<OUT, REF>.() -> Unit) {
         query.checkModifiable()
         val subTable = tableInQuery.innerJoin(set)
-        val subBuilder = AggrStreamBuilderImpl(query, subTable)
+        val subBuilder = AggrInsertSelectBuilderImpl(query, subTable)
         subBuilder.block()
     }
 
-    override fun <REF : DbEntity<REF, *>> leftJoin(ref: RelToSingle<CURR, REF>, block: AggrStreamBuilder<REF>.() -> Unit) {
+    override fun <REF : DbEntity<REF, *>> leftJoin(ref: RelToSingle<CURR, REF>, block: AggrInsertSelectBuilder<OUT, REF>.() -> Unit) {
         query.checkModifiable()
         val subTable = tableInQuery.leftJoin(ref)
-        val subBuilder = AggrStreamBuilderImpl(query, subTable)
+        val subBuilder = AggrInsertSelectBuilderImpl(query, subTable)
         subBuilder.block()
     }
 
-    override fun <REF : DbEntity<REF, *>> leftJoin(set: RelToMany<CURR, REF>, block: AggrStreamBuilder<REF>.() -> Unit) {
+    override fun <REF : DbEntity<REF, *>> leftJoin(set: RelToMany<CURR, REF>, block: AggrInsertSelectBuilder<OUT, REF>.() -> Unit) {
         query.checkModifiable()
         val subTable = tableInQuery.leftJoin(set)
-        val subBuilder = AggrStreamBuilderImpl(query, subTable)
+        val subBuilder = AggrInsertSelectBuilderImpl(query, subTable)
         subBuilder.block()
     }
 }

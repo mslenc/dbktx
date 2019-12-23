@@ -8,7 +8,6 @@ import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.expr.ExprFields
 import com.github.mslenc.dbktx.filters.FilterOneOf
 import com.github.mslenc.dbktx.util.RemappingList
-import kotlin.collections.ArrayList
 
 class ManyToOneInfo<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TO_KEY : Any>(
     val manyTable: DbTable<FROM, *>,
@@ -60,7 +59,7 @@ class ManyToOneInfo<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TO_KEY : Any
                     throw IllegalArgumentException()
 
                 @Suppress("UNCHECKED_CAST") // composite ids are Expr themselves..
-                idSet as Set<Expr<FROM, TO_KEY>>
+                idSet as Set<Expr<TO_KEY>>
 
                 FilterOneOf(fields, idSet.toList())
             }

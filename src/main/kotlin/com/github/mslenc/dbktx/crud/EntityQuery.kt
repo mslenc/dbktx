@@ -177,52 +177,47 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
 }
 
 interface OrderableQuery<E: DbEntity<E, *>> {
-    fun orderBy(order: Expr<in E, *>, ascending: Boolean = true): OrderableQuery<E>
+    fun orderBy(order: Expr<*>, ascending: Boolean = true)
     fun <R: DbEntity<R, *>>
-        orderBy(ref: RelToSingle<E, R>, order: Expr<in R, *>, ascending: Boolean = true): OrderableQuery<E>
+        orderBy(ref: RelToSingle<E, R>, order: Expr<*>, ascending: Boolean = true)
     fun <R1: DbEntity<R1, *>, R2: DbEntity<R2, *>>
-        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, order: Expr<R2, *>, ascending: Boolean = true): OrderableQuery<E>
+        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, order: Expr<*>, ascending: Boolean = true)
     fun <R1: DbEntity<R1, *>, R2: DbEntity<R2, *>, R3: DbEntity<R3, *>>
-        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, order: Expr<R3, *>, ascending: Boolean = true): OrderableQuery<E>
+        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, order: Expr<*>, ascending: Boolean = true)
     fun <R1: DbEntity<R1, *>, R2: DbEntity<R2, *>, R3: DbEntity<R3, *>, R4: DbEntity<R4, *>>
-        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, order: Expr<R4, *>, ascending: Boolean = true): OrderableQuery<E>
+        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, order: Expr<*>, ascending: Boolean = true)
     fun <R1: DbEntity<R1, *>, R2: DbEntity<R2, *>, R3: DbEntity<R3, *>, R4: DbEntity<R4, *>, R5: DbEntity<R5, *>>
-        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, ref5: RelToSingle<R4, R5>, order: Expr<R5, *>, ascending: Boolean = true): OrderableQuery<E>
+        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, ref5: RelToSingle<R4, R5>, order: Expr<*>, ascending: Boolean = true)
 
-    fun orderBy(order: RowProp<E, *>, ascending: Boolean = true): OrderableQuery<E>
+    fun orderBy(order: RowProp<E, *>, ascending: Boolean = true)
     fun <R: DbEntity<R, *>>
-        orderBy(ref: RelToSingle<E, R>, order: RowProp<R, *>, ascending: Boolean = true): OrderableQuery<E>
+        orderBy(ref: RelToSingle<E, R>, order: RowProp<R, *>, ascending: Boolean = true)
     fun <R1: DbEntity<R1, *>, R2: DbEntity<R2, *>>
-        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, order: RowProp<R2, *>, ascending: Boolean = true): OrderableQuery<E>
+        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, order: RowProp<R2, *>, ascending: Boolean = true)
     fun <R1: DbEntity<R1, *>, R2: DbEntity<R2, *>, R3: DbEntity<R3, *>>
-        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, order: RowProp<R3, *>, ascending: Boolean = true): OrderableQuery<E>
+        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, order: RowProp<R3, *>, ascending: Boolean = true)
     fun <R1: DbEntity<R1, *>, R2: DbEntity<R2, *>, R3: DbEntity<R3, *>, R4: DbEntity<R4, *>>
-        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, order: RowProp<R4, *>, ascending: Boolean = true): OrderableQuery<E>
+        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, order: RowProp<R4, *>, ascending: Boolean = true)
     fun <R1: DbEntity<R1, *>, R2: DbEntity<R2, *>, R3: DbEntity<R3, *>, R4: DbEntity<R4, *>, R5: DbEntity<R5, *>>
-        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, ref5: RelToSingle<R4, R5>, order: RowProp<R5, *>, ascending: Boolean = true): OrderableQuery<E>
+        orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, ref5: RelToSingle<R4, R5>, order: RowProp<R5, *>, ascending: Boolean = true)
 
-    fun offset(offset: Long): OrderableQuery<E>
-    fun maxRowCount(maxRowCount: Int): OrderableQuery<E>
+    fun offset(offset: Long)
+    fun maxRowCount(maxRowCount: Int)
 }
 
 interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E>, OrderableQuery<E> {
     val db: DbConn
 
-    suspend fun run(selectForUpdate: Boolean = false): List<E>
+    suspend fun execute(selectForUpdate: Boolean = false): List<E>
     suspend fun countAll(): Long
 
     fun copy(includeOffsetAndLimit: Boolean = false): EntityQuery<E>
     fun copyAndRemapFilters(dstTable: TableInQuery<E>): FilterExpr
 
-    suspend fun <OUT: Any> aggregateInto(factory: ()->OUT, queryBuilder: AggrListBuilder<OUT, E>.()->Unit): List<OUT> {
-        return makeAggregateListQuery(factory, queryBuilder).run()
-    }
-
     suspend fun aggregateStream(queryBuilder: AggrStreamBuilder<E>.()->Unit): Long {
-        return makeAggregateStreamQuery(queryBuilder).run()
+        return makeAggregateStreamQuery(queryBuilder).execute()
     }
 
-    fun <OUT: Any> makeAggregateListQuery(factory: ()->OUT, queryBuilder: AggrListBuilder<OUT, E>.()->Unit): AggrListQuery<OUT, E>
     fun makeAggregateStreamQuery(queryBuilder: AggrStreamBuilder<E>.()->Unit): AggrStreamQuery<E>
 }
 
@@ -231,7 +226,7 @@ class TableInQueryBoundFilterBuilder<E: DbEntity<E, *>>(val table: TableInQuery<
         return table
     }
 
-    override fun <T: Any> bind(prop: RowProp<E, T>): Expr<E, T> {
+    override fun <T: Any> bind(prop: RowProp<E, T>): Expr<T> {
         return prop.bindForSelect(table)
     }
 }
@@ -256,11 +251,11 @@ internal abstract class OrderableFilterableQueryImpl<E : DbEntity<E, *>>(
 
 
     protected fun <R: DbEntity<R, *>>
-    addOrder(table: TableInQuery<R>, order: Expr<in R, *>, ascending: Boolean) {
+    addOrder(table: TableInQuery<R>, order: Expr<*>, ascending: Boolean) {
         checkModifiable()
 
         if (order.isComposite) {
-            val comp = order as CompositeExpr
+            val comp = order as CompositeExpr<*, *>
             for (i in 1..comp.numParts) {
                 addOrder(table, comp.getPart(i), ascending)
             }
@@ -277,7 +272,67 @@ internal abstract class OrderableFilterableQueryImpl<E : DbEntity<E, *>>(
         addOrder(table, order.bindForSelect(table), ascending)
     }
 
-    protected fun setOffset(offset: Long) {
+    override fun
+    orderBy(order: Expr<*>, ascending: Boolean) {
+        addOrder(baseTable, order, ascending)
+    }
+
+    override fun <R : DbEntity<R, *>>
+    orderBy(ref: RelToSingle<E, R>, order: Expr<*>, ascending: Boolean) {
+        addOrder(baseTable.leftJoin(ref), order, ascending)
+    }
+
+    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>>
+    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, order: Expr<*>, ascending: Boolean) {
+        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2), order, ascending)
+    }
+
+    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>, R3 : DbEntity<R3, *>>
+    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, order: Expr<*>, ascending: Boolean) {
+        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2).leftJoin(ref3), order, ascending)
+    }
+
+    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>, R3 : DbEntity<R3, *>, R4 : DbEntity<R4, *>>
+    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, order: Expr<*>, ascending: Boolean) {
+        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2).leftJoin(ref3).leftJoin(ref4), order, ascending)
+    }
+
+    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>, R3 : DbEntity<R3, *>, R4 : DbEntity<R4, *>, R5 : DbEntity<R5, *>>
+    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, ref5: RelToSingle<R4, R5>, order: Expr<*>, ascending: Boolean) {
+        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2).leftJoin(ref3).leftJoin(ref4).leftJoin(ref5), order, ascending)
+    }
+
+    override fun
+    orderBy(order: RowProp<E, *>, ascending: Boolean) {
+        addOrder(baseTable, order, ascending)
+    }
+
+    override fun <R : DbEntity<R, *>>
+    orderBy(ref: RelToSingle<E, R>, order: RowProp<R, *>, ascending: Boolean) {
+        addOrder(baseTable.leftJoin(ref), order, ascending)
+    }
+
+    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>>
+    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, order: RowProp<R2, *>, ascending: Boolean) {
+        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2), order, ascending)
+    }
+
+    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>, R3 : DbEntity<R3, *>>
+    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, order: RowProp<R3, *>, ascending: Boolean) {
+        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2).leftJoin(ref3), order, ascending)
+    }
+
+    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>, R3 : DbEntity<R3, *>, R4 : DbEntity<R4, *>>
+    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, order: RowProp<R4, *>, ascending: Boolean) {
+        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2).leftJoin(ref3).leftJoin(ref4), order, ascending)
+    }
+
+    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>, R3 : DbEntity<R3, *>, R4 : DbEntity<R4, *>, R5 : DbEntity<R5, *>>
+    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, ref5: RelToSingle<R4, R5>, order: RowProp<R5, *>, ascending: Boolean) {
+        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2).leftJoin(ref3).leftJoin(ref4).leftJoin(ref5), order, ascending)
+    }
+
+    override fun offset(offset: Long) {
         checkModifiable()
 
         if (offset < 0)
@@ -286,7 +341,7 @@ internal abstract class OrderableFilterableQueryImpl<E : DbEntity<E, *>>(
         this.offset = offset
     }
 
-    protected fun setMaxRowCount(maxRowCount: Int) {
+    override fun maxRowCount(maxRowCount: Int) {
         checkModifiable()
 
         if (maxRowCount < 0)
@@ -308,7 +363,7 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
     private val queryState = DelayedLoadState<List<E>>(db.scope)
     private val countState = DelayedLoadState<Long>(db.scope)
 
-    override suspend fun run(selectForUpdate: Boolean): List<E> {
+    override suspend fun execute(selectForUpdate: Boolean): List<E> {
         return when (queryState.state) {
             LOADED  -> queryState.value
             LOADING -> suspendCoroutine(queryState::addReceiver)
@@ -327,88 +382,6 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
     override fun checkModifiable() {
         if (queryState.state !== INITIAL || countState.state !== INITIAL)
             throw IllegalStateException("Already querying")
-    }
-
-    override fun
-    orderBy(order: Expr<in E, *>, ascending: Boolean): EntityQuery<E> {
-        addOrder(baseTable, order, ascending)
-        return this
-    }
-
-    override fun <R : DbEntity<R, *>>
-    orderBy(ref: RelToSingle<E, R>, order: Expr<in R, *>, ascending: Boolean): EntityQuery<E> {
-        addOrder(baseTable.leftJoin(ref), order, ascending)
-        return this
-    }
-
-    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>>
-    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, order: Expr<R2, *>, ascending: Boolean): EntityQuery<E> {
-        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2), order, ascending)
-        return this
-    }
-
-    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>, R3 : DbEntity<R3, *>>
-    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, order: Expr<R3, *>, ascending: Boolean): EntityQuery<E> {
-        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2).leftJoin(ref3), order, ascending)
-        return this
-    }
-
-    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>, R3 : DbEntity<R3, *>, R4 : DbEntity<R4, *>>
-    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, order: Expr<R4, *>, ascending: Boolean): EntityQuery<E> {
-        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2).leftJoin(ref3).leftJoin(ref4), order, ascending)
-        return this
-    }
-
-    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>, R3 : DbEntity<R3, *>, R4 : DbEntity<R4, *>, R5 : DbEntity<R5, *>>
-    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, ref5: RelToSingle<R4, R5>, order: Expr<R5, *>, ascending: Boolean): EntityQuery<E> {
-        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2).leftJoin(ref3).leftJoin(ref4).leftJoin(ref5), order, ascending)
-        return this
-    }
-
-    override fun
-    orderBy(order: RowProp<E, *>, ascending: Boolean): EntityQuery<E> {
-        addOrder(baseTable, order, ascending)
-        return this
-    }
-
-    override fun <R : DbEntity<R, *>>
-    orderBy(ref: RelToSingle<E, R>, order: RowProp<R, *>, ascending: Boolean): EntityQuery<E> {
-        addOrder(baseTable.leftJoin(ref), order, ascending)
-        return this
-    }
-
-    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>>
-    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, order: RowProp<R2, *>, ascending: Boolean): EntityQuery<E> {
-        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2), order, ascending)
-        return this
-    }
-
-    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>, R3 : DbEntity<R3, *>>
-    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, order: RowProp<R3, *>, ascending: Boolean): EntityQuery<E> {
-        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2).leftJoin(ref3), order, ascending)
-        return this
-    }
-
-    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>, R3 : DbEntity<R3, *>, R4 : DbEntity<R4, *>>
-    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, order: RowProp<R4, *>, ascending: Boolean): EntityQuery<E> {
-        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2).leftJoin(ref3).leftJoin(ref4), order, ascending)
-        return this
-    }
-
-    override fun <R1 : DbEntity<R1, *>, R2 : DbEntity<R2, *>, R3 : DbEntity<R3, *>, R4 : DbEntity<R4, *>, R5 : DbEntity<R5, *>>
-    orderBy(ref1: RelToSingle<E, R1>, ref2: RelToSingle<R1, R2>, ref3: RelToSingle<R2, R3>, ref4: RelToSingle<R3, R4>, ref5: RelToSingle<R4, R5>, order: RowProp<R5, *>, ascending: Boolean): EntityQuery<E> {
-        addOrder(baseTable.leftJoin(ref1).leftJoin(ref2).leftJoin(ref3).leftJoin(ref4).leftJoin(ref5), order, ascending)
-        return this
-    }
-
-    override fun offset(offset: Long): EntityQuery<E> {
-        setOffset(offset)
-        return this
-    }
-
-    override fun maxRowCount(maxRowCount: Int): EntityQuery<E> {
-        setMaxRowCount(maxRowCount)
-        return this
     }
 
     override fun copy(includeOffsetAndLimit: Boolean): EntityQuery<E> {
@@ -435,18 +408,6 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
         val remapper = TableRemapper(dstTable.query)
         remapper.addExplicitMapping(baseTable, dstTable)
         return filters.remap(remapper)
-    }
-
-    override fun <OUT : Any> makeAggregateListQuery(factory: () -> OUT, queryBuilder: AggrListBuilder<OUT, E>.() -> Unit): AggrListQuery<OUT, E> {
-        val query = table.makeAggregateListQuery(db, factory, {}) as AggrListImpl
-
-        val remapper = TableRemapper(query)
-        remapper.addExplicitMapping(baseTable, query.baseTable)
-        query.filter { filters.remap(remapper) }
-
-        query.expand(queryBuilder)
-
-        return query
     }
 
     override fun makeAggregateStreamQuery(queryBuilder: AggrStreamBuilder<E>.() -> Unit): AggrStreamQuery<E> {

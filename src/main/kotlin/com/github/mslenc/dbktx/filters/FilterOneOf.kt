@@ -5,7 +5,7 @@ import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.util.Sql
 
-class FilterOneOf<TABLE, T: Any>(private val needle: Expr<TABLE, T>, private val haystack: List<Expr<TABLE, T>>, private val negated: Boolean = false) : FilterExpr {
+class FilterOneOf<T: Any>(private val needle: Expr<T>, private val haystack: List<Expr<T>>, private val negated: Boolean = false) : FilterExpr {
     init {
         if (haystack.isEmpty())
             throw IllegalArgumentException("Empty list for oneOf")
@@ -34,7 +34,7 @@ class FilterOneOf<TABLE, T: Any>(private val needle: Expr<TABLE, T>, private val
     }
 
     companion object {
-        fun <TABLE, T: Any> oneOf(needle: Expr<TABLE, T>, haystack: List<Expr<TABLE, T>>): FilterExpr {
+        fun <T: Any> oneOf(needle: Expr<T>, haystack: List<Expr<T>>): FilterExpr {
             if (haystack.isEmpty())
                 return MatchNothing
 

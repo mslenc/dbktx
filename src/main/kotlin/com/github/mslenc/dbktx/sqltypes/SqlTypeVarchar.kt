@@ -42,7 +42,7 @@ class SqlTypeVarchar(
                 this.maxSize = size
             }
 
-            else -> throw IllegalArgumentException("Unsupported type " + concreteType)
+            else -> throw IllegalArgumentException("Unsupported type $concreteType")
         }
 
         if (maxSize < 1)
@@ -80,7 +80,7 @@ class SqlTypeVarchar(
         // is expected to only be used for calling the toSql(), so it is not expected to matter much which type it is, or which collation
         private val INSTANCE_FOR_LITERALS = SqlTypeVarchar(SqlTypeKind.LONGTEXT, null, true)
 
-        fun <E> makeLiteral(value: String): Literal<E, String> {
+        fun makeLiteral(value: String): Literal<String> {
             return Literal(value, INSTANCE_FOR_LITERALS)
         }
     }

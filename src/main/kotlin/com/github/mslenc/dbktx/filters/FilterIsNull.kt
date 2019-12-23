@@ -5,7 +5,7 @@ import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.util.Sql
 
-class FilterIsNull<ENTITY>(private val inner: Expr<ENTITY, *>, private val isNull: Boolean) : FilterExpr {
+class FilterIsNull(private val inner: Expr<*>, private val isNull: Boolean) : FilterExpr {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.expr(topLevel) {
             +inner
