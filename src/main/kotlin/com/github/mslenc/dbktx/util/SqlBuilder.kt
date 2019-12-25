@@ -3,6 +3,7 @@ package com.github.mslenc.dbktx.util
 import com.github.mslenc.asyncdb.DbType
 import com.github.mslenc.asyncdb.util.ULong
 import com.github.mslenc.dbktx.crud.*
+import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.expr.SqlEmitter
 import com.github.mslenc.dbktx.filters.MatchAnything
@@ -278,7 +279,7 @@ class Sql(val dbType: DbType) {
         buildJoins(joinedTable)
     }
 
-    fun WHERE(filter: FilterExpr): Sql {
+    fun WHERE(filter: Expr<Boolean>): Sql {
         if (filter != MatchAnything) {
             raw(" WHERE ")
             filter.toSql(this, true)

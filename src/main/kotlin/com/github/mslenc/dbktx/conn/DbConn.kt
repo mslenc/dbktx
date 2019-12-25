@@ -5,7 +5,9 @@ import com.github.mslenc.dbktx.aggr.AggrInsertSelectBuilderImpl
 import com.github.mslenc.dbktx.aggr.AggrInsertSelectQueryImpl
 import com.github.mslenc.dbktx.aggr.AggrInsertSelectTopLevelBuilder
 import com.github.mslenc.dbktx.crud.*
+import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
+import com.github.mslenc.dbktx.expr.ScalarExprBuilder
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.BatchingLoader
 import com.github.mslenc.dbktx.util.Sql
@@ -96,7 +98,7 @@ interface DbConn {
      * INTERNAL FUNCTION, use [update] or [DbTable.update] instead.
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeUpdate(table: TableInQuery<E>, filters: FilterExpr, values: EntityValues<E>): Long
+    executeUpdate(table: TableInQuery<E>, filters: Expr<Boolean>, values: EntityValues<E>): Long
 
     /**
      * INTERNAL FUNCTION, use [delete] instead.
@@ -121,7 +123,7 @@ interface DbConn {
      * Follows a relation-to-many and applies additional filter to the result.
      */
     suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
-    load(from: FROM, relation: RelToMany<FROM, TO>, filter: FilterBuilder<TO>.()->FilterExpr): List<TO>
+    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ScalarExprBuilder<TO>.()->FilterExpr): List<TO>
 
     /**
      * Follows a relation-to-one for multiple source entities.
@@ -212,7 +214,7 @@ interface DbConn {
      * ```
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    deleteMany(table: DbTable<E, ID>, filter: FilterBuilder<E>.() -> FilterExpr): Long {
+    deleteMany(table: DbTable<E, ID>, filter: ScalarExprBuilder<E>.() -> FilterExpr): Long {
         val query = newDeleteQuery(table)
         query.filter(filter)
         return query.deleteAllMatchingRows()
@@ -252,7 +254,7 @@ interface DbConn {
      * ```
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.query(filter: FilterBuilder<E>.() -> FilterExpr): List<E> {
+    Z.query(filter: ScalarExprBuilder<E>.() -> Expr<Boolean>): List<E> {
         val query = newQuery(this)
         query.filter(filter)
         return query.execute()
@@ -265,7 +267,7 @@ interface DbConn {
      * ```
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.countAll(filter: FilterBuilder<E>.() -> FilterExpr): Long {
+    Z.countAll(filter: ScalarExprBuilder<E>.() -> FilterExpr): Long {
         val query = newQuery(this)
         query.filter(filter)
         return query.countAll()
@@ -291,7 +293,7 @@ interface DbConn {
     suspend fun <OUT: DbEntity<OUT, *>, OUTTABLE: DbTable<OUT, *>, ROOT: DbEntity<ROOT, *>, ROOTTABLE: DbTable<ROOT, *>>
     OUTTABLE.insertSelect(queryRoot: ROOTTABLE, block: AggrInsertSelectTopLevelBuilder<OUT, ROOT>.() -> Unit) {
         val query = AggrInsertSelectQueryImpl(this, queryRoot, this@DbConn)
-        val builder = AggrInsertSelectBuilderImpl(query, query.baseTable)
+        val builder = AggrInsertSelectBuilderImpl(query, query.table)
         builder.block()
         query.execute()
     }
@@ -421,7 +423,7 @@ TABLE.updateByIds(ids: List<ID>, db: DbConn = getContextDb(), builder: TABLE.(Db
  * ```
  */
 suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
-TABLE.count(db: DbConn = getContextDb(), filter: FilterBuilder<E>.() -> FilterExpr): Long {
+TABLE.count(db: DbConn = getContextDb(), filter: ScalarExprBuilder<E>.() -> FilterExpr): Long {
     val query = newQuery(db)
     query.filter(filter)
     return query.countAll()

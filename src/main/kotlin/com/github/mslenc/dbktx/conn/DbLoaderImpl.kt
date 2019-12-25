@@ -3,8 +3,10 @@ package com.github.mslenc.dbktx.conn
 import com.github.mslenc.asyncdb.*
 import com.github.mslenc.asyncdb.impl.values.DbValueLong
 import com.github.mslenc.dbktx.crud.*
+import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.schema.Column
 import com.github.mslenc.dbktx.expr.FilterExpr
+import com.github.mslenc.dbktx.expr.ScalarExprBuilder
 import com.github.mslenc.dbktx.filters.MatchAnything
 import com.github.mslenc.dbktx.filters.MatchNothing
 import com.github.mslenc.dbktx.schema.*
@@ -24,8 +26,8 @@ internal fun <E : DbEntity<E, *>>
 buildSelectQuery(query: EntityQueryImpl<E>, selectForUpdate: Boolean): Sql {
 
     return Sql(query.db.dbType).apply {
-        SELECT(query.table.defaultColumnNames)
-        FROM(query.baseTable)
+        SELECT(query.table.table.defaultColumnNames)
+        FROM(query.table)
         WHERE(query.filters)
 
         if (!query.orderBy.isEmpty()) {
@@ -56,7 +58,7 @@ buildCountQuery(query: EntityQueryImpl<E>): Sql {
 
     return Sql(query.db.dbType).apply {
         SELECT("COUNT(*)")
-        FROM(query.baseTable)
+        FROM(query.table)
         WHERE(query.filters)
     }
 }
@@ -68,14 +70,14 @@ buildDeleteQuery(query: DeleteQueryImpl<E>): Sql {
 
     return Sql(query.db.dbType).apply {
         raw("DELETE FROM ")
-        raw(query.baseTable.table.quotedDbName)
+        raw(query.table.table.quotedDbName)
         WHERE(query.filters)
     }
 }
 
 
 private fun <E : DbEntity<E, ID>, ID: Any>
-createUpdateQuery(table: TableInQuery<E>, values: EntityValues<E>, filter: FilterExpr, dbType: DbType): Sql? {
+createUpdateQuery(table: TableInQuery<E>, values: EntityValues<E>, filter: Expr<Boolean>, dbType: DbType): Sql? {
     if (values.isEmpty())
         return null
 
@@ -243,12 +245,12 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
     }
 
     private suspend fun <E : DbEntity<E, *>>
-    queryNow(table: DbTable<E, *>, filter: FilterBuilder<E>.() -> FilterExpr): List<E> {
+    queryNow(table: DbTable<E, *>, filter: ScalarExprBuilder<E>.() -> Expr<Boolean>): List<E> {
         val entities = masterIndex[table]
 
         val query = SimpleSelectQueryImpl()
         val boundTable = BaseTableInQuery(query, table)
-        val filterBuilder = TableInQueryBoundFilterBuilder(boundTable)
+        val filterBuilder = FBImpl(boundTable)
         val filterExpr = filterBuilder.filter()
 
         val sb = Sql(publicDb.dbType).apply {
@@ -448,7 +450,7 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeUpdate(table: TableInQuery<E>, filters: FilterExpr, values: EntityValues<E>): Long {
+    executeUpdate(table: TableInQuery<E>, filters: Expr<Boolean>, values: EntityValues<E>): Long {
         if (filters == MatchNothing)
             return 0
 
@@ -467,7 +469,7 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
 
         val sql = buildDeleteQuery(deleteQuery)
 
-        return deleteQuery.table.callEnqueueDeleteQuery(db, sql)
+        return deleteQuery.table.table.callEnqueueDeleteQuery(db, sql)
     }
 
     override suspend fun <E : DbEntity<E, ID>, ID : Any>
@@ -539,7 +541,7 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         if (query.filteringState() == FilteringState.MATCH_NONE)
             return emptyList()
 
-        return db.enqueueQuery(query.table, buildSelectQuery(query, selectForUpdate), selectForUpdate)
+        return db.enqueueQuery(query.table.table, buildSelectQuery(query, selectForUpdate), selectForUpdate)
     }
 
     override suspend fun <E : DbEntity<E, *>>
@@ -574,19 +576,19 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
     }
 
     override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
-    load(from: FROM, relation: RelToMany<FROM, TO>, filter: FilterBuilder<TO>.()->FilterExpr): List<TO> {
+    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ScalarExprBuilder<TO>.()->FilterExpr): List<TO> {
         relation as RelToManyImpl<FROM, *, TO>
         return relation.callLoadToManyWithFilter(this, from, filter)
     }
 
     internal suspend fun <FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO: DbEntity<TO, *>>
-    loadToManyWithFilter(from: FROM, relation: RelToManyImpl<FROM, FROM_KEY, TO>, filter: FilterBuilder<TO>.()->FilterExpr): List<TO> {
+    loadToManyWithFilter(from: FROM, relation: RelToManyImpl<FROM, FROM_KEY, TO>, filter: ScalarExprBuilder<TO>.()->FilterExpr): List<TO> {
         val fromKeys = setOf(relation.info.oneKey(from))
 
         val manyTable = relation.targetTable
         val query = manyTable.newQuery(this)
 
-        query.filter { relation.createCondition(fromKeys, query.baseTable) }
+        query.filter { relation.createCondition(fromKeys, query.table) }
         query.filter(filter)
 
         if (query.filteringState() == FilteringState.MATCH_NONE)

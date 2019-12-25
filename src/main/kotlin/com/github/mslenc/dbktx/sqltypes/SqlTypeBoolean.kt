@@ -38,4 +38,8 @@ class SqlTypeBoolean(concreteType: SqlTypeKind, isNotNull: Boolean) : SqlType<Bo
     }
 
     override val kotlinType: KClass<Boolean> = Boolean::class
+
+    companion object {
+        val INSTANCE_FOR_FILTER = SqlTypeBoolean(SqlTypeKind.BOOLEAN, true)
+    }
 }

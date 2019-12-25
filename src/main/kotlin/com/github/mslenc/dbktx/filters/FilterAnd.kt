@@ -1,10 +1,12 @@
 package com.github.mslenc.dbktx.filters
 
 import com.github.mslenc.dbktx.crud.TableRemapper
+import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
+import com.github.mslenc.dbktx.expr.not
 import com.github.mslenc.dbktx.util.Sql
 
-internal class FilterAnd internal constructor(private val parts: List<FilterExpr>) : FilterExpr {
+internal class FilterAnd internal constructor(private val parts: List<Expr<Boolean>>) : FilterExpr {
     override fun toSql(sql: Sql, topLevel: Boolean) {
         sql.expr(topLevel) {
             sql.tuple(parts, separator = " AND ") {
@@ -13,7 +15,13 @@ internal class FilterAnd internal constructor(private val parts: List<FilterExpr
         }
     }
 
-    override fun not(): FilterExpr {
+    override val couldBeNull: Boolean
+        get() = parts.any { it.couldBeNull }
+
+    override val involvesAggregation: Boolean
+        get() = parts.any { it.involvesAggregation }
+
+    override fun not(): Expr<Boolean> {
         return FilterOr(parts.map { !it })
     }
 
@@ -35,7 +43,7 @@ internal class FilterAnd internal constructor(private val parts: List<FilterExpr
     }
 
     companion object {
-        internal fun create(left: FilterExpr, right: FilterExpr): FilterExpr {
+        internal fun create(left: Expr<Boolean>, right: Expr<Boolean>): Expr<Boolean> {
             if (left == MatchAnything)
                 return right
 
@@ -45,7 +53,7 @@ internal class FilterAnd internal constructor(private val parts: List<FilterExpr
             if (left == MatchNothing || right == MatchNothing)
                 return MatchNothing
 
-            val combined = ArrayList<FilterExpr>()
+            val combined = ArrayList<Expr<Boolean>>()
 
             if (left is FilterAnd) {
                 combined.addAll(left.parts)
@@ -61,27 +69,12 @@ internal class FilterAnd internal constructor(private val parts: List<FilterExpr
             return FilterAnd(combined)
         }
 
-        internal fun create(vararg parts: FilterExpr): FilterExpr {
-            val combined = ArrayList<FilterExpr>()
-
-            for (part in parts) {
-                when (part) {
-                    MatchAnything -> { /* ignore */ }
-                    MatchNothing -> return MatchNothing
-                    is FilterAnd -> combined.addAll(part.parts)
-                    else -> combined += part
-                }
-            }
-
-            return when {
-                combined.isEmpty() -> MatchAnything
-                combined.size == 1 -> combined[0]
-                else -> FilterAnd(combined)
-            }
+        internal fun create(vararg parts: Expr<Boolean>): Expr<Boolean> {
+            return create(parts.asList())
         }
 
-        internal fun create(parts: Collection<FilterExpr>): FilterExpr {
-            val combined = ArrayList<FilterExpr>()
+        internal fun create(parts: Collection<Expr<Boolean>>): Expr<Boolean> {
+            val combined = ArrayList<Expr<Boolean>>()
 
             for (part in parts) {
                 when (part) {

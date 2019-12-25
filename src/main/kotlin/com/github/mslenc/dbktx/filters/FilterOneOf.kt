@@ -21,6 +21,12 @@ class FilterOneOf<T: Any>(private val needle: Expr<T>, private val haystack: Lis
         }
     }
 
+    override val couldBeNull: Boolean
+        get() = needle.couldBeNull || haystack.any { it.couldBeNull }
+
+    override val involvesAggregation: Boolean
+        get() = needle.involvesAggregation || haystack.any { it.involvesAggregation }
+
     override fun not(): FilterExpr {
         return FilterOneOf(needle, haystack, !negated)
     }

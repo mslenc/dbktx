@@ -17,6 +17,12 @@ class FilterIsNull(private val inner: Expr<*>, private val isNull: Boolean) : Fi
         }
     }
 
+    override val couldBeNull: Boolean
+        get() = false
+
+    override val involvesAggregation: Boolean
+        get() = inner.involvesAggregation
+
     override fun not(): FilterExpr {
         return FilterIsNull(inner, !isNull)
     }

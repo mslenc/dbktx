@@ -21,9 +21,11 @@ internal class ExprFields<E : DbEntity<E, *>, TYPE : Any>(val columnMappings: Ar
     override val couldBeNull: Boolean
         get() = columnMappings.any { it.columnFromAsNullable != null }
 
-    override fun getSqlType(): SqlType<TYPE> {
-        throw UnsupportedOperationException("getSqlType called on ExprFields")
-    }
+    override val involvesAggregation: Boolean
+        get() = false // this is a tuple of column names and literals, so no aggregation possible
+
+    override val sqlType: SqlType<TYPE>
+        get() = throw UnsupportedOperationException("getSqlType called on ExprFields")
 
     override fun remap(remapper: TableRemapper): Expr<TYPE> {
         return ExprFields(columnMappings, remapper.remap(tableInQuery))

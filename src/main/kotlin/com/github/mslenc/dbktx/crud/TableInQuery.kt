@@ -250,9 +250,11 @@ class BoundColumnForSelect<E: DbEntity<E, *>, T : Any>(val column: Column<E, T>,
     override val couldBeNull: Boolean
         get() = column.nullable
 
-    override fun getSqlType(): SqlType<T> {
-        return column.sqlType
-    }
+    override val sqlType: SqlType<T>
+        get() = column.sqlType
+
+    override val involvesAggregation: Boolean
+        get() = false
 
     override fun remap(remapper: TableRemapper): Expr<T> {
         return BoundColumnForSelect(column, remapper.remap(tableInQuery))
@@ -268,6 +270,9 @@ class BoundMultiColumnForSelect<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(val
         get() = multiColumn.numColumns
 
     override val couldBeNull: Boolean
+        get() = false
+
+    override val involvesAggregation: Boolean
         get() = false
 
     override fun toSql(sql: Sql, topLevel: Boolean) {

@@ -22,8 +22,3 @@ interface NullableRowProp<E: DbEntity<E, *>, T: Any> : RowProp<E, T> {
 interface NonNullRowProp<E: DbEntity<E, *>, T: Any> : RowProp<E, T> {
     override operator fun invoke(row: DbRow): T
 }
-
-interface OrderedProp<E : DbEntity<E, *>, T : Comparable<T>> : RowProp<E, T>
-
-interface NullableOrderedProp<E: DbEntity<E, *>, T : Comparable<T>> : OrderedProp<E, T>
-interface NonNullOrderedProp<E: DbEntity<E, *>, T : Comparable<T>> : OrderedProp<E, T>

@@ -2,7 +2,6 @@ package com.github.mslenc.dbktx.sqltypes
 
 import com.github.mslenc.asyncdb.util.ULong
 import com.github.mslenc.dbktx.sqltypes.SqlTypeKind.*
-import com.github.mslenc.dbktx.util.StringSet
 import java.math.BigDecimal
 import java.time.*
 
@@ -22,16 +21,6 @@ internal object SqlTypes {
 
             BINARY, VARBINARY, TINYBLOB, BLOB, MEDIUMBLOB, LONGBLOB ->
                 return SqlTypeBinaryString(sqlType, size, isNotNull)
-
-            else ->
-                throw UnsupportedOperationException("No mapping from $sqlType to String")
-        }
-    }
-
-    fun makeStringSet(sqlType: SqlTypeKind, size: Int?, isNotNull: Boolean, surroundedWithCommas: Boolean): SqlType<StringSet> {
-        when (sqlType) {
-            CHAR, VARCHAR, TINYTEXT, TEXT, MEDIUMTEXT, LONGTEXT ->
-                return SqlTypeStringSet(sqlType, surroundedWithCommas=surroundedWithCommas, isNotNull=isNotNull) // TODO: size
 
             else ->
                 throw UnsupportedOperationException("No mapping from $sqlType to String")

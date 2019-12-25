@@ -3,9 +3,10 @@ package com.github.mslenc.dbktx.expr
 import com.github.mslenc.asyncdb.DbType
 import com.github.mslenc.dbktx.crud.TableRemapper
 import com.github.mslenc.dbktx.filters.FilterAnd
-import com.github.mslenc.dbktx.filters.FilterBetween
+import com.github.mslenc.dbktx.filters.FilterNegate
 import com.github.mslenc.dbktx.filters.FilterOr
 import com.github.mslenc.dbktx.sqltypes.SqlType
+import com.github.mslenc.dbktx.sqltypes.SqlTypeBoolean
 import com.github.mslenc.dbktx.util.Sql
 
 interface SqlEmitter {
@@ -28,69 +29,78 @@ interface Expr<T : Any> : SqlEmitter {
 
     fun remap(remapper: TableRemapper): Expr<T>
 
-    fun getSqlType(): SqlType<T>
+    val sqlType: SqlType<T>
 
-    fun makeLiteral(value: T): Expr<T> = Literal(value, getSqlType())
+    fun makeLiteral(value: T): Expr<T> = Literal(value, sqlType)
 
     val couldBeNull: Boolean
     val isComposite: Boolean
         get() = false
+
+    val involvesAggregation: Boolean
+}
+
+interface AggrExpr<T: Any>: Expr<T> {
+    override val involvesAggregation: Boolean
+        get() = true
+}
+
+interface NullableAggrExpr<T: Any> : AggrExpr<T> {
+    override val couldBeNull: Boolean
+        get() = true
+}
+
+interface NonNullAggrExpr<T: Any> : AggrExpr<T> {
+    override val couldBeNull: Boolean
+        get() = false
 }
 
 
-interface OrderedExpr<T : Any> : Expr<T> {
-    infix fun between(range: SqlRange<T>): FilterExpr {
-        return FilterBetween(this, range.minumum, range.maximum, between = true)
-    }
+infix fun Expr<Boolean>.and(other: Expr<Boolean>): Expr<Boolean> {
+    return FilterAnd.create(this, other)
+}
 
-    fun between(minimum: Expr<T>, maximum: Expr<T>): FilterExpr {
-        return FilterBetween(this, minimum, maximum, between = true)
-    }
+infix fun Expr<Boolean>.or(other: Expr<Boolean>): Expr<Boolean> {
+    return FilterOr.create(this, other)
+}
 
-    infix fun notBetween(range: SqlRange<T>): FilterExpr {
-        return FilterBetween(this, range.minumum, range.maximum, between = false)
-    }
-
-    fun notBetween(minimum: Expr<T>, maximum: Expr<T>): FilterExpr {
-        return FilterBetween(this, minimum, maximum, between = false)
+operator fun Expr<Boolean>.not(): Expr<Boolean> {
+    return when (this) {
+        is FilterExpr -> this.not()
+        else -> FilterNegate(this)
     }
 }
 
-interface ExprString : OrderedExpr<String>
+interface FilterExpr : Expr<Boolean> {
+    operator fun not(): Expr<Boolean>
 
-
-operator fun Expr<Boolean>.not() {
-
-}
-
-
-interface FilterExpr : SqlEmitter {
-    operator fun not(): FilterExpr
-    fun remap(remapper: TableRemapper): FilterExpr
-
-    infix fun and(other: FilterExpr): FilterExpr {
+    infix fun and(other: FilterExpr): Expr<Boolean> {
         return FilterAnd.create(this, other)
     }
 
-    infix fun or(other: FilterExpr): FilterExpr {
+    infix fun or(other: FilterExpr): Expr<Boolean> {
         return FilterOr.create(this, other)
     }
 
+    override val sqlType: SqlType<Boolean>
+        get() = SqlTypeBoolean.INSTANCE_FOR_FILTER
+
     companion object {
-        fun createOR(vararg exprs: FilterExpr): FilterExpr {
+        fun createOR(vararg exprs: Expr<Boolean>): Expr<Boolean> {
             return FilterOr.create(*exprs)
         }
 
-        fun createOR(exprs: Collection<FilterExpr>): FilterExpr {
+        fun createOR(exprs: Collection<Expr<Boolean>>): Expr<Boolean> {
             return FilterOr.create(exprs)
         }
 
-        fun createAND(vararg exprs: FilterExpr): FilterExpr {
+        fun createAND(vararg exprs: Expr<Boolean>): Expr<Boolean> {
             return FilterAnd.create(*exprs)
         }
 
-        fun createAND(exprs: Collection<FilterExpr>): FilterExpr {
+        fun createAND(exprs: Collection<Expr<Boolean>>): Expr<Boolean> {
             return FilterAnd.create(exprs)
         }
     }
 }
+

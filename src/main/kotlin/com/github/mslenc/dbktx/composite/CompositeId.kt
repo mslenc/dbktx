@@ -29,6 +29,9 @@ abstract class CompositeId<E : DbEntity<E, *>, ID : CompositeId<E, ID>> : Compos
     override val couldBeNull: Boolean
         get() = false
 
+    override val involvesAggregation: Boolean
+        get() = false
+
     private fun <T: Any> doGetPart(column: NonNullColumn<E, T>): Expr<T> {
         return column.makeLiteral(get(column))
     }

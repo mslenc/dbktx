@@ -3,6 +3,7 @@ package com.github.mslenc.dbktx.filters
 import com.github.mslenc.dbktx.crud.JoinType
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.crud.TableRemapper
+import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.ManyToOneInfo
@@ -10,7 +11,7 @@ import com.github.mslenc.dbktx.util.Sql
 
 class FilterHasParent<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         private val info: ManyToOneInfo<FROM, TO, *>,
-        private val filter: FilterExpr,
+        private val filter: Expr<Boolean>,
         private val srcTable: TableInQuery<FROM>,
         private val dstTable: TableInQuery<TO>,
         private val negated: Boolean = false) : FilterExpr {
@@ -45,6 +46,12 @@ class FilterHasParent<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
             }
         }
     }
+
+    override val couldBeNull: Boolean
+        get() = false
+
+    override val involvesAggregation: Boolean
+        get() = filter.involvesAggregation
 
     override fun not(): FilterExpr {
         return FilterHasParent(info, filter, srcTable, dstTable, !negated)

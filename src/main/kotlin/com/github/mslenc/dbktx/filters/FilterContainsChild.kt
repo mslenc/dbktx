@@ -2,6 +2,7 @@ package com.github.mslenc.dbktx.filters
 
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.crud.TableRemapper
+import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.ManyToOneInfo
@@ -10,7 +11,7 @@ import com.github.mslenc.dbktx.util.Sql
 class FilterContainsChild<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         private val parentTable: TableInQuery<FROM>,
         private val info: ManyToOneInfo<TO, FROM, *>,
-        private val filter: FilterExpr,
+        private val filter: Expr<Boolean>,
         private val childTable: TableInQuery<TO>,
         private val negated: Boolean = false) : FilterExpr {
 
@@ -41,11 +42,17 @@ class FilterContainsChild<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         }
     }
 
+    override val couldBeNull: Boolean
+        get() = false
+
+    override val involvesAggregation: Boolean
+        get() = filter.involvesAggregation
+
     override fun not(): FilterExpr {
         return FilterContainsChild(parentTable, info, filter, childTable, !negated)
     }
 
-    override fun remap(remapper: TableRemapper): FilterExpr {
+    override fun remap(remapper: TableRemapper): Expr<Boolean> {
         return FilterContainsChild(remapper.remap(parentTable), info, filter.remap(remapper), remapper.remap(childTable), negated)
     }
 

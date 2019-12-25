@@ -14,6 +14,12 @@ internal class FilterCompare<T: Any>(private val left: Expr<T>, private val op: 
         }
     }
 
+    override val couldBeNull: Boolean
+        get() = left.couldBeNull || right.couldBeNull
+
+    override val involvesAggregation: Boolean
+        get() = left.involvesAggregation || right.involvesAggregation
+
     override fun remap(remapper: TableRemapper): FilterExpr {
         return FilterCompare(left.remap(remapper), op, right.remap(remapper))
     }

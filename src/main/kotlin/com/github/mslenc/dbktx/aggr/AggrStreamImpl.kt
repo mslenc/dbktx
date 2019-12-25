@@ -5,11 +5,8 @@ import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.crud.BaseTableInQuery
 import com.github.mslenc.dbktx.crud.OrderableFilterableQueryImpl
-import com.github.mslenc.dbktx.expr.Expr
-import com.github.mslenc.dbktx.expr.FilterExpr
-import com.github.mslenc.dbktx.expr.SqlEmitter
+import com.github.mslenc.dbktx.expr.*
 import com.github.mslenc.dbktx.schema.*
-import com.github.mslenc.dbktx.sqltypes.SqlType
 import com.github.mslenc.dbktx.sqltypes.SqlTypeDouble
 import com.github.mslenc.dbktx.sqltypes.SqlTypeLong
 import com.github.mslenc.dbktx.util.Sql
@@ -70,7 +67,7 @@ internal class AggrStreamImpl<E: DbEntity<E, *>>(table: DbTable<E, *>, db: DbCon
                 selectable.toSql(this, true)
             }
 
-            FROM(baseTable)
+            FROM(table)
             WHERE(filters)
             GROUP_BY(groupBy)
 
@@ -94,15 +91,12 @@ internal class AggrStreamImpl<E: DbEntity<E, *>>(table: DbTable<E, *>, db: DbCon
 
     override fun expand(block: AggrStreamTopLevelBuilder<E>.() -> Unit) {
         checkModifiable()
-        AggrStreamBuilderImpl(this, baseTable).block()
+        AggrStreamBuilderImpl(this, table).block()
     }
 }
 
-internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>(val query: AggrStreamImpl<E>, val tableInQuery: TableInQuery<CURR>): AggrStreamTopLevelBuilder<CURR>, FilterableQuery<CURR> {
-    override val baseTable: TableInQuery<CURR>
-        get() = tableInQuery
-
-    override fun require(filter: FilterExpr) {
+internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>(val query: AggrStreamImpl<E>, override val table: TableInQuery<CURR>): AggrStreamTopLevelBuilder<CURR>, FilterableQuery<CURR> {
+    override fun require(filter: Expr<Boolean>) {
         query.require(filter)
     }
 
@@ -110,89 +104,83 @@ internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>
         return query.filteringState()
     }
 
-    internal fun <T : Any, OUT: Any> addNullableAggregate(op: AggrOp, block: AggrExprBuilder<CURR>.() -> Expr<T>, sqlType: SqlType<OUT>): NullableAggrExpr<CURR, OUT> {
+    override fun <T : Any> sum(block: ScalarExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<T> {
+        val inner = FBImpl(table).block()
+        return AggrExprImpl(AggrExprOp.SUM, inner, inner.sqlType)
+    }
+
+    override fun <T : Comparable<T>> min(block: ScalarExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<T> {
+        val inner = FBImpl(table).block()
+        return AggrExprImpl(AggrExprOp.MIN, inner, inner.sqlType)
+    }
+
+    override fun <T : Comparable<T>> max(block: ScalarExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<T> {
+        val inner = FBImpl(table).block()
+        return AggrExprImpl(AggrExprOp.MAX, inner, inner.sqlType)
+    }
+
+    override fun <T : Number> average(block: ScalarExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<Double> {
+        val inner = FBImpl(table).block()
+        return AggrExprImpl(AggrExprOp.AVG, inner, SqlTypeDouble.INSTANCE_FOR_AVG)
+    }
+
+    override fun <T : Any> count(block: ScalarExprBuilder<CURR>.() -> Expr<T>): NonNullAggrExpr<Long> {
+        val inner = FBImpl(table).block()
+        return CountExpr(CountExprOp.COUNT, inner, SqlTypeLong.INSTANCE_FOR_COUNT)
+    }
+
+    override fun <T : Any> countDistinct(block: ScalarExprBuilder<CURR>.() -> Expr<T>): NonNullAggrExpr<Long> {
+        val inner = FBImpl(table).block()
+        return CountExpr(CountExprOp.COUNT_DISTINCT, inner, SqlTypeLong.INSTANCE_FOR_COUNT)
+    }
+
+    override fun <T : Any> expr(block: AnyExprBuilder<CURR>.() -> Expr<T>): Expr<T> {
+        return FBImpl(table).block()
+    }
+
+    override fun <T : Any> NonNullAggrExpr<T>.into(receiver: (T) -> Unit) {
         query.checkModifiable()
-        val builder = AggrExprBuilderImpl(tableInQuery)
-        val expr = builder.block()
+
         val columnIndex = query.selects.size
-        val aggrExpr = NullableAggrExprImpl<CURR, OUT>(op, expr, columnIndex, sqlType)
-        query.selects.add(aggrExpr)
-        return aggrExpr
-    }
+        val sqlType = this.sqlType
 
-    internal fun <T: Any> addNullableAggregate(op: AggrOp, block: AggrExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<CURR, T> {
-        query.checkModifiable()
-        val builder = AggrExprBuilderImpl(tableInQuery)
-        val expr = builder.block()
-        val columnIndex = query.selects.size
-        val aggrExpr = NullableAggrExprImpl<CURR, T>(op, expr, columnIndex, expr.getSqlType())
-        query.selects.add(aggrExpr)
-        return aggrExpr
-    }
-
-    internal fun <T : Any, OUT: Any> addNonNullAggregate(op: AggrOp, block: AggrExprBuilder<CURR>.() -> Expr<T>, sqlType: SqlType<OUT>): NonNullAggrExpr<CURR, OUT> {
-        query.checkModifiable()
-        val builder = AggrExprBuilderImpl(tableInQuery)
-        val expr = builder.block()
-        val columnIndex = query.selects.size
-        val aggrExpr = NonNullAggrExprImpl<CURR, OUT>(op, expr, columnIndex, sqlType)
-        query.selects.add(aggrExpr)
-        return aggrExpr
-    }
-
-    override fun <T : Any> sum(block: AggrExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<CURR, T> {
-        return addNullableAggregate(AggrOp.SUM, block)
-    }
-
-    override fun <T : Any> min(block: AggrExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<CURR, T> {
-        return addNullableAggregate(AggrOp.MIN, block)
-    }
-
-    override fun <T : Any> max(block: AggrExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<CURR, T> {
-        return addNullableAggregate(AggrOp.MAX, block)
-    }
-
-    override fun <T : Any> count(block: AggrExprBuilder<CURR>.() -> Expr<T>): NonNullAggrExpr<CURR, Long> {
-        return addNonNullAggregate(AggrOp.COUNT, block, SqlTypeLong.INSTANCE_FOR_COUNT)
-    }
-
-    override fun <T : Any> countDistinct(block: AggrExprBuilder<CURR>.() -> Expr<T>): NonNullAggrExpr<CURR, Long> {
-        return addNonNullAggregate(AggrOp.COUNT_DISTINCT, block, SqlTypeLong.INSTANCE_FOR_COUNT)
-    }
-
-    override fun <T : Any> average(block: AggrExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<CURR, Double> {
-        return addNullableAggregate(AggrOp.AVG, block, SqlTypeDouble.INSTANCE_FOR_AVG)
-    }
-
-    override fun <T: Any> NullableAggrExpr<CURR, T>.into(receiver: (T?) -> Unit) {
-        query.checkModifiable()
-
-        val aggrExpr = this as NullableAggrExprImpl
-
+        query.selects.add(this)
         query.rowProcessCallbacks.add { row ->
-            receiver(aggrExpr.retrieveValue(row))
+            val dbValue = row.getValue(columnIndex)
+            receiver(sqlType.parseDbValue(dbValue))
         }
     }
 
-    override fun <T: Any> NonNullAggrExpr<CURR, T>.into(receiver: (T) -> Unit) {
+    override fun <T: Any> Expr<T>.into(receiver: (T?) -> Unit) {
         query.checkModifiable()
 
-        val aggrExpr = this as NonNullAggrExprImpl
+        val columnIndex = query.selects.size
+        val sqlType = this.sqlType
 
+        query.selects.add(this)
         query.rowProcessCallbacks.add { row ->
-            receiver(aggrExpr.retrieveValue(row))
+            val dbValue = row.getValue(columnIndex)
+            when {
+                dbValue.isNull -> receiver(null)
+                else -> receiver(sqlType.parseDbValue(dbValue))
+            }
         }
     }
 
-    override fun <T : Any> NullableColumn<CURR, T>.into(receiver: (T?) -> Unit) {
+    private fun <T : Any> addColumn(column: Column<CURR, T>): Int {
         query.checkModifiable()
 
-        val column = this
-        val sqlType = column.sqlType
-        val boundColumn = column.bindForSelect(tableInQuery)
+        val boundColumn = column.bindForSelect(this@AggrStreamBuilderImpl.table)
         val colIndex = query.selects.size
         query.selects.add(boundColumn)
         query.groupBy.add(boundColumn)
+
+        return colIndex
+    }
+
+    override fun <T : Any> NullableColumn<CURR, T>.into(receiver: (T?) -> Unit) {
+        val colIndex = addColumn(this)
+        val sqlType = this.sqlType
 
         query.rowProcessCallbacks.add { row ->
             val value = row.getValue(colIndex)
@@ -205,14 +193,8 @@ internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>
     }
 
     override fun <T : Any> NonNullColumn<CURR, T>.into(receiver: (T) -> Unit) {
-        query.checkModifiable()
-
-        val column = this
-        val sqlType = column.sqlType
-        val boundColumn = column.bindForSelect(tableInQuery)
-        val colIndex = query.selects.size
-        query.selects.add(boundColumn)
-        query.groupBy.add(boundColumn)
+        val colIndex = addColumn(this)
+        val sqlType = this.sqlType
 
         query.rowProcessCallbacks.add { row ->
             val value = row.getValue(colIndex)
@@ -230,28 +212,28 @@ internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>
 
     override fun <REF : DbEntity<REF, *>> innerJoin(ref: RelToSingle<CURR, REF>, block: AggrStreamBuilder<REF>.() -> Unit) {
         query.checkModifiable()
-        val subTable = tableInQuery.innerJoin(ref)
+        val subTable = table.innerJoin(ref)
         val subBuilder = AggrStreamBuilderImpl(query, subTable)
         subBuilder.block()
     }
 
     override fun <REF : DbEntity<REF, *>> innerJoin(set: RelToMany<CURR, REF>, block: AggrStreamBuilder<REF>.() -> Unit) {
         query.checkModifiable()
-        val subTable = tableInQuery.innerJoin(set)
+        val subTable = table.innerJoin(set)
         val subBuilder = AggrStreamBuilderImpl(query, subTable)
         subBuilder.block()
     }
 
     override fun <REF : DbEntity<REF, *>> leftJoin(ref: RelToSingle<CURR, REF>, block: AggrStreamBuilder<REF>.() -> Unit) {
         query.checkModifiable()
-        val subTable = tableInQuery.leftJoin(ref)
+        val subTable = table.leftJoin(ref)
         val subBuilder = AggrStreamBuilderImpl(query, subTable)
         subBuilder.block()
     }
 
     override fun <REF : DbEntity<REF, *>> leftJoin(set: RelToMany<CURR, REF>, block: AggrStreamBuilder<REF>.() -> Unit) {
         query.checkModifiable()
-        val subTable = tableInQuery.leftJoin(set)
+        val subTable = table.leftJoin(set)
         val subBuilder = AggrStreamBuilderImpl(query, subTable)
         subBuilder.block()
     }

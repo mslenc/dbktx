@@ -3,10 +3,10 @@ package com.github.mslenc.dbktx.schema
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.crud.EntityQuery
-import com.github.mslenc.dbktx.crud.FilterBuilder
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.crud.filter
 import com.github.mslenc.dbktx.expr.FilterExpr
+import com.github.mslenc.dbktx.expr.ScalarExprBuilder
 import java.util.ArrayList
 
 class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntity<TO, *>> : RelToMany<FROM, TO> {
@@ -41,10 +41,10 @@ class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntit
         return from.db.load(this, from)
     }
 
-    override suspend fun invoke(from: FROM, block: FilterBuilder<TO>.() -> FilterExpr): List<TO> {
+    override suspend fun invoke(from: FROM, block: ScalarExprBuilder<TO>.() -> FilterExpr): List<TO> {
         val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
 
-        query.filter { createCondition(setOf(info.oneKey(from)), query.baseTable) }
+        query.filter { createCondition(setOf(info.oneKey(from)), query.table) }
         query.filter(block)
 
         return query.execute()
@@ -53,21 +53,21 @@ class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntit
     override suspend fun countAll(from: FROM): Long {
         val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
 
-        query.filter { createCondition(setOf(info.oneKey(from)), query.baseTable) }
+        query.filter { createCondition(setOf(info.oneKey(from)), query.table) }
 
         return query.countAll()
     }
 
-    override suspend fun count(from: FROM, block: FilterBuilder<TO>.() -> FilterExpr): Long {
+    override suspend fun count(from: FROM, block: ScalarExprBuilder<TO>.() -> FilterExpr): Long {
         val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
 
-        query.filter { createCondition(setOf(info.oneKey(from)), query.baseTable) }
+        query.filter { createCondition(setOf(info.oneKey(from)), query.table) }
         query.filter(block)
 
         return query.countAll()
     }
 
-    internal suspend fun callLoadToManyWithFilter(db: DbLoaderImpl, from: FROM, filter: FilterBuilder<TO>.() -> FilterExpr): List<TO> {
+    internal suspend fun callLoadToManyWithFilter(db: DbLoaderImpl, from: FROM, filter: ScalarExprBuilder<TO>.() -> FilterExpr): List<TO> {
         return db.loadToManyWithFilter(from, this, filter)
     }
 
@@ -75,7 +75,7 @@ class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntit
         val index = keys.associateBy { it.id }
 
         val query = info.manyTable.newQuery(db)
-        query.filter { createCondition(index.keys, currentTable()) }
+        query.filter { createCondition(index.keys, table) }
         val result = query.execute()
 
         val mapped = LinkedHashMap<FROM, ArrayList<TO>>()

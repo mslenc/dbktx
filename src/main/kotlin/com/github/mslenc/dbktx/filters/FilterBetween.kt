@@ -21,6 +21,12 @@ class FilterBetween<T: Any>(
         }
     }
 
+    override val couldBeNull: Boolean
+        get() = value.couldBeNull || minimum.couldBeNull || maximum.couldBeNull
+
+    override val involvesAggregation: Boolean
+        get() = value.involvesAggregation || minimum.involvesAggregation || maximum.involvesAggregation
+
     override operator fun not(): FilterExpr {
         return FilterBetween(value, minimum, maximum, !between)
     }

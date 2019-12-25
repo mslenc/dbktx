@@ -13,10 +13,10 @@ internal class DbUpdateImpl<E : DbEntity<E, ID>, ID: Any>(
         private val specificEntity: E?)
     : DbMutationImpl<E, ID>(db, BaseTableInUpdateQuery(UpdateQueryImpl(), table)), DbUpdate<E> {
 
-    private var filters: FilterExpr = MatchAnything
+    private var filters: Expr<Boolean> = MatchAnything
 
-    override fun filter(block: FilterBuilder<E>.()->FilterExpr) {
-        filters = filters and TableInQueryBoundFilterBuilder(table).block()
+    override fun filter(block: ScalarExprBuilder<E>.()->Expr<Boolean>) {
+        filters = filters and FBImpl(table).block()
     }
 
     override fun <T : Any> set(column: NonNullColumn<E, T>, value: T) {

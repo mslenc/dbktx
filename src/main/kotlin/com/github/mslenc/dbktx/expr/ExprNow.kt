@@ -15,9 +15,11 @@ class ExprNow<T: Any> : Expr<T> {
     override val isComposite: Boolean
         get() = false
 
-    override fun getSqlType(): SqlType<T> {
-        throw UnsupportedOperationException("getSqlType() called on ExprNow")
-    }
+    override val involvesAggregation: Boolean
+        get() = false
+
+    override val sqlType: SqlType<T>
+        get() = throw UnsupportedOperationException("getSqlType() called on ExprNow")
 
     override fun rangeTo(other: Expr<T>): SqlRange<T> {
         throw UnsupportedOperationException("NOW() can't be used for comparisons")

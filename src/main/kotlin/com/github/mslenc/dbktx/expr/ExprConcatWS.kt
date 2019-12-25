@@ -20,16 +20,20 @@ class ExprConcatWS private constructor (private val sep: Expr<String>, private v
     override val couldBeNull: Boolean
         get() = sep.couldBeNull // nulls in parts are ignored by CONCAT_WS
 
+    override val involvesAggregation: Boolean
+        get() = sep.involvesAggregation || parts.any { it.involvesAggregation }
+
     override fun remap(remapper: TableRemapper): Expr<String> {
         return ExprConcatWS(sep.remap(remapper), parts.map { it.remap(remapper) })
     }
 
-    override fun getSqlType(): SqlType<String> {
-        return when (sep) {
-            is Literal -> sep.getSqlType()
-            else -> SqlTypeVarchar.makeLiteral("").getSqlType()
+    override val sqlType: SqlType<String>
+        get() {
+            return when (sep) {
+                is Literal -> sep.sqlType
+                else -> SqlTypeVarchar.makeLiteral("").sqlType
+            }
         }
-    }
 
     companion object {
         fun create(sep: Expr<String>, first: Expr<*>, parts: List<Expr<*>>): Expr<String> {

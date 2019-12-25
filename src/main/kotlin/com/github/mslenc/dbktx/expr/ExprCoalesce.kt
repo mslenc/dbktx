@@ -15,20 +15,17 @@ class ExprCoalesce<T: Any> private constructor (private val options: List<Expr<T
     }
 
     override val couldBeNull: Boolean
-        get() {
-            for (option in options)
-                if (!option.couldBeNull)
-                    return false
-            return true
-        }
+        get() = !options.any { !it.couldBeNull } // if any of the options is not-null, so is the coalesce result
+
+    override val involvesAggregation: Boolean
+        get() = options.any { it.involvesAggregation }
 
     override fun remap(remapper: TableRemapper): Expr<T> {
         return ExprCoalesce(options.map { it.remap(remapper) })
     }
 
-    override fun getSqlType(): SqlType<T> {
-        return options[0].getSqlType()
-    }
+    override val sqlType: SqlType<T>
+        get() = options.first().sqlType
 
     companion object {
         fun <T: Any> create(options: List<Expr<T>>, ifAllNull: T? = null): Expr<T> {
@@ -39,7 +36,7 @@ class ExprCoalesce<T: Any> private constructor (private val options: List<Expr<T
                 return options[0]
 
             return if (ifAllNull != null) {
-                val sqlType = options[0].getSqlType()
+                val sqlType = options[0].sqlType
                 val literal: Expr<T> = Literal(ifAllNull, sqlType)
                 val combinedOptions = options + literal
                 ExprCoalesce(combinedOptions)

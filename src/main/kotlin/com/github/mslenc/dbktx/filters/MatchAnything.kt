@@ -9,6 +9,12 @@ object MatchAnything : FilterExpr {
         sql.raw("(1=1)")
     }
 
+    override val couldBeNull: Boolean
+        get() = false
+
+    override val involvesAggregation: Boolean
+        get() = false
+
     override fun not(): FilterExpr {
         return MatchNothing
     }

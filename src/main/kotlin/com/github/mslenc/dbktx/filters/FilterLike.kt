@@ -17,6 +17,12 @@ class FilterLike (
         require(escapeChar != '\'') { "Invalid escape char - it can't be '" }
     }
 
+    override val couldBeNull: Boolean
+        get() = value.couldBeNull || pattern.couldBeNull
+
+    override val involvesAggregation: Boolean
+        get() = value.involvesAggregation || pattern.involvesAggregation
+
     override fun not(): FilterExpr {
         return FilterLike(value, pattern, escapeChar, !negated, caseInsensitive)
     }
