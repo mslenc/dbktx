@@ -15,8 +15,8 @@ internal class DbUpdateImpl<E : DbEntity<E, ID>, ID: Any>(
 
     private var filters: Expr<Boolean> = MatchAnything
 
-    override fun filter(block: ScalarExprBuilder<E>.()->Expr<Boolean>) {
-        filters = filters and FBImpl(table).block()
+    override fun filter(block: ExprBuilder<E>.()->Expr<Boolean>) {
+        filters = filters and table.newExprBuilder().block()
     }
 
     override fun <T : Any> set(column: NonNullColumn<E, T>, value: T) {

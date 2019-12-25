@@ -14,6 +14,9 @@ import com.github.mslenc.dbktx.util.Sql
 typealias RowCallback = (DbRow)->Unit
 
 internal class AggrStreamImpl<E: DbEntity<E, *>>(table: DbTable<E, *>, db: DbConn) : OrderableFilterableQueryImpl<E>(table, db), AggrStreamQuery<E> {
+    override val aggregatesAllowed: Boolean
+        get() = true
+
     var executing = false
 
     val rowStartCallbacks = ArrayList<RowCallback>()
@@ -96,6 +99,9 @@ internal class AggrStreamImpl<E: DbEntity<E, *>>(table: DbTable<E, *>, db: DbCon
 }
 
 internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>(val query: AggrStreamImpl<E>, override val table: TableInQuery<CURR>): AggrStreamTopLevelBuilder<CURR>, FilterableQuery<CURR> {
+    override val aggregatesAllowed: Boolean
+        get() = true
+
     override fun require(filter: Expr<Boolean>) {
         query.require(filter)
     }
@@ -104,38 +110,38 @@ internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>
         return query.filteringState()
     }
 
-    override fun <T : Any> sum(block: ScalarExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<T> {
-        val inner = FBImpl(table).block()
+    override fun <T : Any> sum(block: ExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<T> {
+        val inner = table.newExprBuilder().block()
         return AggrExprImpl(AggrExprOp.SUM, inner, inner.sqlType)
     }
 
-    override fun <T : Comparable<T>> min(block: ScalarExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<T> {
-        val inner = FBImpl(table).block()
+    override fun <T : Comparable<T>> min(block: ExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<T> {
+        val inner = table.newExprBuilder().block()
         return AggrExprImpl(AggrExprOp.MIN, inner, inner.sqlType)
     }
 
-    override fun <T : Comparable<T>> max(block: ScalarExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<T> {
-        val inner = FBImpl(table).block()
+    override fun <T : Comparable<T>> max(block: ExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<T> {
+        val inner = table.newExprBuilder().block()
         return AggrExprImpl(AggrExprOp.MAX, inner, inner.sqlType)
     }
 
-    override fun <T : Number> average(block: ScalarExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<Double> {
-        val inner = FBImpl(table).block()
+    override fun <T : Number> average(block: ExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<Double> {
+        val inner = table.newExprBuilder().block()
         return AggrExprImpl(AggrExprOp.AVG, inner, SqlTypeDouble.INSTANCE_FOR_AVG)
     }
 
-    override fun <T : Any> count(block: ScalarExprBuilder<CURR>.() -> Expr<T>): NonNullAggrExpr<Long> {
-        val inner = FBImpl(table).block()
+    override fun <T : Any> count(block: ExprBuilder<CURR>.() -> Expr<T>): NonNullAggrExpr<Long> {
+        val inner = table.newExprBuilder().block()
         return CountExpr(CountExprOp.COUNT, inner, SqlTypeLong.INSTANCE_FOR_COUNT)
     }
 
-    override fun <T : Any> countDistinct(block: ScalarExprBuilder<CURR>.() -> Expr<T>): NonNullAggrExpr<Long> {
-        val inner = FBImpl(table).block()
+    override fun <T : Any> countDistinct(block: ExprBuilder<CURR>.() -> Expr<T>): NonNullAggrExpr<Long> {
+        val inner = table.newExprBuilder().block()
         return CountExpr(CountExprOp.COUNT_DISTINCT, inner, SqlTypeLong.INSTANCE_FOR_COUNT)
     }
 
-    override fun <T : Any> expr(block: AnyExprBuilder<CURR>.() -> Expr<T>): Expr<T> {
-        return FBImpl(table).block()
+    override fun <T : Any> expr(block: AggrExprBuilder<CURR>.() -> Expr<T>): Expr<T> {
+        return table.newExprBuilder().block()
     }
 
     override fun <T : Any> NonNullAggrExpr<T>.into(receiver: (T) -> Unit) {

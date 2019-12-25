@@ -15,9 +15,11 @@ import com.github.mslenc.dbktx.util.OrderSpec
 import java.util.ArrayList
 import kotlin.coroutines.suspendCoroutine
 
-interface Query
+interface Query {
+    val aggregatesAllowed: Boolean
+}
 
-abstract class QueryImpl {
+abstract class QueryImpl : Query {
     private val alias2table = LinkedHashMap<String, TableInQuery<*>>()
 
     fun isTableAliasTaken(tableAlias: String): Boolean {
@@ -29,9 +31,20 @@ abstract class QueryImpl {
     }
 }
 
-internal class SimpleSelectQueryImpl : QueryImpl()
-internal class UpdateQueryImpl : QueryImpl()
-internal class InsertQueryImpl : QueryImpl()
+internal class SimpleSelectQueryImpl : QueryImpl() {
+    override val aggregatesAllowed: Boolean
+        get() = false
+}
+
+internal class UpdateQueryImpl : QueryImpl() {
+    override val aggregatesAllowed: Boolean
+        get() = false
+}
+
+internal class InsertQueryImpl : QueryImpl() {
+    override val aggregatesAllowed: Boolean
+        get() = false
+}
 
 enum class FilteringState {
     MATCH_ALL,
@@ -51,80 +64,80 @@ FilterableQuery<E>.exclude(filter: Expr<Boolean>) {
 }
 
 inline fun <E: DbEntity<E, *>>
-FilterableQuery<E>.filter(block: ScalarExprBuilder<E>.() -> Expr<Boolean>) {
+FilterableQuery<E>.filter(block: ExprBuilder<E>.() -> Expr<Boolean>) {
     require(createFilter(block))
 }
 
 inline fun <E: DbEntity<E, *>, REF: DbEntity<REF, *>>
-FilterableQuery<E>.filter(ref: RelToSingle<E, REF>, block: ScalarExprBuilder<REF>.() -> Expr<Boolean>) {
+FilterableQuery<E>.filter(ref: RelToSingle<E, REF>, block: ExprBuilder<REF>.() -> Expr<Boolean>) {
     require(createFilter(ref, block))
 }
 
 inline fun <E: DbEntity<E, *>, REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>>
-FilterableQuery<E>.filter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, block: ScalarExprBuilder<REF2>.() -> Expr<Boolean>) {
+FilterableQuery<E>.filter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, block: ExprBuilder<REF2>.() -> Expr<Boolean>) {
     require(createFilter(ref1, ref2, block))
 }
 
 inline fun <E: DbEntity<E, *>, REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>>
-FilterableQuery<E>.filter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, block: ScalarExprBuilder<REF3>.() -> Expr<Boolean>) {
+FilterableQuery<E>.filter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, block: ExprBuilder<REF3>.() -> Expr<Boolean>) {
     require(createFilter(ref1, ref2, ref3, block))
 }
 
 inline fun <E: DbEntity<E, *>, REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>, REF4: DbEntity<REF4, *>>
-FilterableQuery<E>.filter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, ref4: RelToSingle<REF3, REF4>, block: ScalarExprBuilder<REF4>.() -> Expr<Boolean>) {
+FilterableQuery<E>.filter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, ref4: RelToSingle<REF3, REF4>, block: ExprBuilder<REF4>.() -> Expr<Boolean>) {
     require(createFilter(ref1, ref2, ref3, ref4, block))
 }
 
 
 inline fun <E: DbEntity<E, *>>
-FilterableQuery<E>.exclude(block: ScalarExprBuilder<E>.() -> Expr<Boolean>) {
+FilterableQuery<E>.exclude(block: ExprBuilder<E>.() -> Expr<Boolean>) {
     exclude(createFilter(block))
 }
 
 inline fun <E: DbEntity<E, *>, REF: DbEntity<REF, *>>
-FilterableQuery<E>.exclude(ref: RelToSingle<E, REF>, block: ScalarExprBuilder<REF>.() -> Expr<Boolean>) {
+FilterableQuery<E>.exclude(ref: RelToSingle<E, REF>, block: ExprBuilder<REF>.() -> Expr<Boolean>) {
     exclude(createFilter(ref, block))
 }
 
 inline fun <E: DbEntity<E, *>, REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>>
-FilterableQuery<E>.exclude(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, block: ScalarExprBuilder<REF2>.() -> Expr<Boolean>) {
+FilterableQuery<E>.exclude(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, block: ExprBuilder<REF2>.() -> Expr<Boolean>) {
     exclude(createFilter(ref1, ref2, block))
 }
 
 inline fun <E: DbEntity<E, *>, REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>>
-FilterableQuery<E>.exclude(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, block: ScalarExprBuilder<REF3>.() -> Expr<Boolean>) {
+FilterableQuery<E>.exclude(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, block: ExprBuilder<REF3>.() -> Expr<Boolean>) {
     exclude(createFilter(ref1, ref2, ref3, block))
 }
 
 inline fun <E: DbEntity<E, *>, REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>, REF4: DbEntity<REF4, *>>
-FilterableQuery<E>.exclude(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, ref4: RelToSingle<REF3, REF4>, block: ScalarExprBuilder<REF4>.() -> Expr<Boolean>) {
+FilterableQuery<E>.exclude(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, ref4: RelToSingle<REF3, REF4>, block: ExprBuilder<REF4>.() -> Expr<Boolean>) {
     exclude(createFilter(ref1, ref2, ref3, ref4, block))
 }
 
 
 inline fun <E: DbEntity<E, *>>
-FilterableQuery<E>.createFilter(block: ScalarExprBuilder<E>.() -> Expr<Boolean>): Expr<Boolean> {
-    return FBImpl(table).block()
+FilterableQuery<E>.createFilter(block: ExprBuilder<E>.() -> Expr<Boolean>): Expr<Boolean> {
+    return table.newExprBuilder().block()
 }
 
 inline fun <E: DbEntity<E, *>, REF: DbEntity<REF, *>>
-FilterableQuery<E>.createFilter(ref: RelToSingle<E, REF>, block: ScalarExprBuilder<REF>.() -> Expr<Boolean>): Expr<Boolean> {
-    return FBImpl(table.innerJoin(ref)).block()
+FilterableQuery<E>.createFilter(ref: RelToSingle<E, REF>, block: ExprBuilder<REF>.() -> Expr<Boolean>): Expr<Boolean> {
+    return table.innerJoin(ref).newExprBuilder().block()
 }
 
 inline fun <E: DbEntity<E, *>, REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>>
-FilterableQuery<E>.createFilter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, block: ScalarExprBuilder<REF2>.() -> Expr<Boolean>): Expr<Boolean> {
-    return FBImpl(table.innerJoin(ref1).innerJoin(ref2)).block()
+FilterableQuery<E>.createFilter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, block: ExprBuilder<REF2>.() -> Expr<Boolean>): Expr<Boolean> {
+    return table.innerJoin(ref1).innerJoin(ref2).newExprBuilder().block()
 }
 
 inline fun <E: DbEntity<E, *>, REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>>
-FilterableQuery<E>.createFilter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, block: ScalarExprBuilder<REF3>.() -> Expr<Boolean>): Expr<Boolean> {
-    return FBImpl(table.innerJoin(ref1).innerJoin(ref2).innerJoin(ref3)).block()
+FilterableQuery<E>.createFilter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, block: ExprBuilder<REF3>.() -> Expr<Boolean>): Expr<Boolean> {
+    return table.innerJoin(ref1).innerJoin(ref2).innerJoin(ref3).newExprBuilder().block()
 }
 
 inline fun <E: DbEntity<E, *>, REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>, REF4: DbEntity<REF4, *>>
-FilterableQuery<E>.createFilter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, ref4: RelToSingle<REF3, REF4>, block: ScalarExprBuilder<REF4>.() -> Expr<Boolean>): Expr<Boolean> {
-    return FBImpl(table.innerJoin(ref1).innerJoin(ref2).innerJoin(ref3).innerJoin(ref4)).block()
+FilterableQuery<E>.createFilter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, ref4: RelToSingle<REF3, REF4>, block: ExprBuilder<REF4>.() -> Expr<Boolean>): Expr<Boolean> {
+    return table.innerJoin(ref1).innerJoin(ref2).innerJoin(ref3).innerJoin(ref4).newExprBuilder().block()
 }
 
 fun <E: DbEntity<E, *>>
@@ -174,6 +187,8 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
 
 interface OrderableQuery<E: DbEntity<E, *>> {
     fun orderBy(order: Expr<*>, ascending: Boolean = true)
+
+
     fun <R: DbEntity<R, *>>
         orderBy(ref: RelToSingle<E, R>, order: Expr<*>, ascending: Boolean = true)
     fun <R1: DbEntity<R1, *>, R2: DbEntity<R2, *>>
@@ -217,8 +232,6 @@ interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E>, OrderableQuery<E>
     fun makeAggregateStreamQuery(queryBuilder: AggrStreamBuilder<E>.()->Unit): AggrStreamQuery<E>
 }
 
-class FBImpl<E: DbEntity<E, *>>(override val table: TableInQuery<E>) : AnyExprBuilder<E>
-
 internal abstract class OrderableFilterableQueryImpl<E : DbEntity<E, *>>(
         table: DbTable<E, *>,
         db: DbConn)
@@ -228,8 +241,8 @@ internal abstract class OrderableFilterableQueryImpl<E : DbEntity<E, *>>(
         return BaseTableInQuery(this, table)
     }
 
-    protected var  _orderBy: ArrayList<OrderSpec<*>>? = null
-    internal val orderBy: List<OrderSpec<*>>
+    protected var  _orderBy: ArrayList<OrderSpec>? = null
+    internal val orderBy: List<OrderSpec>
         get() {
             return _orderBy ?: emptyList()
         }
@@ -251,7 +264,7 @@ internal abstract class OrderableFilterableQueryImpl<E : DbEntity<E, *>>(
             if (_orderBy == null)
                 _orderBy = ArrayList()
 
-            _orderBy?.add(OrderSpec(table, order, ascending))
+            _orderBy?.add(OrderSpec(order, ascending))
         }
     }
 
@@ -344,6 +357,9 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
         db: DbConn)
     : OrderableFilterableQueryImpl<E>(table, db), EntityQuery<E> {
 
+    override val aggregatesAllowed: Boolean
+        get() = false
+
     override fun makeBaseTable(table: DbTable<E, *>): TableInQuery<E> {
         return BaseTableInQuery(this, table)
     }
@@ -379,7 +395,7 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
 
         newQuery.filters = filters.remap(remapper)
         _orderBy?.let { orderBy ->
-            val newOrder = ArrayList<OrderSpec<*>>()
+            val newOrder = ArrayList<OrderSpec>()
             orderBy.forEach { newOrder.add(it.remap(remapper)) }
             newQuery._orderBy = newOrder
         }

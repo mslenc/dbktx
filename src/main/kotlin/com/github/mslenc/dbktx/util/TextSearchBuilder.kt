@@ -3,8 +3,7 @@ package com.github.mslenc.dbktx.util
 import com.github.mslenc.dbktx.crud.FilterableQuery
 import com.github.mslenc.dbktx.crud.createFilter
 import com.github.mslenc.dbktx.expr.Expr
-import com.github.mslenc.dbktx.expr.FilterExpr
-import com.github.mslenc.dbktx.expr.FilterExprBuilder
+import com.github.mslenc.dbktx.expr.ExprBuilder
 import com.github.mslenc.dbktx.filters.FilterAnd
 import com.github.mslenc.dbktx.filters.FilterOr
 import com.github.mslenc.dbktx.schema.Column
@@ -36,7 +35,7 @@ class TextSearchBuilder<E: DbEntity<E, *>>(val query: FilterableQuery<E>, wordGr
         }
     }
 
-    private inline fun List<WordGroup>.addWordMatchers(block: FilterExprBuilder<E>.(String) -> Expr<Boolean>): TextSearchBuilder<E> {
+    private inline fun List<WordGroup>.addWordMatchers(block: ExprBuilder<E>.(String) -> Expr<Boolean>): TextSearchBuilder<E> {
         forEach { group ->
             group.forEachWord {
                 query.createFilter { block(it) }

@@ -12,18 +12,22 @@ import com.github.mslenc.dbktx.sqltypes.SqlTypeLong
 import com.github.mslenc.dbktx.sqltypes.SqlTypeVarchar
 import com.github.mslenc.dbktx.util.escapeSqlLikePattern
 
+class RelPath<BASE: DbEntity<BASE, *>, LAST: DbEntity<LAST, *>>(
+    internal val table: TableInQuery<LAST>
+)
+
 @DslMarker
 annotation class SqlExprBuilder
 
 @SqlExprBuilder
-interface ExprBuilder<E: DbEntity<E, *>> {
+interface ExprBuilderBase<E: DbEntity<E, *>> {
     val table: TableInQuery<E>
     fun <T: Any> bind(prop: RowProp<E, T>): Expr<T> = prop.bindForSelect(table)
     operator fun <T: Any> Column<E, T>.unaryPlus() = bind(this)
 }
 
 @SqlExprBuilder
-interface FilterExprBuilder<E: DbEntity<E, *>> : ExprBuilder<E> {
+interface ExprBuilder<E: DbEntity<E, *>> : ExprBuilderBase<E> {
     infix fun <T: Any> Expr<T>.eq(other: Expr<T>): FilterExpr {
         return FilterCompare(this, FilterCompare.Op.EQ, other)
     }
@@ -304,9 +308,9 @@ interface FilterExprBuilder<E: DbEntity<E, *>> : ExprBuilder<E> {
         return ExprNow()
     }
 
-    fun <TO: DbEntity<TO, *>> RelToZeroOrOne<E, TO>.has(block: ScalarExprBuilder<TO>.() -> FilterExpr): FilterExpr {
+    fun <TO: DbEntity<TO, *>> RelToZeroOrOne<E, TO>.has(block: ExprBuilder<TO>.() -> FilterExpr): FilterExpr {
         val dstTable = table.subQueryOrJoin(this)
-        val dstFilter = FBImpl(dstTable)
+        val dstFilter = dstTable.newExprBuilder()
 
         return when (val setFilter = dstFilter.block()) {
             MatchNothing -> MatchNothing
@@ -314,9 +318,9 @@ interface FilterExprBuilder<E: DbEntity<E, *>> : ExprBuilder<E> {
         }
     }
 
-    fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.has(block: ScalarExprBuilder<TO>.() -> Expr<Boolean>): Expr<Boolean> {
+    fun <TO : DbEntity<TO, *>> RelToOne<E, TO>.has(block: ExprBuilder<TO>.() -> Expr<Boolean>): Expr<Boolean> {
         val dstTable = table.subQueryOrJoin(this)
-        val dstFilter = FBImpl(dstTable)
+        val dstFilter = dstTable.newExprBuilder()
 
         return when (val parentFilter = dstFilter.block()) {
             MatchAnything -> this.isNotNull()
@@ -325,7 +329,7 @@ interface FilterExprBuilder<E: DbEntity<E, *>> : ExprBuilder<E> {
         }
     }
 
-    fun <TO : DbEntity<TO, *>> RelToSingle<E, TO>.has(block: ScalarExprBuilder<TO>.() -> Expr<Boolean>): Expr<Boolean> {
+    fun <TO : DbEntity<TO, *>> RelToSingle<E, TO>.has(block: ExprBuilder<TO>.() -> Expr<Boolean>): Expr<Boolean> {
         return when (this) {
             is RelToOne -> this.has(block)
             is RelToZeroOrOne -> this.has(block)
@@ -333,7 +337,7 @@ interface FilterExprBuilder<E: DbEntity<E, *>> : ExprBuilder<E> {
         }
     }
 
-    fun <TO : DbEntity<TO, *>> Rel<E, TO>.matches(block: ScalarExprBuilder<TO>.() -> Expr<Boolean>): Expr<Boolean> {
+    fun <TO : DbEntity<TO, *>> Rel<E, TO>.matches(block: ExprBuilder<TO>.() -> Expr<Boolean>): Expr<Boolean> {
         return when (this) {
             is RelToOne -> this.has(block)
             is RelToMany -> this.contains(block)
@@ -481,9 +485,9 @@ interface FilterExprBuilder<E: DbEntity<E, *>> : ExprBuilder<E> {
         return FilterContainsChild(table, relImpl.info, MatchAnything, dstTable, negated = true)
     }
 
-    fun <TO: DbEntity<TO, *>> RelToMany<E, TO>.contains(block: ScalarExprBuilder<TO>.() -> Expr<Boolean>): Expr<Boolean> {
+    fun <TO: DbEntity<TO, *>> RelToMany<E, TO>.contains(block: ExprBuilder<TO>.() -> Expr<Boolean>): Expr<Boolean> {
         val dstTable = table.forcedSubQuery(this)
-        val dstFilter = FBImpl(dstTable)
+        val dstFilter = dstTable.newExprBuilder()
         val setFilter = dstFilter.block()
         val relImpl = this as RelToManyImpl<E, *, TO>
 
@@ -505,14 +509,7 @@ interface FilterExprBuilder<E: DbEntity<E, *>> : ExprBuilder<E> {
     infix fun Column<E, Long>.hasAnyOfBits(bits: Long): FilterExpr {
         return FilterBitwise(bind(this), FilterBitwise.Op.HAS_ANY_BITS, makeLiteral(bits))
     }
-}
 
-class RelPath<BASE: DbEntity<BASE, *>, LAST: DbEntity<LAST, *>>(
-    internal val table: TableInQuery<LAST>
-)
-
-@SqlExprBuilder
-interface ScalarExprBuilder<E: DbEntity<E, *>> : FilterExprBuilder<E> {
     operator fun <MID: DbEntity<MID, *>, T: Any>
     RelToSingle<E, MID>.rangeTo(column: Column<MID, T>): Expr<T> {
         return column.bindForSelect(table.innerJoin(this))
@@ -617,43 +614,46 @@ interface ScalarExprBuilder<E: DbEntity<E, *>> : FilterExprBuilder<E> {
     fun <T: Number> NullableColumn<E, T>.orZero(): Expr<T> = coalesce(bind(this), this.makeLiteral(this.sqlType.zeroValue))
 }
 
-@SqlExprBuilder
-interface AggrExprBuilder<E: DbEntity<E, *>> {
-    val table: TableInQuery<E>
+// in some places we allow any type of expression; in some places we only allow scalar expressions (e.g. within aggregate
+// functions, in WHERE clauses or when querying entities)
 
-    fun <T: Any> sum(block: ScalarExprBuilder<E>.() -> Expr<T>): NullableAggrExpr<T> {
-        val inner = FBImpl(table).block()
+
+@SqlExprBuilder
+interface AggrExprBuilder<E: DbEntity<E, *>> : ExprBuilder<E> {
+
+    fun <T: Any> sum(block: ExprBuilder<E>.() -> Expr<T>): NullableAggrExpr<T> {
+        val inner = table.newExprBuilder().block()
         return AggrExprImpl(AggrExprOp.SUM, inner, inner.sqlType)
     }
 
-    fun <T: Comparable<T>> min(block: ScalarExprBuilder<E>.() -> Expr<T>): NullableAggrExpr<T> {
-        val inner = FBImpl(table).block()
+    fun <T: Comparable<T>> min(block: ExprBuilder<E>.() -> Expr<T>): NullableAggrExpr<T> {
+        val inner = table.newExprBuilder().block()
         return AggrExprImpl(AggrExprOp.MIN, inner, inner.sqlType)
     }
 
-    fun <T: Comparable<T>> max(block: ScalarExprBuilder<E>.() -> Expr<T>): NullableAggrExpr<T> {
-        val inner = FBImpl(table).block()
+    fun <T: Comparable<T>> max(block: ExprBuilder<E>.() -> Expr<T>): NullableAggrExpr<T> {
+        val inner = table.newExprBuilder().block()
         return AggrExprImpl(AggrExprOp.MAX, inner, inner.sqlType)
     }
 
-    fun <T: Number> average(block: ScalarExprBuilder<E>.() -> Expr<T>): NullableAggrExpr<Double> {
-        val inner = FBImpl(table).block()
+    fun <T: Number> average(block: ExprBuilder<E>.() -> Expr<T>): NullableAggrExpr<Double> {
+        val inner = table.newExprBuilder().block()
         return AggrExprImpl(AggrExprOp.AVG, inner, SqlTypeDouble.INSTANCE_FOR_AVG)
     }
 
-    fun <T: Any> count(block: ScalarExprBuilder<E>.() -> Expr<T>): NonNullAggrExpr<Long> {
-        val inner = FBImpl(table).block()
+    fun <T: Any> count(block: ExprBuilder<E>.() -> Expr<T>): NonNullAggrExpr<Long> {
+        val inner = table.newExprBuilder().block()
         return CountExpr(CountExprOp.COUNT, inner, SqlTypeLong.INSTANCE_FOR_COUNT)
     }
 
-    fun <T: Any> countDistinct(block: ScalarExprBuilder<E>.() -> Expr<T>): NonNullAggrExpr<Long> {
-        val inner = FBImpl(table).block()
+    fun <T: Any> countDistinct(block: ExprBuilder<E>.() -> Expr<T>): NonNullAggrExpr<Long> {
+        val inner = table.newExprBuilder().block()
         return CountExpr(CountExprOp.COUNT_DISTINCT, inner, SqlTypeLong.INSTANCE_FOR_COUNT)
     }
 }
 
-@SqlExprBuilder
-interface AnyExprBuilder<E: DbEntity<E, *>> : ScalarExprBuilder<E>, AggrExprBuilder<E>
+fun <E: DbEntity<E, *>> TableInQuery<E>.newExprBuilder(): AggrExprBuilder<E> {
+    return ExprBuilderImpl(this)
+}
 
-// in some places we allow any type of expression; in some places we only allow scalar expressions (e.g. within aggregate
-// functions, in WHERE clauses or when querying entities)
+private class ExprBuilderImpl<E: DbEntity<E, *>>(override val table: TableInQuery<E>) : AggrExprBuilder<E>

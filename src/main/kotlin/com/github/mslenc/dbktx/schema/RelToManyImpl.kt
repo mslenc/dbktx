@@ -5,8 +5,8 @@ import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.crud.EntityQuery
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.crud.filter
+import com.github.mslenc.dbktx.expr.ExprBuilder
 import com.github.mslenc.dbktx.expr.FilterExpr
-import com.github.mslenc.dbktx.expr.ScalarExprBuilder
 import java.util.ArrayList
 
 class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntity<TO, *>> : RelToMany<FROM, TO> {
@@ -41,7 +41,7 @@ class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntit
         return from.db.load(this, from)
     }
 
-    override suspend fun invoke(from: FROM, block: ScalarExprBuilder<TO>.() -> FilterExpr): List<TO> {
+    override suspend fun invoke(from: FROM, block: ExprBuilder<TO>.() -> FilterExpr): List<TO> {
         val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
 
         query.filter { createCondition(setOf(info.oneKey(from)), query.table) }
@@ -58,7 +58,7 @@ class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntit
         return query.countAll()
     }
 
-    override suspend fun count(from: FROM, block: ScalarExprBuilder<TO>.() -> FilterExpr): Long {
+    override suspend fun count(from: FROM, block: ExprBuilder<TO>.() -> FilterExpr): Long {
         val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
 
         query.filter { createCondition(setOf(info.oneKey(from)), query.table) }
@@ -67,7 +67,7 @@ class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntit
         return query.countAll()
     }
 
-    internal suspend fun callLoadToManyWithFilter(db: DbLoaderImpl, from: FROM, filter: ScalarExprBuilder<TO>.() -> FilterExpr): List<TO> {
+    internal suspend fun callLoadToManyWithFilter(db: DbLoaderImpl, from: FROM, filter: ExprBuilder<TO>.() -> FilterExpr): List<TO> {
         return db.loadToManyWithFilter(from, this, filter)
     }
 

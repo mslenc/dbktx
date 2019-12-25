@@ -13,7 +13,7 @@ interface AggrStreamBuilder<E: DbEntity<E, *>> : AggrExprBuilder<E>, FilterableQ
     fun <REF : DbEntity<REF, *>> leftJoin(ref: RelToSingle<E, REF>, block: AggrStreamBuilder<REF>.() -> Unit)
     fun <REF : DbEntity<REF, *>> leftJoin(set: RelToMany<E, REF>, block: AggrStreamBuilder<REF>.() -> Unit)
 
-    fun <T: Any> expr(block: AnyExprBuilder<E>.() -> Expr<T>): Expr<T>
+    fun <T: Any> expr(block: AggrExprBuilder<E>.() -> Expr<T>): Expr<T>
 
     infix fun <T: Any> Expr<T>.into(receiver: (T?)->Unit)
     infix fun <T: Any> NonNullAggrExpr<T>.into(receiver: (T)->Unit)
@@ -27,7 +27,7 @@ interface AggrStreamTopLevelBuilder<E: DbEntity<E, *>> : AggrStreamBuilder<E> {
 }
 
 interface AggrInsertSelectBuilder<OUT: DbEntity<OUT, *>, E: DbEntity<E, *>> : AggrExprBuilder<E>, FilterableQuery<E> {
-    fun <T: Any> expr(block: AnyExprBuilder<E>.() -> Expr<T>): Expr<T>
+    fun <T: Any> expr(block: AggrExprBuilder<E>.() -> Expr<T>): Expr<T>
 
     fun <REF : DbEntity<REF, *>> innerJoin(ref: RelToSingle<E, REF>, block: AggrInsertSelectBuilder<OUT, REF>.() -> Unit)
     fun <REF : DbEntity<REF, *>> innerJoin(set: RelToMany<E, REF>, block: AggrInsertSelectBuilder<OUT, REF>.() -> Unit)

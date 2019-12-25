@@ -5,8 +5,9 @@ import com.github.mslenc.asyncdb.impl.values.DbValueLong
 import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.schema.Column
+import com.github.mslenc.dbktx.expr.ExprBuilder
 import com.github.mslenc.dbktx.expr.FilterExpr
-import com.github.mslenc.dbktx.expr.ScalarExprBuilder
+import com.github.mslenc.dbktx.expr.newExprBuilder
 import com.github.mslenc.dbktx.filters.MatchAnything
 import com.github.mslenc.dbktx.filters.MatchNothing
 import com.github.mslenc.dbktx.schema.*
@@ -245,13 +246,12 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
     }
 
     private suspend fun <E : DbEntity<E, *>>
-    queryNow(table: DbTable<E, *>, filter: ScalarExprBuilder<E>.() -> Expr<Boolean>): List<E> {
+    queryNow(table: DbTable<E, *>, filter: ExprBuilder<E>.() -> Expr<Boolean>): List<E> {
         val entities = masterIndex[table]
 
         val query = SimpleSelectQueryImpl()
         val boundTable = BaseTableInQuery(query, table)
-        val filterBuilder = FBImpl(boundTable)
-        val filterExpr = filterBuilder.filter()
+        val filterExpr = boundTable.newExprBuilder().filter()
 
         val sb = Sql(publicDb.dbType).apply {
             SELECT(table.defaultColumnNames)
@@ -576,13 +576,13 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
     }
 
     override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
-    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ScalarExprBuilder<TO>.()->FilterExpr): List<TO> {
+    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBuilder<TO>.()->FilterExpr): List<TO> {
         relation as RelToManyImpl<FROM, *, TO>
         return relation.callLoadToManyWithFilter(this, from, filter)
     }
 
     internal suspend fun <FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO: DbEntity<TO, *>>
-    loadToManyWithFilter(from: FROM, relation: RelToManyImpl<FROM, FROM_KEY, TO>, filter: ScalarExprBuilder<TO>.()->FilterExpr): List<TO> {
+    loadToManyWithFilter(from: FROM, relation: RelToManyImpl<FROM, FROM_KEY, TO>, filter: ExprBuilder<TO>.()->FilterExpr): List<TO> {
         val fromKeys = setOf(relation.info.oneKey(from))
 
         val manyTable = relation.targetTable

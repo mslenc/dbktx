@@ -2,7 +2,7 @@ package com.github.mslenc.dbktx.crud
 
 import com.github.mslenc.dbktx.crud.dsl.ColumnUpdateOps
 import com.github.mslenc.dbktx.expr.Expr
-import com.github.mslenc.dbktx.expr.ScalarExprBuilder
+import com.github.mslenc.dbktx.expr.ExprBuilder
 import com.github.mslenc.dbktx.schema.Column
 import com.github.mslenc.dbktx.schema.DbEntity
 
@@ -23,7 +23,7 @@ interface DbColumnMutation<E: DbEntity<E, *>, T: Any> {
 }
 
 interface DbUpdate<E : DbEntity<E, *>> : DbMutation<E> {
-    fun filter(block: ScalarExprBuilder<E>.() -> Expr<Boolean>)
+    fun filter(block: ExprBuilder<E>.() -> Expr<Boolean>)
 
     operator fun <T : Any> get(column: Column<E, T>): DbColumnMutation<E, T>
 

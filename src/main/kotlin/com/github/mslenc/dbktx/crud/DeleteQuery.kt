@@ -13,6 +13,9 @@ internal class DeleteQueryImpl<E : DbEntity<E, *>>(
         db: DbConn)
     : FilterableQueryImpl<E>(table, db), DeleteQuery<E> {
 
+    override val aggregatesAllowed: Boolean
+        get() = false
+
     override fun makeBaseTable(table: DbTable<E, *>): TableInQuery<E> {
         return BaseTableInUpdateQuery(this, table)
     }

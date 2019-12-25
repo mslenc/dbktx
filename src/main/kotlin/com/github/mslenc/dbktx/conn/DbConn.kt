@@ -6,8 +6,8 @@ import com.github.mslenc.dbktx.aggr.AggrInsertSelectQueryImpl
 import com.github.mslenc.dbktx.aggr.AggrInsertSelectTopLevelBuilder
 import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.expr.Expr
+import com.github.mslenc.dbktx.expr.ExprBuilder
 import com.github.mslenc.dbktx.expr.FilterExpr
-import com.github.mslenc.dbktx.expr.ScalarExprBuilder
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.BatchingLoader
 import com.github.mslenc.dbktx.util.Sql
@@ -123,7 +123,7 @@ interface DbConn {
      * Follows a relation-to-many and applies additional filter to the result.
      */
     suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
-    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ScalarExprBuilder<TO>.()->FilterExpr): List<TO>
+    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBuilder<TO>.()->FilterExpr): List<TO>
 
     /**
      * Follows a relation-to-one for multiple source entities.
@@ -214,7 +214,7 @@ interface DbConn {
      * ```
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    deleteMany(table: DbTable<E, ID>, filter: ScalarExprBuilder<E>.() -> FilterExpr): Long {
+    deleteMany(table: DbTable<E, ID>, filter: ExprBuilder<E>.() -> FilterExpr): Long {
         val query = newDeleteQuery(table)
         query.filter(filter)
         return query.deleteAllMatchingRows()
@@ -254,7 +254,7 @@ interface DbConn {
      * ```
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.query(filter: ScalarExprBuilder<E>.() -> Expr<Boolean>): List<E> {
+    Z.query(filter: ExprBuilder<E>.() -> Expr<Boolean>): List<E> {
         val query = newQuery(this)
         query.filter(filter)
         return query.execute()
@@ -267,7 +267,7 @@ interface DbConn {
      * ```
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.countAll(filter: ScalarExprBuilder<E>.() -> FilterExpr): Long {
+    Z.countAll(filter: ExprBuilder<E>.() -> FilterExpr): Long {
         val query = newQuery(this)
         query.filter(filter)
         return query.countAll()
@@ -423,7 +423,7 @@ TABLE.updateByIds(ids: List<ID>, db: DbConn = getContextDb(), builder: TABLE.(Db
  * ```
  */
 suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
-TABLE.count(db: DbConn = getContextDb(), filter: ScalarExprBuilder<E>.() -> FilterExpr): Long {
+TABLE.count(db: DbConn = getContextDb(), filter: ExprBuilder<E>.() -> FilterExpr): Long {
     val query = newQuery(db)
     query.filter(filter)
     return query.countAll()
