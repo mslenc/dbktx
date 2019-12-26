@@ -68,7 +68,7 @@ class DbLoaderTest {
 
         val loader = DbLoaderImpl(conn, this, RequestTime.forTesting())
 
-        val query = loader.newQuery(Company)
+        val query = loader.newEntityQuery(Company)
         query.filter { Company.ID eq companyId }
 
         val result = query.execute(selectForUpdate = true)

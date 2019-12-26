@@ -3,6 +3,7 @@ package com.github.mslenc.dbktx.expr
 import com.github.mslenc.asyncdb.DbResultSet
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
+import com.github.mslenc.dbktx.conn.query
 import com.github.mslenc.dbktx.crud.filter
 import com.github.mslenc.dbktx.schemas.test1.Company.Companion.CONTACT_INFO_REF
 import com.github.mslenc.dbktx.schemas.test1.ContactInfo
@@ -41,13 +42,13 @@ class ExprFilterHasAssociatedTest {
 
         val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
 
-        val deferred = db.run { async {
-            TestSchema1.COMPANY.query {
+        val deferred = async {
+            TestSchema1.COMPANY.query(db) {
                 CONTACT_INFO_REF.has {
                     ContactInfo.ADDRESS gte "qwe"
                 }
             }
-        } }
+        }
 
         assertFalse(called.get())
 
@@ -80,11 +81,11 @@ class ExprFilterHasAssociatedTest {
 
         val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
 
-        val deferred = db.run { async {
-            TestSchema1.COMPANY.query {
+        val deferred = async {
+            TestSchema1.COMPANY.query(db) {
                 CONTACT_INFO_REF.isNotNull()
             }
-        } }
+        }
 
         assertFalse(called.get())
 
@@ -116,7 +117,7 @@ class ExprFilterHasAssociatedTest {
         val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
 
         val deferred = db.run { async {
-            val query = newQuery(TestSchema1.COMPANY)
+            val query = newEntityQuery(TestSchema1.COMPANY)
             query.filter {
                 CONTACT_INFO_REF.has {
                     ContactInfo.ADDRESS gte "qwe"

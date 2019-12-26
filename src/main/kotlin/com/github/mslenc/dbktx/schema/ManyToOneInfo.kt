@@ -4,7 +4,6 @@ import com.github.mslenc.asyncdb.DbValue
 import com.github.mslenc.asyncdb.impl.values.DbValueNull
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.expr.Expr
-import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.expr.ExprFields
 import com.github.mslenc.dbktx.filters.FilterOneOf
 import com.github.mslenc.dbktx.util.RemappingList
@@ -46,7 +45,7 @@ class ManyToOneInfo<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, TO_KEY : Any
         }
     }
 
-    fun makeReverseQueryBuilder(): (Set<TO_KEY>, TableInQuery<FROM>) -> FilterExpr {
+    fun makeReverseQueryBuilder(): (Set<TO_KEY>, TableInQuery<FROM>)->Expr<Boolean> {
         if (columnMappings.size > 1) {
             // by construction, the column order in columnMappings is the same as the
             // one in TIDs

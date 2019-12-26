@@ -14,23 +14,36 @@ internal class DbUpdateImpl<E : DbEntity<E, ID>, ID: Any>(
     : DbMutationImpl<E, ID>(db, BaseTableInUpdateQuery(UpdateQueryImpl(), table)), DbUpdate<E> {
 
     private var filters: Expr<Boolean> = MatchAnything
+    private val vals: MutableMap<Column<E, *>, Any?> = LinkedHashMap()
+    private val exprs: MutableMap<Column<E, *>, Expr<*>> = LinkedHashMap()
 
     override fun filter(block: ExprBuilder<E>.()->Expr<Boolean>) {
         filters = filters and table.newExprBuilder().block()
     }
 
     override fun <T : Any> set(column: NonNullColumn<E, T>, value: T) {
-        if (specificEntity == null || column(specificEntity) != value)
-            values.set(column, value)
+        if (specificEntity == null || column(specificEntity) != value) {
+            vals[column] = value
+            exprs[column] = column.makeLiteral(value)
+        } else {
+            vals.remove(column)
+            exprs.remove(column)
+        }
     }
 
     override fun <T : Any> set(column: NullableColumn<E, T>, value: T?) {
-        if (specificEntity == null || column(specificEntity) != value)
-            values.set(column, value)
+        if (specificEntity == null || column(specificEntity) != value) {
+            vals[column] = value
+            exprs[column] = if (value != null) column.makeLiteral(value) else ExprNull(column.sqlType)
+        } else {
+            vals.remove(column)
+            exprs.remove(column)
+        }
     }
 
     override fun <T : Any> set(column: Column<E, T>, value: Expr<T>) {
-        values.set(column, value)
+        exprs[column] = value
+        vals.remove(column)
     }
 
     override fun <T : Any> get(column: Column<E, T>): DbColumnMutation<E, T> {
@@ -38,11 +51,11 @@ internal class DbUpdateImpl<E : DbEntity<E, ID>, ID: Any>(
     }
 
     override suspend fun execute(): Long {
-        return db.executeUpdate(table, filters, values)
+        return db.executeUpdate(table, filters, exprs)
     }
 
     override fun anyChangesSoFar(): Boolean {
-        return !values.isEmpty()
+        return vals.isNotEmpty()
     }
 }
 

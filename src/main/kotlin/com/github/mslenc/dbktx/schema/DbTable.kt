@@ -77,8 +77,20 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
     val numColumns: Int
         get() = columns.size
 
-    fun newQuery(db: DbConn = getContextDb()): EntityQuery<E> {
-        return db.newQuery(this)
+    fun newEntityQuery(db: DbConn = getContextDb()): EntityQuery<E> {
+        return db.newEntityQuery(this)
+    }
+
+    fun newInsertQuery(db: DbConn = getContextDb()): DbInsert<E, ID> {
+        return db.newInsertQuery(this)
+    }
+
+    fun newUpdateQuery(db: DbConn = getContextDb()): DbUpdate<E> {
+        return db.newUpdateQuery(this)
+    }
+
+    fun newDelete(db: DbConn = getContextDb()): DeleteQuery<E> {
+        return db.newDeleteQuery(this)
     }
 
     fun toJsonObject(entity: E): Map<String, Any?> {

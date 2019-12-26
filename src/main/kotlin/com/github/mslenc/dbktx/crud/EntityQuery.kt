@@ -141,22 +141,22 @@ FilterableQuery<E>.createFilter(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<RE
 }
 
 fun <E: DbEntity<E, *>>
-FilterableQuery<E>.requireAnyOf(filters: Collection<FilterExpr>) {
+FilterableQuery<E>.requireAnyOf(filters: Collection<Expr<Boolean>>) {
     require(FilterOr.create(filters))
 }
 
 fun <E: DbEntity<E, *>>
-FilterableQuery<E>.requireAllOf(filters: Collection<FilterExpr>) {
+FilterableQuery<E>.requireAllOf(filters: Collection<Expr<Boolean>>) {
     require(FilterAnd.create(filters))
 }
 
 fun <E: DbEntity<E, *>>
-FilterableQuery<E>.excludeWhenAnyOf(exprs: Collection<FilterExpr>) {
+FilterableQuery<E>.excludeWhenAnyOf(exprs: Collection<Expr<Boolean>>) {
     require(!FilterOr.create(exprs))
 }
 
 fun <E: DbEntity<E, *>>
-FilterableQuery<E>.excludeWhenAllOf(exprs: Collection<FilterExpr>) {
+FilterableQuery<E>.excludeWhenAllOf(exprs: Collection<Expr<Boolean>>) {
     require(!FilterAnd.create(exprs))
 }
 

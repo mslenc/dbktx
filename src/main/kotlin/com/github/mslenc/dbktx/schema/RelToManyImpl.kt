@@ -5,18 +5,18 @@ import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.crud.EntityQuery
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.crud.filter
+import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.ExprBuilder
-import com.github.mslenc.dbktx.expr.FilterExpr
 import java.util.ArrayList
 
 class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntity<TO, *>> : RelToMany<FROM, TO> {
 
     internal lateinit var info: ManyToOneInfo<TO, FROM, FROM_KEY>
     private lateinit var reverseKeyMapper: (TO)->FROM_KEY?
-    private lateinit var queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)-> FilterExpr
+    private lateinit var queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)->Expr<Boolean>
     private lateinit var oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>
 
-    internal fun init(oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>, info: ManyToOneInfo<TO, FROM, FROM_KEY>, reverseKeyMapper: (TO)->FROM_KEY?, queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)-> FilterExpr) {
+    internal fun init(oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>, info: ManyToOneInfo<TO, FROM, FROM_KEY>, reverseKeyMapper: (TO)->FROM_KEY?, queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)->Expr<Boolean>) {
         this.oppositeRel = oppositeRel
         this.info = info
         this.reverseKeyMapper = reverseKeyMapper
@@ -33,7 +33,7 @@ class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntit
     override val targetTable: DbTable<TO, *>
         get() = info.manyTable
 
-    fun createCondition(fromIds: Set<FROM_KEY>, tableInQuery: TableInQuery<TO>): FilterExpr {
+    fun createCondition(fromIds: Set<FROM_KEY>, tableInQuery: TableInQuery<TO>): Expr<Boolean> {
         return queryExprBuilder(fromIds, tableInQuery)
     }
 
@@ -41,8 +41,8 @@ class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntit
         return from.db.load(this, from)
     }
 
-    override suspend fun invoke(from: FROM, block: ExprBuilder<TO>.() -> FilterExpr): List<TO> {
-        val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
+    override suspend fun invoke(from: FROM, block: ExprBuilder<TO>.()->Expr<Boolean>): List<TO> {
+        val query: EntityQuery<TO> = info.manyTable.newEntityQuery(from.db)
 
         query.filter { createCondition(setOf(info.oneKey(from)), query.table) }
         query.filter(block)
@@ -51,15 +51,15 @@ class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntit
     }
 
     override suspend fun countAll(from: FROM): Long {
-        val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
+        val query: EntityQuery<TO> = info.manyTable.newEntityQuery(from.db)
 
         query.filter { createCondition(setOf(info.oneKey(from)), query.table) }
 
         return query.countAll()
     }
 
-    override suspend fun count(from: FROM, block: ExprBuilder<TO>.() -> FilterExpr): Long {
-        val query: EntityQuery<TO> = info.manyTable.newQuery(from.db)
+    override suspend fun count(from: FROM, block: ExprBuilder<TO>.()->Expr<Boolean>): Long {
+        val query: EntityQuery<TO> = info.manyTable.newEntityQuery(from.db)
 
         query.filter { createCondition(setOf(info.oneKey(from)), query.table) }
         query.filter(block)
@@ -67,14 +67,14 @@ class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntit
         return query.countAll()
     }
 
-    internal suspend fun callLoadToManyWithFilter(db: DbLoaderImpl, from: FROM, filter: ExprBuilder<TO>.() -> FilterExpr): List<TO> {
+    internal suspend fun callLoadToManyWithFilter(db: DbLoaderImpl, from: FROM, filter: ExprBuilder<TO>.() -> Expr<Boolean>): List<TO> {
         return db.loadToManyWithFilter(from, this, filter)
     }
 
     override suspend fun loadNow(keys: Set<FROM>, db: DbConn): Map<FROM, List<TO>> {
         val index = keys.associateBy { it.id }
 
-        val query = info.manyTable.newQuery(db)
+        val query = info.manyTable.newEntityQuery(db)
         query.filter { createCondition(index.keys, table) }
         val result = query.execute()
 

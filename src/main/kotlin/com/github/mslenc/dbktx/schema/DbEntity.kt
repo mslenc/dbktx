@@ -13,7 +13,7 @@ abstract class DbEntity<E : DbEntity<E, ID>, ID: Any>(
     abstract val metainfo: DbTable<E, ID>
 
     fun newUpdate(): DbUpdate<E> {
-        return db.newUpdate(metainfo)
+        return metainfo.newUpdateQuery(db)
     }
 
     override fun toString(): String {

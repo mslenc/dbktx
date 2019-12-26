@@ -3,16 +3,16 @@ package com.github.mslenc.dbktx.schema
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.crud.filter
-import com.github.mslenc.dbktx.expr.FilterExpr
+import com.github.mslenc.dbktx.expr.Expr
 
 class RelToZeroOrOneImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntity<TO, *>> : RelToZeroOrOne<FROM, TO> {
     internal lateinit var info: ManyToOneInfo<TO, FROM, FROM_KEY>
     private lateinit var reverseKeyMapper: (TO)->FROM_KEY?
-    private lateinit var queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)-> FilterExpr
+    private lateinit var queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)->Expr<Boolean>
     private lateinit var oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>
     private lateinit var oppositeColumn: Column<TO, FROM_KEY>
 
-    internal fun init(oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>, info: ManyToOneInfo<TO, FROM, FROM_KEY>, reverseKeyMapper: (TO)->FROM_KEY?, queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)-> FilterExpr) {
+    internal fun init(oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>, info: ManyToOneInfo<TO, FROM, FROM_KEY>, reverseKeyMapper: (TO)->FROM_KEY?, queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)->Expr<Boolean>) {
         if (info.columnMappings.size != 1)
             throw UnsupportedOperationException("Multi-column relToZeroOrOne not supported yet")
 
@@ -39,7 +39,7 @@ class RelToZeroOrOneImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : Db
 
     override suspend fun loadNow(keys: Set<FROM>, db: DbConn): Map<FROM, TO?> {
         val index = keys.associateBy { it.id }
-        val query = targetTable.newQuery(db)
+        val query = targetTable.newEntityQuery(db)
         val opposite = this.oppositeColumn
         if (opposite is NonNullColumn) {
             query.filter { opposite oneOf index.keys }

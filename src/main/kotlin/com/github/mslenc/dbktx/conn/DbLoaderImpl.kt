@@ -6,7 +6,6 @@ import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.schema.Column
 import com.github.mslenc.dbktx.expr.ExprBuilder
-import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.expr.newExprBuilder
 import com.github.mslenc.dbktx.filters.MatchAnything
 import com.github.mslenc.dbktx.filters.MatchNothing
@@ -78,7 +77,7 @@ buildDeleteQuery(query: DeleteQueryImpl<E>): Sql {
 
 
 private fun <E : DbEntity<E, ID>, ID: Any>
-createUpdateQuery(table: TableInQuery<E>, values: EntityValues<E>, filter: Expr<Boolean>, dbType: DbType): Sql? {
+createUpdateQuery(table: TableInQuery<E>, values: Map<Column<E,*>, Expr<*>>, filter: Expr<Boolean>, dbType: DbType): Sql? {
     if (values.isEmpty())
         return null
 
@@ -86,7 +85,7 @@ createUpdateQuery(table: TableInQuery<E>, values: EntityValues<E>, filter: Expr<
         +"UPDATE "
         raw(table.table.quotedDbName)
         +" SET "
-        tuple(values) { column ->
+        tuple(values.keys) { column ->
             raw(column.quotedFieldName)
             +"="
             emitValue(column, values, this)
@@ -95,18 +94,18 @@ createUpdateQuery(table: TableInQuery<E>, values: EntityValues<E>, filter: Expr<
     }
 }
 
-private fun <E : DbEntity<E, ID>, ID: Any> createInsertQuery(table: DbTable<E, ID>, values: EntityValues<E>, dbType: DbType, keyAutogenerates: Boolean): Sql {
+private fun <E : DbEntity<E, ID>, ID: Any> createInsertQuery(table: DbTable<E, ID>, values: Map<Column<E,*>, Expr<*>>, dbType: DbType, keyAutogenerates: Boolean): Sql {
     return Sql(dbType).apply {
         +"INSERT INTO "
         raw(table.quotedDbName)
         paren {
-            tuple(values) {
+            tuple(values.keys) {
                 column -> raw(column.quotedFieldName)
             }
         }
         +" VALUES "
         paren {
-            tuple(values) {
+            tuple(values.keys) {
                 emitValue(it, values, this)
             }
         }
@@ -121,8 +120,8 @@ private fun <E : DbEntity<E, ID>, ID: Any> createInsertQuery(table: DbTable<E, I
 }
 
 
-private fun <E : DbEntity<E, *>, T: Any> emitValue(column: Column<E, T>, values: EntityValues<E>, sb: Sql) {
-    val value = values.getExpr(column)
+internal fun <E : DbEntity<E, *>, T: Any> emitValue(column: Column<E, T>, values: Map<Column<E,*>, Expr<*>>, sb: Sql) {
+    val value = values[column]
     if (value == null) {
         sb.raw("NULL")
     } else {
@@ -440,7 +439,7 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
             throw IllegalArgumentException("Missing the ID")
         }
 
-        val sqlBuilder = createInsertQuery(dbTable, values, db.conn.config.type(), explicitId == null)
+        val sqlBuilder = createInsertQuery(dbTable, values.exprs, db.conn.config.type(), explicitId == null)
 
         return db.enqueueInsert(dbTable, sqlBuilder, explicitId)
     }
@@ -449,8 +448,12 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         return db.enqueueUpdateQuery(outTable, sql)
     }
 
+    override suspend fun <E : DbEntity<E, *>> executeInsertMany(sql: Sql, outTable: DbTable<E, *>): Long {
+        return db.enqueueUpdateQuery(outTable, sql)
+    }
+
     override suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeUpdate(table: TableInQuery<E>, filters: Expr<Boolean>, values: EntityValues<E>): Long {
+    executeUpdate(table: TableInQuery<E>, filters: Expr<Boolean>, values: Map<Column<E, *>, Expr<*>>): Long {
         if (filters == MatchNothing)
             return 0
 
@@ -526,7 +529,7 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         result
     }
 
-    override fun <E : DbEntity<E, ID>, ID : Any> newQuery(table: DbTable<E, ID>): EntityQuery<E> {
+    override fun <E : DbEntity<E, ID>, ID : Any> newEntityQuery(table: DbTable<E, ID>): EntityQuery<E> {
         return EntityQueryImpl(table, this)
     }
 
@@ -576,17 +579,17 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
     }
 
     override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
-    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBuilder<TO>.()->FilterExpr): List<TO> {
+    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBuilder<TO>.()->Expr<Boolean>): List<TO> {
         relation as RelToManyImpl<FROM, *, TO>
         return relation.callLoadToManyWithFilter(this, from, filter)
     }
 
     internal suspend fun <FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO: DbEntity<TO, *>>
-    loadToManyWithFilter(from: FROM, relation: RelToManyImpl<FROM, FROM_KEY, TO>, filter: ExprBuilder<TO>.()->FilterExpr): List<TO> {
+    loadToManyWithFilter(from: FROM, relation: RelToManyImpl<FROM, FROM_KEY, TO>, filter: ExprBuilder<TO>.()->Expr<Boolean>): List<TO> {
         val fromKeys = setOf(relation.info.oneKey(from))
 
         val manyTable = relation.targetTable
-        val query = manyTable.newQuery(this)
+        val query = manyTable.newEntityQuery(this)
 
         query.filter { relation.createCondition(fromKeys, query.table) }
         query.filter(filter)
@@ -670,15 +673,6 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
 
         result
     }
-
-
-
-    override suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.deleteById(id: ID): Boolean {
-        val table: Z = this // we're extension
-        return deleteByIds(table, setOf(id)) > 0
-    }
-
 
     override suspend fun
     execute(sql: String) {

@@ -33,7 +33,7 @@ internal class FilterAnd internal constructor(private val parts: List<Expr<Boole
         return toSqlStringForDebugging()
     }
 
-    override infix fun and(other: FilterExpr): FilterExpr {
+    override infix fun and(other: Expr<Boolean>): FilterExpr {
         return when (other) {
             MatchAnything -> this
             MatchNothing -> MatchNothing

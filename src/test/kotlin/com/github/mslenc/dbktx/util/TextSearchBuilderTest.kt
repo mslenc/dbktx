@@ -41,12 +41,12 @@ class TextSearchBuilderTest {
         val now = RequestTime.forTesting()
         val db = DbLoaderImpl(connection, this, now)
 
-        val brands = db.newQuery(Brand)
+        val brands = db.newEntityQuery(Brand)
         TextSearchBuilder(brands, "Hello World").
             matchAnywhereIn(Brand.NAME).
             applyToQuery()
 
-        val otherQuery = db.newQuery(Company)
+        val otherQuery = db.newEntityQuery(Company)
         otherQuery.filter { Company.BRANDS_SET contains brands }
         otherQuery.execute()
 

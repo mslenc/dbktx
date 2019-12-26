@@ -6,7 +6,10 @@ import com.github.mslenc.asyncdb.util.GeneratedIdResult
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.conn.insert
+import com.github.mslenc.dbktx.conn.insertMapped
 import com.github.mslenc.dbktx.schemas.test1.*
+import com.github.mslenc.dbktx.schemas.test3.Employee
+import com.github.mslenc.dbktx.schemas.test3.TestSchema3
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -20,6 +23,7 @@ import java.util.concurrent.CompletableFuture
 class InsertTest {
     init {
         TestSchema1.numberOfTables // init
+        TestSchema3.numberOfTables
     }
 
     @Test
@@ -100,4 +104,55 @@ class InsertTest {
 
         assertEquals(newPurchaseId, purchaseId)
     }
+
+    @Test
+    fun testInsertMany1() = runBlocking {
+        val called = AtomicBoolean(false)
+        var theSql: String? = null
+        var theParams: List<Any?> = emptyList()
+
+        val connection = object : MockDbConnection() {
+            override fun execute(sql: String, args: List<Any?>): CompletableFuture<DbExecResult> {
+                called.set(true)
+                theSql = sql
+                theParams = args
+
+                val result = DbQueryResultImpl(1L, null, null, null)
+                return CompletableFuture.completedFuture(result)
+            }
+        }
+
+        val importEmps = listOf(
+            EmpData("John", "Smithson"),
+            EmpData("Mary", "Johnson"),
+            EmpData("Smith", "Maryson")
+        )
+
+        val now = RequestTime.forTesting()
+        val db = DbLoaderImpl(connection, this, now)
+
+        Employee.insertMapped(importEmps, db) { row, data, rowIndex ->
+            if (rowIndex != 1) {
+                row[FIRST_NAME] = data.firstName + " (" + rowIndex + ")"
+            }
+            if (rowIndex != 2) {
+                row[LAST_NAME] = data.lastName
+            }
+        }
+
+        assertTrue(called.get())
+
+        assertEquals("INSERT INTO \"employee\"(\"first_name\", \"last_name\") VALUES (?, ?), (NULL, ?), (?, NULL)", theSql)
+
+        assertEquals(4, theParams.size)
+        assertEquals("John (0)", theParams[0])
+        assertEquals("Smithson", theParams[1])
+        assertEquals("Johnson", theParams[2])
+        assertEquals("Smith (2)", theParams[3])
+    }
 }
+
+private data class EmpData(
+    val firstName: String,
+    val lastName: String
+)

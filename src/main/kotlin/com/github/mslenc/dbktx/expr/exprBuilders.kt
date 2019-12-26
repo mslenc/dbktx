@@ -308,7 +308,7 @@ interface ExprBuilder<E: DbEntity<E, *>> : ExprBuilderBase<E> {
         return ExprNow()
     }
 
-    fun <TO: DbEntity<TO, *>> RelToZeroOrOne<E, TO>.has(block: ExprBuilder<TO>.() -> FilterExpr): FilterExpr {
+    fun <TO: DbEntity<TO, *>> RelToZeroOrOne<E, TO>.has(block: ExprBuilder<TO>.() -> Expr<Boolean>): FilterExpr {
         val dstTable = table.subQueryOrJoin(this)
         val dstFilter = dstTable.newExprBuilder()
 

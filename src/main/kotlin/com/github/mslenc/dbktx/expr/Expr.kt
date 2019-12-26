@@ -74,11 +74,11 @@ operator fun Expr<Boolean>.not(): Expr<Boolean> {
 interface FilterExpr : Expr<Boolean> {
     operator fun not(): Expr<Boolean>
 
-    infix fun and(other: FilterExpr): Expr<Boolean> {
+    infix fun and(other: Expr<Boolean>): Expr<Boolean> {
         return FilterAnd.create(this, other)
     }
 
-    infix fun or(other: FilterExpr): Expr<Boolean> {
+    infix fun or(other: Expr<Boolean>): Expr<Boolean> {
         return FilterOr.create(this, other)
     }
 

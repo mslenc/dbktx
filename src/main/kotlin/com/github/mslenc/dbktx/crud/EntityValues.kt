@@ -7,7 +7,7 @@ import com.github.mslenc.dbktx.schema.DbEntity
 
 class EntityValues<E : DbEntity<E, *>> : Iterable<Column<E, *>> {
     private val values: MutableMap<Column<E, *>, Any?> = LinkedHashMap()
-    private val exprs: MutableMap<Column<E, *>, Expr<*>> = LinkedHashMap()
+    internal val exprs: MutableMap<Column<E, *>, Expr<*>> = LinkedHashMap()
 
     fun <T : Any> set(col: Column<E, T>, value: T?) {
         values[col] = value

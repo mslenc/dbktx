@@ -3,6 +3,7 @@ package com.github.mslenc.dbktx.expr
 import com.github.mslenc.asyncdb.DbResultSet
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
+import com.github.mslenc.dbktx.conn.query
 import com.github.mslenc.dbktx.schemas.test1.Brand.Companion.ITEMS_SET
 import com.github.mslenc.dbktx.schemas.test1.Item
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
@@ -41,13 +42,13 @@ class ExprFilterContainsChildTest {
 
         val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
 
-        val deferred = db.run { async {
-            TestSchema1.BRAND.query {
+        val deferred = async {
+            TestSchema1.BRAND.query(db) {
                 ITEMS_SET.contains {
                     Item.NAME oneOf setOf("item1", "item2")
                 }
             }
-        } }
+        }
 
         assertFalse(called.get())
 

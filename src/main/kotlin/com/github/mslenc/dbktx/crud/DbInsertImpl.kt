@@ -1,6 +1,9 @@
 package com.github.mslenc.dbktx.crud
 
 import com.github.mslenc.dbktx.conn.DbConn
+import com.github.mslenc.dbktx.expr.Expr
+import com.github.mslenc.dbktx.expr.ExprNull
+import com.github.mslenc.dbktx.schema.Column
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.NonNullColumn
 import com.github.mslenc.dbktx.schema.NullableColumn
@@ -8,8 +11,22 @@ import com.github.mslenc.dbktx.schema.NullableColumn
 internal class DbInsertImpl<E : DbEntity<E, ID>, ID : Any>(db: DbConn, table: BaseTableInUpdateQuery<E>)
     : DbMutationImpl<E, ID>(db, table), DbInsert<E, ID> {
 
+    private val values = EntityValues<E>()
+
     override suspend fun execute(): ID {
         return db.executeInsert(table, values)
+    }
+
+    override fun <T : Any> set(column: NonNullColumn<E, T>, value: T) {
+        values.set(column, value)
+    }
+
+    override fun <T : Any> set(column: NullableColumn<E, T>, value: T?) {
+        values.set(column, value)
+    }
+
+    override fun <T : Any> set(column: Column<E, T>, value: Expr<T>) {
+        values.set(column, value)
     }
 
     override fun copyUnsetValuesFrom(original: E) {

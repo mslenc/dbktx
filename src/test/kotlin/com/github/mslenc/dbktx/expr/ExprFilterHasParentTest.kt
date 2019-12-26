@@ -3,6 +3,7 @@ package com.github.mslenc.dbktx.expr
 import com.github.mslenc.asyncdb.DbResultSet
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
+import com.github.mslenc.dbktx.conn.query
 import com.github.mslenc.dbktx.crud.filter
 import com.github.mslenc.dbktx.schemas.test1.Brand.Companion.COMPANY_REF
 import com.github.mslenc.dbktx.schemas.test1.Company
@@ -42,13 +43,13 @@ class ExprFilterHasParentTest {
 
         val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
 
-        val deferred = db.run { async {
-            TestSchema1.BRAND.query {
+        val deferred = async {
+            TestSchema1.BRAND.query(db) {
                 COMPANY_REF.has {
                     Company.NAME gte "qwe"
                 }
             }
-        } }
+        }
 
         assertFalse(called.get())
 
@@ -82,7 +83,7 @@ class ExprFilterHasParentTest {
         val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
 
         val deferred = db.run { async {
-            val query = newQuery(TestSchema1.BRAND)
+            val query = newEntityQuery(TestSchema1.BRAND)
             query.filter {
                 COMPANY_REF.has {
                     Company.NAME gte "qwe"
@@ -123,15 +124,11 @@ class ExprFilterHasParentTest {
 
         val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
 
-        val deferred = db.run { async {
-            val query = newQuery(TestSchema1.CONTACT_INFO)
-            query.filter {
-                ContactInfo.COMPANY_REF.has {
-                    Company.NAME gte "qwe"
-                }
+        val deferred = async { with (ContactInfo) { query(db) {
+            COMPANY_REF.has {
+                Company.NAME gte "qwe"
             }
-            query.execute()
-        } }
+        } } }
 
         assertFalse(called.get())
 

@@ -2,25 +2,12 @@ package com.github.mslenc.dbktx.crud
 
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.expr.Expr
+import com.github.mslenc.dbktx.expr.ExprNull
 import com.github.mslenc.dbktx.schema.*
 
 internal abstract class DbMutationImpl<E : DbEntity<E, ID>, ID: Any> protected constructor(
         protected val db: DbConn,
         override val table: BaseTableInUpdateQuery<E>) : DbMutation<E> {
-
-    protected val values = EntityValues<E>()
-
-    override fun <T : Any> set(column: NonNullColumn<E, T>, value: T) {
-        values.set(column, value)
-    }
-
-    override fun <T : Any> set(column: NullableColumn<E, T>, value: T?) {
-        values.set(column, value)
-    }
-
-    override fun <T : Any> set(column: Column<E, T>, value: Expr<T>) {
-        values.set(column, value)
-    }
 
     override fun <TARGET : DbEntity<TARGET, TID>, TID: Any>
     set(relation: RelToOne<E, TARGET>, target: TARGET) {

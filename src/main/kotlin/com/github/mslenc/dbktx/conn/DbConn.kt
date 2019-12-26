@@ -7,7 +7,6 @@ import com.github.mslenc.dbktx.aggr.AggrInsertSelectTopLevelBuilder
 import com.github.mslenc.dbktx.crud.*
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.ExprBuilder
-import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.BatchingLoader
 import com.github.mslenc.dbktx.util.Sql
@@ -83,22 +82,29 @@ interface DbConn {
     executeCount(query: EntityQuery<E>): Long
 
     /**
-     * INTERNAL FUNCTION, use [insert] or [newInsertion] instead.
+     * INTERNAL FUNCTION, use [insert] or [newInsertQuery] instead.
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
     executeInsert(table: TableInQuery<E>, values: EntityValues<E>): ID
 
     /**
-     * INTERNAL FUNCTION, use [insert] or [newInsertion] instead.
+     * INTERNAL FUNCTION, use [insert] or [newInsertQuery] instead.
      */
     suspend fun <E : DbEntity<E, *>>
     executeInsertSelect(sql: Sql, outTable: DbTable<E, *>): Long
 
     /**
+     * INTERNAL FUNCTION, use [insert] or [newInsertQuery] instead.
+     */
+    suspend fun <E : DbEntity<E, *>>
+    executeInsertMany(sql: Sql, outTable: DbTable<E, *>): Long
+
+
+    /**
      * INTERNAL FUNCTION, use [update] or [DbTable.update] instead.
      */
     suspend fun <E : DbEntity<E, ID>, ID: Any>
-    executeUpdate(table: TableInQuery<E>, filters: Expr<Boolean>, values: EntityValues<E>): Long
+    executeUpdate(table: TableInQuery<E>, filters: Expr<Boolean>, values: Map<Column<E, *>, Expr<*>>): Long
 
     /**
      * INTERNAL FUNCTION, use [delete] instead.
@@ -123,7 +129,7 @@ interface DbConn {
      * Follows a relation-to-many and applies additional filter to the result.
      */
     suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
-    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBuilder<TO>.()->FilterExpr): List<TO>
+    load(from: FROM, relation: RelToMany<FROM, TO>, filter: ExprBuilder<TO>.()->Expr<Boolean>): List<TO>
 
     /**
      * Follows a relation-to-one for multiple source entities.
@@ -176,112 +182,26 @@ interface DbConn {
     suspend fun <KEY: Any, RESULT>
     loadForAll(loader: BatchingLoader<KEY, RESULT>, keys: Collection<KEY>): Map<KEY, RESULT>
 
-
-
-    // ease-of-use functions
-    /**
-     * Queries all the rows in the table.
-     */
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    queryAll(table: DbTable<E, ID>) : List<E> {
-        return table.newQuery(this).execute()
-    }
-
-    /**
-     * Counts all the rows in the table.
-     */
-    suspend fun <E : DbEntity<E, ID>, ID : Any>
-    countAll(table: DbTable<E, ID>): Long {
-        return table.newQuery(this).countAll()
-    }
-
-
-    /**
-     * Deletes the entity from DB.
-     */
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    delete(entity: E): Boolean {
-        return deleteByIds(entity.metainfo, setOf(entity.id)) > 0
-    }
-
-    /**
-     * Deletes all rows matching the specified filter. Use like this:
-     * ```
-     * val aYearAgo = ...;
-     * db.delete(COMPETITIONS) {
-     *     COMP_DATE lt aYearAgo
-     * }
-     * ```
-     */
-    suspend fun <E : DbEntity<E, ID>, ID: Any>
-    deleteMany(table: DbTable<E, ID>, filter: ExprBuilder<E>.() -> FilterExpr): Long {
-        val query = newDeleteQuery(table)
-        query.filter(filter)
-        return query.deleteAllMatchingRows()
-    }
-
-    /**
-     * Deletes multiple entities by their IDs.
-     */
-    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    deleteByIds(table: Z, ids: Set<ID>): Long {
-        if (ids.isEmpty())
-            return 0L
-
-        val query = newDeleteQuery(table)
-        query.filter { table.primaryKey oneOf ids }
-        return query.deleteAllMatchingRows()
-    }
-
-    /**
-     * Deletes a single entity by ID.
-     */
-    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.deleteById(id: ID): Boolean {
-        return deleteByIds(this, setOf(id)) > 0
-    }
-
     /**
      * Opposite of [DbTable.toJsonObject] - imports the serialized entity back into internal cache.
      */
     fun <E : DbEntity<E, ID>, ID: Any>
     importJson(table: DbTable<E, ID>, json: Map<String, Any?>): E
 
-    /**
-     * Shortcut for creating and executing a query. Use like this:
-     * ```
-     * val rows = with(db) { SOME_TABLE.query { SOME_FIELD eq value } }
-     * ```
-     */
-    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.query(filter: ExprBuilder<E>.() -> Expr<Boolean>): List<E> {
-        val query = newQuery(this)
-        query.filter(filter)
-        return query.execute()
-    }
-
-    /**
-     * Shortcut for creating and executing a count query. Use like this:
-     * ```
-     * val numRows = with(db) { SOME_TABLE.countAll { SOME_FIELD eq value } }
-     * ```
-     */
-    suspend fun <E : DbEntity<E, ID>, ID: Any, Z: DbTable<E, ID>>
-    Z.countAll(filter: ExprBuilder<E>.() -> FilterExpr): Long {
-        val query = newQuery(this)
-        query.filter(filter)
-        return query.countAll()
-    }
-
     fun <E: DbEntity<E, ID>, ID: Any>
-    newInsert(table: DbTable<E, ID>): DbInsert<E, ID> {
+    newInsertQuery(table: DbTable<E, ID>): DbInsert<E, ID> {
         val query = InsertQueryImpl()
         val boundTable = BaseTableInUpdateQuery(query, table)
         return DbInsertImpl(this, boundTable)
     }
 
+    fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+    newInsertManyQuery(table: TABLE): InsertManyQuery<E, ID, TABLE> {
+        return InsertManyQueryImpl(this, table)
+    }
+
     fun <E: DbEntity<E, ID>, ID: Any>
-    newUpdate(table: DbTable<E, ID>, specificEntity: E? = null): DbUpdate<E> {
+    newUpdateQuery(table: DbTable<E, ID>, specificEntity: E? = null): DbUpdate<E> {
         val update = DbUpdateImpl(this, table, specificEntity)
         if (specificEntity != null) {
             update.filter { table.primaryKey eq specificEntity.id }
@@ -305,7 +225,7 @@ interface DbConn {
      * then finish with [EntityQuery.execute] and/or [EntityQuery.countAll].
      */
     fun <E : DbEntity<E, ID>, ID: Any>
-    newQuery(table: DbTable<E, ID>): EntityQuery<E>
+    newEntityQuery(table: DbTable<E, ID>): EntityQuery<E>
 
     /**
      * Creates a new delete query.
@@ -344,14 +264,41 @@ interface DbConn {
  */
 suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
 TABLE.insert(db: DbConn = getContextDb(), builder: TABLE.(DbInsert<E, ID>) -> Unit): ID {
-    val query = db.newInsert(this)
+    return newInsert(db, builder).execute()
+}
+
+inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.newInsert(db: DbConn = getContextDb(), builder: TABLE.(DbInsert<E, ID>) -> Unit = { }): DbInsert<E, ID> {
+    val query = db.newInsertQuery(this)
     builder(query)
-    return query.execute()
+    return query
+}
+
+inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.newInsertMany(db: DbConn = getContextDb(), builder: TABLE.(InsertManyQuery<E, ID, TABLE>) -> Unit = { }): InsertManyQuery<E, ID, TABLE> {
+    val query = db.newInsertManyQuery(this)
+    builder(query)
+    return query
+}
+
+suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>, SRC: Any>
+TABLE.insertMapped(sourceData: Collection<SRC>, db: DbConn = getContextDb(), crossinline rowBuilder: TABLE.(InsertManyRow<E, ID>, source: SRC, rowIndex: Int) -> Unit) {
+    val query = db.newInsertManyQuery(this)
+    var rowIndex = 0
+    for (source in sourceData) {
+        query.buildRow { rowBuilder(it, source, rowIndex++) }
+    }
+    query.execute()
 }
 
 inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
 TABLE.newUpdate(db: DbConn = getContextDb()): DbUpdate<E> {
-    return db.newUpdate(this)
+    return db.newUpdateQuery(this)
+}
+
+inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.newUpdate(entity: E, db: DbConn = getContextDb()): DbUpdate<E> {
+    return db.newUpdateQuery(this, entity)
 }
 
 /**
@@ -364,15 +311,15 @@ TABLE.newUpdate(db: DbConn = getContextDb()): DbUpdate<E> {
  */
 suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
 TABLE.update(entity: E, db: DbConn = getContextDb(), builder: TABLE.(DbUpdate<E>) -> Unit): Boolean {
-    val update = db.newUpdate(this, entity)
+    val update = db.newUpdateQuery(this, entity)
     builder(update)
     return update.execute() > 0
 }
 
 /**
- * Updates a single entity. Use like this:
+ * Updates all entities matching a filter. Use like this:
  * ```
- * SOME_TABLE.update(entity) {
+ * SOME_TABLE.updateMany({ SOME_FIELD eq "old field value" }) {
  *     it[SOME_FIELD] = "new field value"
  * }
  * ```
@@ -380,22 +327,23 @@ TABLE.update(entity: E, db: DbConn = getContextDb(), builder: TABLE.(DbUpdate<E>
 
 
 suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
-TABLE.updateAll(db: DbConn = getContextDb(), builder: TABLE.(DbUpdate<E>) -> Unit): Long {
-    val update = db.newUpdate(this)
+TABLE.updateMany(crossinline filter: ExprBuilder<E>.()->Expr<Boolean>, db: DbConn = getContextDb(), builder: TABLE.(DbUpdate<E>) -> Unit): Long {
+    val update = db.newUpdateQuery(this)
+    update.filter { filter() }
     builder(update)
     return update.execute()
 }
 
 suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
 TABLE.updateById(id: ID, db: DbConn = getContextDb(), builder: TABLE.(DbUpdate<E>) -> Unit): Boolean {
-    val update = db.newUpdate(this)
+    val update = db.newUpdateQuery(this)
     update.filter { primaryKey eq id }
     builder(update)
     return update.execute() > 0
 }
 
 suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
-TABLE.updateMany(entities: List<E>, db: DbConn = getContextDb(), builder: TABLE.(DbUpdate<E>) -> Unit): Long {
+TABLE.update(entities: Collection<E>, db: DbConn = getContextDb(), builder: TABLE.(DbUpdate<E>) -> Unit): Long {
     return when {
         entities.isEmpty() -> 0
         else -> updateByIds(entities.map { it.id }, db, builder)
@@ -403,11 +351,11 @@ TABLE.updateMany(entities: List<E>, db: DbConn = getContextDb(), builder: TABLE.
 }
 
 suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
-TABLE.updateByIds(ids: List<ID>, db: DbConn = getContextDb(), builder: TABLE.(DbUpdate<E>) -> Unit): Long {
+TABLE.updateByIds(ids: Collection<ID>, db: DbConn = getContextDb(), builder: TABLE.(DbUpdate<E>) -> Unit): Long {
     if (ids.isEmpty())
         return 0
 
-    val update = db.newUpdate(this)
+    val update = db.newUpdateQuery(this)
     update.filter { primaryKey oneOf ids }
     builder(update)
     return update.execute()
@@ -423,8 +371,101 @@ TABLE.updateByIds(ids: List<ID>, db: DbConn = getContextDb(), builder: TABLE.(Db
  * ```
  */
 suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
-TABLE.count(db: DbConn = getContextDb(), filter: ExprBuilder<E>.() -> FilterExpr): Long {
-    val query = newQuery(db)
+TABLE.count(db: DbConn = getContextDb(), filter: ExprBuilder<E>.()->Expr<Boolean>): Long {
+    val query = newEntityQuery(db)
     query.filter(filter)
     return query.countAll()
+}
+
+/**
+ * Shortcut for creating and executing a query. Use like this:
+ * ```
+ * val rows = with(SOME_TABLE) { query {
+ *     SOME_FIELD eq value
+ * } }
+ * ```
+ */
+suspend inline fun <E : DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.query(db: DbConn = getContextDb(), filter: ExprBuilder<E>.() -> Expr<Boolean>): List<E> {
+    val query = newEntityQuery(db)
+    query.filter(filter)
+    return query.execute()
+}
+
+/**
+ * Deletes all rows matching the specified filter. Use like this:
+ * ```
+ * val aYearAgo = ...;
+ * with(SOME_TABLE) { deleteMany {
+ *     COMP_DATE lt aYearAgo
+ * } }
+ * ```
+ */
+suspend inline fun <E : DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.deleteMany(db: DbConn = getContextDb(), filter: ExprBuilder<E>.()->Expr<Boolean>): Long {
+    val query = db.newDeleteQuery(this)
+    query.filter(filter)
+    return query.deleteAllMatchingRows()
+}
+
+// ease-of-use functions
+/**
+ * Queries all the rows in the table.
+ */
+suspend inline fun <E : DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.queryAll(db: DbConn = getContextDb()) : List<E> {
+    return db.newEntityQuery(this).execute()
+}
+
+/**
+ * Counts all the rows in the table.
+ */
+suspend inline fun <E : DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.countAll(db: DbConn = getContextDb()): Long {
+    return db.newEntityQuery(this).countAll()
+}
+
+/**
+ * Deletes multiple entities by their IDs.
+ */
+suspend inline fun <E : DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.deleteByIds(ids: Collection<ID>, db: DbConn = getContextDb()): Long {
+    if (ids.isEmpty())
+        return 0L
+
+    val query = db.newDeleteQuery(this)
+    query.filter { primaryKey oneOf ids }
+    return query.deleteAllMatchingRows()
+}
+
+/**
+ * Deletes a single entity by ID.
+ */
+suspend inline fun <E : DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.deleteById(id: ID, db: DbConn = getContextDb()): Boolean {
+    val query = db.newDeleteQuery(this)
+    query.filter { primaryKey eq id }
+    return query.deleteAllMatchingRows() > 0
+}
+
+suspend fun <E : DbEntity<E, ID>, ID: Any>
+delete(entity: E): Boolean {
+    val table = entity.metainfo
+    val query = entity.db.newDeleteQuery(table)
+    query.filter { table.primaryKey eq entity.id }
+    return query.deleteAllMatchingRows() > 0
+}
+
+suspend inline fun <E : DbEntity<E, ID>, ID: Any>
+delete(entities: Collection<E>): Long {
+    if (entities.isEmpty())
+        return 0
+
+    val first = entities.first()
+    val table = first.metainfo
+    val db = first.db
+
+    val query = db.newDeleteQuery(table)
+    query.filter { table.primaryKey oneOf entities.map { it.id } }
+    return query.deleteAllMatchingRows()
 }

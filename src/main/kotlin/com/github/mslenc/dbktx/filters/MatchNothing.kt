@@ -1,6 +1,7 @@
 package com.github.mslenc.dbktx.filters
 
 import com.github.mslenc.dbktx.crud.TableRemapper
+import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.util.Sql
 
@@ -19,11 +20,11 @@ object MatchNothing : FilterExpr {
         return MatchAnything
     }
 
-    override fun and(other: FilterExpr): FilterExpr {
+    override fun and(other: Expr<Boolean>): FilterExpr {
         return this
     }
 
-    override fun or(other: FilterExpr): FilterExpr {
+    override fun or(other: Expr<Boolean>): Expr<Boolean> {
         return other
     }
 
