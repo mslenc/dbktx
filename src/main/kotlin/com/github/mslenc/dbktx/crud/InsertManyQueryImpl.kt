@@ -24,9 +24,10 @@ class InsertManyQueryImpl<E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>(va
     }
 
     override suspend fun execute() {
-        val sql = createInsertManyQuery(tableDef, rows.map { it.values }, db.dbType, false) // TODO: fetch ids?
-
-        db.executeInsertMany(sql, tableDef)
+        if (rows.isNotEmpty()) {
+            val sql = createInsertManyQuery(tableDef, rows.map { it.values }, db.dbType, false) // TODO: fetch ids?
+            db.executeInsertMany(sql, tableDef)
+        }
     }
 }
 
