@@ -3,6 +3,7 @@ package com.github.mslenc.dbktx.schemas.test3
 import com.github.mslenc.dbktx.schema.DbSchema
 
 object TestSchema3 : DbSchema() {
+    val CONTACT_INFO = ContactInfo
     val EMPLOYEE = Employee
     val INVOICE = Invoice
     val INVOICE_TIME_ITEM = InvoiceTimeItem

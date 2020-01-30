@@ -55,10 +55,11 @@ class DelayedLoadState<RES>(private val scope: CoroutineScope) {
         }
     }
 
+    @Suppress("UNCHECKED_CAST")
     val value: RES
         get() {
             if (state == EntityState.LOADED)
-                return existingResult!!
+                return existingResult as RES
 
             throw IllegalStateException("get() called when not LOADED")
         }

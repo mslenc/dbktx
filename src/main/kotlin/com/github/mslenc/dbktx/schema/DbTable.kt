@@ -6,7 +6,6 @@ import com.github.mslenc.dbktx.composite.CompositeId
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderInternal
 import com.github.mslenc.dbktx.crud.*
-import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.util.EntityIndex
 import com.github.mslenc.dbktx.util.FakeRowData
 import com.github.mslenc.dbktx.util.Sql

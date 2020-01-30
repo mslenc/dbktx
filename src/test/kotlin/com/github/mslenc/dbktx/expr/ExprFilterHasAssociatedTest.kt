@@ -8,6 +8,9 @@ import com.github.mslenc.dbktx.crud.filter
 import com.github.mslenc.dbktx.schemas.test1.Company.Companion.CONTACT_INFO_REF
 import com.github.mslenc.dbktx.schemas.test1.ContactInfo
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
+import com.github.mslenc.dbktx.schemas.test3.Employee
+import com.github.mslenc.dbktx.schemas.test3.TestSchema3
+import com.github.mslenc.dbktx.util.smap
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
 import kotlinx.coroutines.async
@@ -22,6 +25,7 @@ import java.util.concurrent.CompletableFuture
 class ExprFilterHasAssociatedTest {
     init {
         TestSchema1.numberOfTables // init
+        TestSchema3.numberOfTables
     }
 
     @Test
@@ -138,5 +142,42 @@ class ExprFilterHasAssociatedTest {
         assertEquals(1, theParams.size)
         assertEquals("qwe", theParams[0])
 
+    }
+
+    @Test
+    fun testCachedNullsDontCauseTrouble() = runBlocking {
+        val connection = object : MockDbConnection() {
+            override fun executeQuery(sql: String, values: MutableList<Any?>): CompletableFuture<DbResultSet> {
+                if (sql == "SELECT E.\"id\", E.\"first_name\", E.\"last_name\" FROM \"employee\" AS E WHERE E.\"id\" IN (1, 2)") {
+                    return CompletableFuture.completedFuture(MockResultSet.Builder().
+                            addColumns("id", "first_name", "last_name").
+                            addRow(1L, "Johnny", "Smith").
+                            addRow(2L, "Mary", "Johnson").
+                            build())
+
+                }
+
+                if (sql == "SELECT CI.\"id\", CI.\"first_name\", CI.\"last_name\", CI.\"street_1\", CI.\"street_2\", CI.\"employee_id\" FROM \"contact_info\" AS CI WHERE (TRUE IS NOT DISTINCT FROM (CI.\"employee_id\" IN (1, 2)))") {
+                    return CompletableFuture.completedFuture(MockResultSet.Builder().
+                            addColumns("id", "first_name", "last_name", "street_1", "street_2", "employee_id").
+                            addRow(100L, "John", "Smith", null, null, 1L).
+                            build())
+                }
+                println(sql)
+
+                return CompletableFuture.completedFuture(MockResultSet.Builder().build())
+            }
+        }
+
+        val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
+
+        val people = db.loadByIds(Employee, listOf(1L, 2L))
+        val john = people.getValue(1L)
+        val mary = people.getValue(2L)
+
+        listOf(john, mary).smap { it.contactInfo() }
+
+        assertEquals("John Smith", "${john.contactFirstName()} ${john.contactLastName()}")
+        assertEquals("null null", "${mary.contactFirstName()} ${mary.contactLastName()}")
     }
 }
