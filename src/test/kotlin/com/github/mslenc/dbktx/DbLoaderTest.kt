@@ -1,18 +1,17 @@
 package com.github.mslenc.dbktx
 
 import com.github.mslenc.asyncdb.DbExecResult
+import com.github.mslenc.asyncdb.DbResultSet
 import com.github.mslenc.asyncdb.impl.DbQueryResultImpl
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.crud.filter
-import com.github.mslenc.dbktx.schemas.test1.Brand
-import com.github.mslenc.dbktx.schemas.test1.Company
-import com.github.mslenc.dbktx.schemas.test1.Item
-import com.github.mslenc.dbktx.schemas.test1.TestSchema1
+import com.github.mslenc.dbktx.schemas.test1.*
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1.ITEM
 import com.github.mslenc.dbktx.util.BatchingLoader
 import com.github.mslenc.dbktx.util.FakeRowData
+import com.github.mslenc.dbktx.util.smap
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
 import com.github.mslenc.dbktx.util.testing.toLDT
@@ -20,6 +19,7 @@ import kotlinx.coroutines.*
 import org.junit.Test
 
 import org.junit.Assert.*
+import java.time.LocalDateTime
 import java.util.*
 import java.util.concurrent.CompletableFuture
 
@@ -68,10 +68,10 @@ class DbLoaderTest {
 
         val loader = DbLoaderImpl(conn, this, RequestTime.forTesting())
 
-        val query = loader.newEntityQuery(Company)
+        val query = loader.newEntityQuery(Company, selectForUpdate = true)
         query.filter { Company.ID eq companyId }
 
-        val result = query.execute(selectForUpdate = true)
+        val result = query.execute()
 
         assertTrue(called)
 
@@ -349,4 +349,381 @@ class DbLoaderTest {
         assertEquals("100, 200, 300", result[200])
         assertEquals("100, 200, 300", result[300])
     }
+
+    @Test
+    fun testCustomBatchLoaderInteractionWithRegularBatchLoading() = runBlocking {
+        var called = false
+
+        val conn = object : MockDbConnection() {
+            override fun execute(sql: String, args: List<Any?>): CompletableFuture<DbExecResult> {
+                return when {
+                    sql == "SELECT P.\"id\", P.\"company_id\", P.\"t_created\", P.\"t_updated\" FROM \"purchases\" AS P WHERE P.\"id\" IN (7, 12)" && args.isEmpty() -> {
+                        val result =
+                            MockResultSet.Builder("id", "company_id", "t_created", "t_updated").
+                                addRow(7L, UUID.randomUUID(), LocalDateTime.now(), LocalDateTime.now()).
+                                addRow(12L, UUID.randomUUID(), LocalDateTime.now(), LocalDateTime.now()).
+                                build()
+
+                        CompletableFuture.completedFuture(result.toExecResult())
+                    }
+
+                    sql == "SELECT PI.\"id\", PI.\"company_id\", PI.\"sku\", PI.\"purchase_id\", PI.\"price\", PI.\"t_created\", PI.\"t_updated\" FROM \"purchase_items\" AS PI WHERE PI.\"purchase_id\" IN (7)" && args.isEmpty() -> {
+                        val result =
+                            MockResultSet.Builder("id", "company_id", "sku", "purchase_id", "price", "t_created", "t_updated").
+                                addRow(213L, UUID.randomUUID(), "SKU001", 7L, 125.toBigDecimal(), LocalDateTime.now(), LocalDateTime.now()).
+                                addRow(215L, UUID.randomUUID(), "SKU301", 7L, 333.toBigDecimal(), LocalDateTime.now(), LocalDateTime.now()).
+                                build()
+
+                        CompletableFuture.completedFuture(result.toExecResult())
+                    }
+
+                    sql == "SELECT PI.\"id\", PI.\"company_id\", PI.\"sku\", PI.\"purchase_id\", PI.\"price\", PI.\"t_created\", PI.\"t_updated\" FROM \"purchase_items\" AS PI WHERE PI.\"purchase_id\" IN (12)" && args.isEmpty() -> {
+                        val result =
+                            MockResultSet.Builder("id", "company_id", "sku", "purchase_id", "price", "t_created", "t_updated").
+                                addRow(313L, UUID.randomUUID(), "SKU021", 12L, 321.toBigDecimal(), LocalDateTime.now(), LocalDateTime.now()).
+                                addRow(314L, UUID.randomUUID(), "SKU321", 12L, 432.toBigDecimal(), LocalDateTime.now(), LocalDateTime.now()).
+                                addRow(315L, UUID.randomUUID(), "SKU521", 12L, 543.toBigDecimal(), LocalDateTime.now(), LocalDateTime.now()).
+                                build()
+
+                        CompletableFuture.completedFuture(result.toExecResult())
+                    }
+
+                    else -> TODO(sql + args)
+                }
+            }
+        }
+
+        val db: DbConn = DbLoaderImpl(conn, this, RequestTime.forTesting())
+
+        val batch = object : BatchingLoader<Long, String> {
+            override suspend fun loadNow(keys: Set<Long>, db: DbConn): Map<Long, String> {
+                called = true
+
+                val sorted = keys.filter { it != 65L }.sorted()
+
+                // so these should all load at once
+                val purchases = sorted.smap { db.loadById(Purchase, it) }
+
+                // and these should load one by one
+                val purchaseSizes = purchases.map { it.items().count() }
+
+                return sorted.indices.associate { i ->
+                    purchases[i].id to "${ purchases[i].id }(${ purchaseSizes[i] })"
+                }
+            }
+
+            override fun nullResult(): String {
+                return "null result"
+            }
+        }
+
+        val futures: Array<Deferred<String>> = arrayOf(
+            async { db.load(batch, 12) },
+            async { db.load(batch, 65) },
+            async { db.load(batch, 7) }
+        )
+
+        assertFalse(called)
+
+        val results = arrayOf(
+            futures[0].await(),
+            futures[1].await(),
+            futures[2].await()
+        )
+
+        assertTrue(called)
+
+        assertEquals("12(3)", results[0]) // result for 12
+        assertEquals("null result", results[1]) // result for 65
+        assertEquals("7(2)", results[2]) // result for 7
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun testCustomBatchLoaderInteractionWithItself() = runBlocking {
+        // so this one should fail, because in the first batch, "fg" is being evaluated; at the same time (before "fg" finishes),
+        // "defg" is also evaluated, leading to "efg", then to "fg" again; using the normal batching procedure, the second
+        // attempt to evaluate "fg" would just put the whole process on the waiting list, never to be finished
+
+        var called = false
+
+        val conn = MockDbConnection()
+
+        val db: DbConn = DbLoaderImpl(conn, this, RequestTime.forTesting())
+        val calls = ArrayList<String>()
+
+        val batch = object : BatchingLoader<String, String> {
+            override suspend fun loadNow(keys: Set<String>, db: DbConn): Map<String, String> {
+                called = true
+                calls += TreeSet(keys).toString()
+
+                val bibi = keys.filter { it != "ab" }
+                println(bibi)
+                val kids = bibi.smap {
+                    when {
+                        it.length < 2 -> ":)"
+                        else -> db.load(this, it.substring(1))
+                    }
+                }
+
+                return bibi.indices.associate { i ->
+                    bibi[i] to bibi[i] + "->" + kids[i]
+                }
+            }
+
+            override fun nullResult(): String {
+                return "null result"
+            }
+        }
+
+        val futures: Array<Deferred<String>> = arrayOf(
+            async { db.load(batch, "abc") },
+            async { db.load(batch, "defg") },
+            async { db.load(batch, "fg") }
+        )
+
+        assertFalse(called)
+
+        futures[0].await()
+        futures[1].await()
+        futures[2].await()
+
+        assertTrue(called)
+    }
+
+    @Test
+    fun testCustomBatchLoaderInteractionWithItself2() = runBlocking {
+        // unlike the previous case, there is no overlap in evaluations here; so it should be fine
+
+        var called = false
+
+        val conn = MockDbConnection()
+
+        val db: DbConn = DbLoaderImpl(conn, this, RequestTime.forTesting())
+        val calls = ArrayList<String>()
+
+        val batch = object : BatchingLoader<String, String> {
+            override suspend fun loadNow(keys: Set<String>, db: DbConn): Map<String, String> {
+                called = true
+                calls += TreeSet(keys).toString()
+
+                val bibi = keys.filter { it != "ab" }
+                val kids = bibi.smap {
+                    when {
+                        it.length < 2 -> ":)"
+                        else -> db.load(this, it.substring(1))
+                    }
+                }
+
+                return bibi.indices.associate { i ->
+                    bibi[i] to bibi[i] + "->" + kids[i]
+                }
+            }
+
+            override fun nullResult(): String {
+                return "null result"
+            }
+        }
+
+        val futures: Array<Deferred<String>> = arrayOf(
+            async { db.load(batch, "abcd") },
+            async { db.load(batch, "efgh") },
+            async { db.load(batch, "ijkl") }
+        )
+
+        assertFalse(called)
+
+        val results = arrayOf(
+            futures[0].await(),
+            futures[1].await(),
+            futures[2].await()
+        )
+
+        assertTrue(called)
+
+        assertEquals("abcd->bcd->cd->d->:)", results[0])
+        assertEquals("efgh->fgh->gh->h->:)", results[1])
+        assertEquals("ijkl->jkl->kl->l->:)", results[2])
+
+        assertEquals(4, calls.size)
+        assertEquals("[abcd, efgh, ijkl]", calls[0])
+        assertEquals("[bcd, fgh, jkl]", calls[1])
+        assertEquals("[cd, gh, kl]", calls[2])
+        assertEquals("[d, h, l]", calls[3])
+    }
+
+    @Test
+    fun testCustomBatchLoaderInteractionWithItself3() = runBlocking {
+        var numCalls = 0
+
+        val conn = object : MockDbConnection() {
+            override fun execute(sql: String, args: List<Any?>): CompletableFuture<DbExecResult> {
+                numCalls++
+
+                return when {
+                    sql == "SELECT P.\"id\", P.\"company_id\", P.\"t_created\", P.\"t_updated\" FROM \"purchases\" AS P WHERE P.\"id\" = 123" && args.isEmpty() -> {
+                        val result =
+                                MockResultSet.Builder("id", "company_id", "t_created", "t_updated").
+                                        addRow(123L, UUID.randomUUID(), LocalDateTime.now(), LocalDateTime.now()).
+                                        build()
+
+                        CompletableFuture.completedFuture(result.toExecResult())
+                    }
+
+                    sql == "SELECT PI.\"id\", PI.\"company_id\", PI.\"sku\", PI.\"purchase_id\", PI.\"price\", PI.\"t_created\", PI.\"t_updated\" FROM \"purchase_items\" AS PI WHERE PI.\"purchase_id\" IN (123)" && args.isEmpty() -> {
+                        val result =
+                                MockResultSet.Builder("id", "company_id", "sku", "purchase_id", "price", "t_created", "t_updated").
+                                        addRow(213L, UUID.randomUUID(), "SKUZZZ", 123L, 125.toBigDecimal(), LocalDateTime.now(), LocalDateTime.now()).
+                                        addRow(215L, UUID.randomUUID(), "SKU301", 123L, 333.toBigDecimal(), LocalDateTime.now(), LocalDateTime.now()).
+                                        build()
+
+                        CompletableFuture.completedFuture(result.toExecResult())
+                    }
+
+                    else -> TODO(sql + args)
+                }
+            }
+        }
+
+        val db: DbConn = DbLoaderImpl(conn, this, RequestTime.forTesting())
+
+        val batch = object : BatchingLoader<Long, String> {
+            override suspend fun loadNow(keys: Set<Long>, db: DbConn): Map<Long, String> {
+                val purchases = keys.map {
+                    db.loadById(Purchase, it)
+                }
+                val items = purchases.map {
+                    it.items()
+                }
+
+                return purchases.indices.associate { purchases[it].id to items[it].size.toString() }
+            }
+
+            override fun nullResult(): String {
+                return "null result"
+            }
+        }
+
+        val future1 = async {
+            val purchase123 = db.loadById(Purchase, 123L)
+            purchase123.items().maxBy { it.sku }?.sku
+        }
+
+        val future2 = async {
+            db.load(batch, 123L)
+        }
+
+        assertEquals(0, numCalls)
+
+        val result1 = future1.await()
+        val result2 = future2.await()
+
+        assertEquals("SKUZZZ", result1)
+        assertEquals("2", result2)
+        assertEquals(2, numCalls)
+    }
+
+    @Test
+    fun testCustomBatchLoaderInteractionWithItself4() = runBlocking {
+        var numCalls = 0
+
+        val conn = object : MockDbConnection() {
+            override fun execute(sql: String, args: List<Any?>): CompletableFuture<DbExecResult> {
+                numCalls++
+
+                return when {
+                    sql == "SELECT P.\"id\", P.\"company_id\", P.\"t_created\", P.\"t_updated\" FROM \"purchases\" AS P WHERE P.\"id\" = 123" && args.isEmpty() -> {
+                        val result =
+                                MockResultSet.Builder("id", "company_id", "t_created", "t_updated").
+                                        addRow(123L, UUID.randomUUID(), LocalDateTime.now(), LocalDateTime.now()).
+                                        build()
+
+                        CompletableFuture.completedFuture(result.toExecResult())
+                    }
+
+                    sql == "SELECT P.\"id\", P.\"company_id\", P.\"t_created\", P.\"t_updated\" FROM \"purchases\" AS P WHERE P.\"id\" = 234" && args.isEmpty() -> {
+                        val result =
+                                MockResultSet.Builder("id", "company_id", "t_created", "t_updated").
+                                        addRow(234L, UUID.randomUUID(), LocalDateTime.now(), LocalDateTime.now()).
+                                        build()
+
+                        CompletableFuture.completedFuture(result.toExecResult())
+                    }
+
+                    sql == "SELECT PI.\"id\", PI.\"company_id\", PI.\"sku\", PI.\"purchase_id\", PI.\"price\", PI.\"t_created\", PI.\"t_updated\" FROM \"purchase_items\" AS PI WHERE PI.\"purchase_id\" IN (123)" && args.isEmpty() -> {
+                        val result =
+                                MockResultSet.Builder("id", "company_id", "sku", "purchase_id", "price", "t_created", "t_updated").
+                                        addRow(213L, UUID.randomUUID(), "SKUZZZ", 123L, 125.toBigDecimal(), LocalDateTime.now(), LocalDateTime.now()).
+                                        addRow(215L, UUID.randomUUID(), "SKU301", 123L, 333.toBigDecimal(), LocalDateTime.now(), LocalDateTime.now()).
+                                        build()
+
+                        CompletableFuture.completedFuture(result.toExecResult())
+                    }
+
+                    sql == "SELECT PI.\"id\", PI.\"company_id\", PI.\"sku\", PI.\"purchase_id\", PI.\"price\", PI.\"t_created\", PI.\"t_updated\" FROM \"purchase_items\" AS PI WHERE PI.\"purchase_id\" IN (234)" && args.isEmpty() -> {
+                        val result =
+                                MockResultSet.Builder("id", "company_id", "sku", "purchase_id", "price", "t_created", "t_updated").
+                                        addRow(313L, UUID.randomUUID(), "SKUYYY", 234L, 121.toBigDecimal(), LocalDateTime.now(), LocalDateTime.now()).
+                                        addRow(314L, UUID.randomUUID(), "SKUBII", 234L, 122.toBigDecimal(), LocalDateTime.now(), LocalDateTime.now()).
+                                        addRow(315L, UUID.randomUUID(), "SKU301", 234L, 333.toBigDecimal(), LocalDateTime.now(), LocalDateTime.now()).
+                                        addRow(316L, UUID.randomUUID(), "SKU341", 234L, 334.toBigDecimal(), LocalDateTime.now(), LocalDateTime.now()).
+                                        build()
+
+                        CompletableFuture.completedFuture(result.toExecResult())
+                    }
+
+
+                    //
+
+                    else -> TODO(sql + args)
+                }
+            }
+        }
+
+        val db: DbConn = DbLoaderImpl(conn, this, RequestTime.forTesting())
+
+        val batch = object : BatchingLoader<Long, String> {
+            override suspend fun loadNow(keys: Set<Long>, db: DbConn): Map<Long, String> {
+                val purchases = keys.smap {
+                    db.loadById(Purchase, it)
+                }
+                val items = purchases.smap {
+                    it.items()
+                }
+
+                return purchases.indices.associate { purchases[it].id to items[it].size.toString() }
+            }
+
+            override fun nullResult(): String {
+                return "null result"
+            }
+        }
+
+        val future1 = async {
+            val purchase123 = db.loadById(Purchase, 123L)
+            purchase123.items().maxBy { it.sku }?.sku
+        }
+
+        val future2 = async {
+            db.load(batch, 123L)
+        }
+
+        val future3 = async {
+            db.load(batch, 234L)
+        }
+
+        assertEquals(0, numCalls)
+
+        val result1 = future1.await()
+        val result2 = future2.await()
+        val result3 = future3.await()
+
+        assertEquals("SKUZZZ", result1)
+        assertEquals("2", result2)
+        assertEquals("4", result3)
+        assertEquals(4, numCalls)
+    }
+}
+
+private fun DbResultSet.toExecResult(): DbExecResult {
+    return DbQueryResultImpl(0L, null, this, null)
 }

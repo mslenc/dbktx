@@ -15,12 +15,18 @@ class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntit
     private lateinit var reverseKeyMapper: (TO)->FROM_KEY?
     private lateinit var queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)->Expr<Boolean>
     private lateinit var oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>
+    private lateinit var relDebugName: String
 
     internal fun init(oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>, info: ManyToOneInfo<TO, FROM, FROM_KEY>, reverseKeyMapper: (TO)->FROM_KEY?, queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)->Expr<Boolean>) {
         this.oppositeRel = oppositeRel
         this.info = info
         this.reverseKeyMapper = reverseKeyMapper
         this.queryExprBuilder = queryExprBuilder
+        this.relDebugName = "ToMany(${ sourceTable.dbName }->[${ targetTable.dbName }])"
+    }
+
+    override fun toString(): String {
+        return relDebugName
     }
 
     fun reverseMap(to: TO): FROM_KEY? {

@@ -131,7 +131,7 @@ internal fun <E : DbEntity<E, *>, T: Any> emitValue(column: Column<E, T>, values
 
 
 internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val conn: DbConnection) {
-    internal val masterIndex = MasterIndex(publicDb.scope)
+    internal val masterIndex = MasterIndex()
     private var scheduled: Boolean = false // whether the delayed loading is already scheduled
 
     private suspend fun scheduleDelayedExec() {
@@ -145,18 +145,13 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
     }
 
     private suspend fun performDelayedOps() {
+        logger.trace("performDelayedOps()")
         var any = false
+        scheduled = false
 
         try {
             startOver@
             while (true) {
-                for (index in masterIndex.allCachedLoaders) {
-                    if (index.loadNow(this)) {
-                        any = true
-                        continue@startOver
-                    }
-                }
-
                 for (index in masterIndex.allCachedTables) {
                     if (index.loadNow(this)) {
                         any = true
@@ -167,10 +162,11 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
                 break
             }
         } finally {
-            scheduled = false
             if (any) {
+                // TODO: is this still necessary? it's from Java, waaaay back, and nothing obvious breaks if it's removed
                 scheduleDelayedExec()
             }
+            logger.trace("performDelayedOps() finished")
         }
     }
 
@@ -204,15 +200,17 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
         for (entity: E in result)
             keys.remove(keyDef(entity))
 
-        if (!keys.isEmpty())
+        if (keys.isNotEmpty())
             index.reportNull(keys)
     }
 
     private suspend fun <E : DbEntity<E, *>>
     queryNow(entities: EntityIndex<E>, sb: Sql, selectForUpdate: Boolean): List<E> {
+        val queryResult = conn.executeQuery(sb.getSql(), sb.params).await()
+
         val res = ArrayList<E>()
 
-        for (row in queryNow(sb)) {
+        for (row in queryResult) {
             val entity: E = entities.rowLoaded(publicDb, row, selectForUpdate)
             res.add(entity)
         }
@@ -220,29 +218,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
         return res
     }
 
-    internal suspend fun <KEY: Any, RESULT>
-    loadCustomBatchNow(index: BatchingLoaderIndex<KEY, RESULT>): Boolean {
-        val fromKeys = index.getAndClearKeysToLoad() ?: return false
 
-        logger.debug { "Loading from custom loader ${index.loader} for source keys $fromKeys" }
-
-        val result = try {
-            index.loader.loadNow(fromKeys, publicDb)
-        } catch (e: Throwable) {
-            index.reportError(fromKeys, e)
-            return true
-        }
-
-        for ((key, value) in result) {
-            index[key].handleResult(value)
-        }
-
-        fromKeys.removeAll(result.keys)
-        if (fromKeys.isNotEmpty())
-            index.reportNull(fromKeys)
-
-        return true
-    }
 
     private suspend fun <E : DbEntity<E, *>>
     queryNow(table: DbTable<E, *>, filter: ExprBuilder<E>.() -> Expr<Boolean>): List<E> {
@@ -259,13 +235,6 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
         }
 
         return queryNow(entities, sb, false)
-    }
-
-    private suspend fun queryNow(sqlBuilder: Sql): DbResultSet {
-        val sql = sqlBuilder.getSql()
-        val params = sqlBuilder.params
-
-        return conn.executeQuery(sql, params).await()
     }
 
     internal suspend fun <E : DbEntity<E, ID>, ID: Any>
@@ -338,7 +307,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
             }
 
             EntityState.LOADING -> {
-                logger.trace("Adding id {} of table {} to waiting list")
+                logger.trace("Adding id {} of table {} to waiting list", key, table.dbName)
                 return suspendCoroutine(entityInfo::addReceiver)
             }
 
@@ -352,29 +321,14 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
     }
 
     internal suspend fun <KEY: Any, RESULT>
-    load(loader: BatchingLoader<KEY, RESULT>, key: KEY): RESULT {
+    load(loader: BatchingLoader<KEY, RESULT>, key: KEY, db: DbConn): RESULT {
         val loaderInfo = masterIndex[loader]
-        val loadState = loaderInfo[key]
 
-        return when (loadState.state) {
-            EntityState.LOADED -> {
-                loadState.value
-            }
-
-            EntityState.LOADING -> {
-                suspendCoroutine(loadState::addReceiver)
-            }
-
-            EntityState.INITIAL -> {
-                loaderInfo.addKeyToLoad(key)
-                scheduleDelayedExec()
-                suspendCoroutine(loadState::startedLoading)
-            }
-        }
+        return loaderInfo.provideValue(key, db, db.scope)
     }
 
     internal suspend fun <E : DbEntity<E, *>>
-    enqueueQuery(table: DbTable<E, *>, sb: Sql, selectForUpdate: Boolean): List<E> {
+    queryNow(table: DbTable<E, *>, sb: Sql, selectForUpdate: Boolean): List<E> {
         val entities = masterIndex[table]
         return queryNow(entities, sb, selectForUpdate)
     }
@@ -511,7 +465,7 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
 
 
     override suspend fun <KEY : Any, RESULT> load(loader: BatchingLoader<KEY, RESULT>, key: KEY): RESULT {
-        return db.load(loader, key)
+        return db.load(loader, key, this)
     }
 
     override suspend fun <KEY : Any, RESULT> loadForAll(loader: BatchingLoader<KEY, RESULT>, keys: Collection<KEY>): Map<KEY, RESULT> = supervisorScope {
@@ -529,8 +483,8 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         result
     }
 
-    override fun <E : DbEntity<E, ID>, ID : Any> newEntityQuery(table: DbTable<E, ID>): EntityQuery<E> {
-        return EntityQueryImpl(table, this)
+    override fun <E : DbEntity<E, ID>, ID : Any> newEntityQuery(table: DbTable<E, ID>, selectForUpdate: Boolean): EntityQuery<E> {
+        return EntityQueryImpl(table, this, selectForUpdate)
     }
 
     override fun <E : DbEntity<E, ID>, ID : Any> newDeleteQuery(table: DbTable<E, ID>): DeleteQuery<E> {
@@ -544,7 +498,7 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         if (query.filteringState() == FilteringState.MATCH_NONE)
             return emptyList()
 
-        return db.enqueueQuery(query.table.table, buildSelectQuery(query, selectForUpdate), selectForUpdate)
+        return db.queryNow(query.table.table, buildSelectQuery(query, selectForUpdate), selectForUpdate)
     }
 
     override suspend fun <E : DbEntity<E, *>>

@@ -5,9 +5,7 @@ import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderInternal
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
-import com.github.mslenc.dbktx.schema.RelToManyImpl
 import com.github.mslenc.dbktx.schema.UniqueKeyDef
-import kotlinx.coroutines.CoroutineScope
 import mu.KLogging
 
 import java.util.*
@@ -23,14 +21,13 @@ internal class IndexAndKeys<E: DbEntity<E, *>, KEY: Any>(
 
 internal class SingleKeyIndex<E: DbEntity<E, *>, KEY: Any>(
     val table: DbTable<E, *>,
-    val keyDef: UniqueKeyDef<E, KEY>,
-    val scope: CoroutineScope
+    val keyDef: UniqueKeyDef<E, KEY>
 ) {
     private var index = HashMap<KEY, DelayedLoadStateNullable<E>>()
     private var keysToLoad = LinkedHashSet<KEY>()
 
     operator fun get(key: KEY): DelayedLoadStateNullable<E> {
-        return index.computeIfAbsent(key) { DelayedLoadStateNullable(scope) }
+        return index.computeIfAbsent(key) { DelayedLoadStateNullable() }
     }
 
     fun addKeyToLoad(key: KEY) {
@@ -93,9 +90,9 @@ internal class SingleKeyIndex<E: DbEntity<E, *>, KEY: Any>(
     companion object : KLogging()
 }
 
-internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>, val scope: CoroutineScope) {
+internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>) {
 
-    val indexes = Array<SingleKeyIndex<E, *>>(metainfo.uniqueKeys.size) { SingleKeyIndex(metainfo, metainfo.uniqueKeys[it], scope) }
+    val indexes = Array<SingleKeyIndex<E, *>>(metainfo.uniqueKeys.size) { SingleKeyIndex(metainfo, metainfo.uniqueKeys[it]) }
 
     @Suppress("UNCHECKED_CAST")
     fun <T: Any> getSingleKeyIndex(keyDef: UniqueKeyDef<E, T>): SingleKeyIndex<E, T> {

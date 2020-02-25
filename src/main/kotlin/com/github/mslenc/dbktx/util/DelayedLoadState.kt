@@ -1,16 +1,13 @@
 package com.github.mslenc.dbktx.util
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 private val logger = KotlinLogging.logger {}
 
-class DelayedLoadState<RES>(private val scope: CoroutineScope) {
+class DelayedLoadState<RES> {
     private var existingResult: RES? = null // only if state == LOADED
     var state = EntityState.INITIAL
         private set
@@ -75,25 +72,9 @@ class DelayedLoadState<RES>(private val scope: CoroutineScope) {
         state = EntityState.LOADING
         handlers = ListEl(cont, handlers)
     }
-
-    suspend fun startLoading(resProvider: suspend () -> RES): RES = suspendCoroutine { cont ->
-        startedLoading(cont)
-
-        scope.launch {
-            val result: RES
-            try {
-                result = resProvider()
-            } catch (t: Throwable) {
-                handleError(t)
-                return@launch
-            }
-
-            handleResult(result)
-        }
-    }
 }
 
-internal class DelayedLoadStateNullable<RES>(private val scope: CoroutineScope) {
+internal class DelayedLoadStateNullable<RES> {
     private var existingResult: RES? = null // only if state == LOADED
     internal var state = EntityState.INITIAL
         private set
@@ -156,22 +137,6 @@ internal class DelayedLoadStateNullable<RES>(private val scope: CoroutineScope) 
 
         state = EntityState.LOADING
         handlers = ListEl(cont, handlers)
-    }
-
-    suspend fun startLoading(resProvider: suspend () -> RES?): RES? = suspendCoroutine { cont ->
-        startedLoading(cont)
-
-        scope.launch {
-            val result: RES?
-            try {
-                result = resProvider()
-            } catch (t: Throwable) {
-                handleError(t)
-                return@launch
-            }
-
-            handleResult(result)
-        }
     }
 
     fun replaceResult(result: RES) {

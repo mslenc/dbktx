@@ -2,8 +2,10 @@ package com.github.mslenc.dbktx.util.testing
 
 import com.github.mslenc.asyncdb.DbValue
 import com.github.mslenc.asyncdb.impl.values.*
+import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.util.*
 
 fun CharSequence.toLDT(): LocalDateTime {
     return LocalDateTime.parse(this)
@@ -29,6 +31,10 @@ fun Any?.toDbValue(): DbValue {
         return DbValueDouble(this)
     if (this is Long)
         return DbValueLong(this)
+    if (this is UUID)
+        return DbValueString(this.toString())
+    if (this is BigDecimal)
+        return DbValueBigDecimal(this)
 
     TODO(this.javaClass.toString())
 }

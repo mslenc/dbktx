@@ -5,7 +5,7 @@ import com.github.mslenc.dbktx.schema.DbTable
 import kotlinx.coroutines.CoroutineScope
 import mu.KLogging
 
-internal class MasterIndex(val scope: CoroutineScope) {
+internal class MasterIndex {
 
     private val tableIndex = LinkedHashMap<DbTable<*, *>, EntityIndex<*>>()
     private val loaderIndex = LinkedHashMap<BatchingLoader<*, *>, BatchingLoaderIndex<*, *>>()
@@ -55,14 +55,14 @@ internal class MasterIndex(val scope: CoroutineScope) {
     @Suppress("UNCHECKED_CAST")
     operator fun <E : DbEntity<E, *>>
     get(table: DbTable<E, *>): EntityIndex<E> {
-        return tableIndex.computeIfAbsent(table) { EntityIndex(table, scope) } as EntityIndex<E>
+        return tableIndex.computeIfAbsent(table) { EntityIndex(table) } as EntityIndex<E>
     }
 
     @Suppress("UNCHECKED_CAST")
     operator fun <KEY: Any, RESULT>
     get(loader: BatchingLoader<KEY, RESULT>): BatchingLoaderIndex<KEY, RESULT> {
 
-        return loaderIndex.computeIfAbsent(loader) { BatchingLoaderIndex(loader, scope) } as BatchingLoaderIndex<KEY, RESULT>
+        return loaderIndex.computeIfAbsent(loader) { BatchingLoaderIndex(loader) } as BatchingLoaderIndex<KEY, RESULT>
     }
 
     val allCachedTables: Collection<EntityIndex<*>>

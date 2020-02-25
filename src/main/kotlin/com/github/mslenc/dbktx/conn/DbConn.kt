@@ -225,7 +225,7 @@ interface DbConn {
      * then finish with [EntityQuery.execute] and/or [EntityQuery.countAll].
      */
     fun <E : DbEntity<E, ID>, ID: Any>
-    newEntityQuery(table: DbTable<E, ID>): EntityQuery<E>
+    newEntityQuery(table: DbTable<E, ID>, selectForUpdate: Boolean = false): EntityQuery<E>
 
     /**
      * Creates a new delete query.

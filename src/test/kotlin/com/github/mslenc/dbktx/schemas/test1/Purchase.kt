@@ -18,6 +18,8 @@ class Purchase(db: DbConn, id: Long, row: DbRow)
     val timeCreated: LocalDateTime get() = T_CREATED(row)
     val timeUpdated: LocalDateTime get() = T_UPDATED(row)
 
+    suspend fun items() = ITEMS_SET(this)
+
     companion object : DbTable<Purchase, Long>(TestSchema1, "purchases", Purchase::class, Long::class) {
         val ID = b.nonNullLong("id", BIGINT(), Purchase::id, primaryKey = true, autoIncrement = true)
         val COMPANY_ID = b.nonNullUUID("company_id", VARCHAR(36), Purchase::companyId)

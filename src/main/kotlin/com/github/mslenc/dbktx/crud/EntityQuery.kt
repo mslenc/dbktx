@@ -10,6 +10,7 @@ import com.github.mslenc.dbktx.filters.FilterOr
 import com.github.mslenc.dbktx.filters.MatchAnything
 import com.github.mslenc.dbktx.filters.MatchNothing
 import com.github.mslenc.dbktx.schema.*
+import com.github.mslenc.dbktx.util.CachedAsync
 import com.github.mslenc.dbktx.util.DelayedLoadState
 import com.github.mslenc.dbktx.util.OrderSpec
 import java.util.ArrayList
@@ -219,10 +220,10 @@ interface OrderableQuery<E: DbEntity<E, *>> {
 interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E>, OrderableQuery<E> {
     val db: DbConn
 
-    suspend fun execute(selectForUpdate: Boolean = false): List<E>
+    suspend fun execute(): List<E>
     suspend fun countAll(): Long
 
-    fun copy(includeOffsetAndLimit: Boolean = false): EntityQuery<E>
+    fun copy(includeOffsetAndLimit: Boolean = false, selectForUpdate: Boolean? = null): EntityQuery<E>
     fun copyAndRemapFilters(dstTable: TableInQuery<E>): Expr<Boolean>
 
     suspend fun aggregateStream(queryBuilder: AggrStreamBuilder<E>.()->Unit): Long {
@@ -352,10 +353,8 @@ internal abstract class OrderableFilterableQueryImpl<E : DbEntity<E, *>>(
     }
 }
 
-internal class EntityQueryImpl<E : DbEntity<E, *>>(
-        table: DbTable<E, *>,
-        db: DbConn)
-    : OrderableFilterableQueryImpl<E>(table, db), EntityQuery<E> {
+internal class EntityQueryImpl<E : DbEntity<E, *>>(table: DbTable<E, *>, db: DbConn, private val selectForUpdate: Boolean = false) : OrderableFilterableQueryImpl<E>(table, db), EntityQuery<E> {
+    private var allowModification = true
 
     override val aggregatesAllowed: Boolean
         get() = false
@@ -364,32 +363,31 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(
         return BaseTableInQuery(this, table)
     }
 
-    private val queryState = DelayedLoadState<List<E>>(db.scope)
-    private val countState = DelayedLoadState<Long>(db.scope)
+    private val queryResult = CachedAsync {
+        db.executeSelect(this, selectForUpdate)
+    }
 
-    override suspend fun execute(selectForUpdate: Boolean): List<E> {
-        return when (queryState.state) {
-            LOADED  -> queryState.value
-            LOADING -> suspendCoroutine(queryState::addReceiver)
-            INITIAL -> queryState.startLoading { db.executeSelect(this, selectForUpdate) }
-        }
+    private val countResult = CachedAsync {
+        db.executeCount(this)
+    }
+
+    override suspend fun execute(): List<E> {
+        allowModification = false
+        return queryResult.get()
     }
 
     override suspend fun countAll(): Long {
-        return when (countState.state) {
-            LOADED  -> countState.value
-            LOADING -> suspendCoroutine(countState::addReceiver)
-            INITIAL -> countState.startLoading { db.executeCount(this) }
-        }
+        allowModification = false
+        return countResult.get()
     }
 
     override fun checkModifiable() {
-        if (queryState.state !== INITIAL || countState.state !== INITIAL)
+        if (!allowModification)
             throw IllegalStateException("Already querying")
     }
 
-    override fun copy(includeOffsetAndLimit: Boolean): EntityQuery<E> {
-        val newQuery = EntityQueryImpl(table.table, db)
+    override fun copy(includeOffsetAndLimit: Boolean, selectForUpdate: Boolean?): EntityQuery<E> {
+        val newQuery = EntityQueryImpl(table.table, db, selectForUpdate ?: this.selectForUpdate)
         val remapper = TableRemapper(newQuery.table.query)
         remapper.addExplicitMapping(table, newQuery.table)
 
