@@ -16,7 +16,7 @@ class ContactInfo(db: DbConn, id: Long, row: DbRow) : DbEntity<ContactInfo, Long
     val street2: String? get() = STREET_2(row)
     val employeeId: Long? get() = EMPLOYEE_ID(row)
 
-    companion object : DbTable<ContactInfo, Long>(TestSchema3, "contact_info", ContactInfo::class, Long::class) {
+    companion object : DbTable<ContactInfo, Long>(TestSchema3, "contact_info_2", ContactInfo::class, Long::class) {
         val ID = b.nonNullLong("id", BIGINT(), ContactInfo::id, primaryKey = true, autoIncrement = true)
         val FIRST_NAME = b.nullableString("first_name", VARCHAR(255), ContactInfo::firstName)
         val LAST_NAME = b.nullableString("last_name", VARCHAR(255), ContactInfo::lastName)

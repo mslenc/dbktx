@@ -4,9 +4,11 @@ import com.github.mslenc.asyncdb.DbResultSet
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.conn.query
+import com.github.mslenc.dbktx.runMysqlTest
+import com.github.mslenc.dbktx.schemas.test1.*
 import com.github.mslenc.dbktx.schemas.test1.Brand.Companion.ITEMS_SET
-import com.github.mslenc.dbktx.schemas.test1.Item
-import com.github.mslenc.dbktx.schemas.test1.TestSchema1
+import com.github.mslenc.dbktx.schemas.test3.Employee
+import com.github.mslenc.dbktx.util.smap
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
 import org.junit.Test
@@ -64,5 +66,29 @@ class ExprFilterContainsChildTest {
         Arrays.sort(strings)
         assertEquals("item1", strings[0])
         assertEquals("item2", strings[1])
+    }
+
+    @Test
+    fun runSanityCheck1() = runMysqlTest { db ->
+        val people = db.loadByIds(Employee, listOf(1L, 2L))
+        val john = people.getValue(1L)
+        val mary = people.getValue(2L)
+
+        val contacts = listOf(john, mary).smap { it.contactInfo() }
+
+        assertNotNull(contacts[0])
+        assertNull(contacts[1])
+
+        assertEquals("Johnny", john.firstName)
+        assertEquals("John", john.contactFirstName())
+    }
+
+    @Test
+    fun runSanityCheck2() = runMysqlTest { db ->
+        val result = with (ContactInfo) { query(db) {
+            !COMPANY_REF.has {
+                Company.NAME gte "qwe"
+            }
+        } }
     }
 }

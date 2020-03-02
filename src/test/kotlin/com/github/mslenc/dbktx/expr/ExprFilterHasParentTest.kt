@@ -136,7 +136,7 @@ class ExprFilterHasParentTest {
 
         assertTrue(called.get())
 
-        assertEquals("SELECT CD.\"id\", CD.\"company_id\", CD.\"address\" FROM \"company_details\" AS CD WHERE (TRUE IS NOT DISTINCT FROM (CD.\"company_id\" IN (SELECT C.\"id\" FROM \"companies\" AS C WHERE C.\"name\" >= ?)))", theSql)
+        assertEquals("SELECT CI.\"id\", CI.\"company_id\", CI.\"address\" FROM \"contact_info\" AS CI WHERE (TRUE IS NOT DISTINCT FROM (CI.\"company_id\" IN (SELECT C.\"id\" FROM \"companies\" AS C WHERE C.\"name\" >= ?)))", theSql)
 
         assertEquals(1, theParams.size)
         assertEquals("qwe", theParams[0])

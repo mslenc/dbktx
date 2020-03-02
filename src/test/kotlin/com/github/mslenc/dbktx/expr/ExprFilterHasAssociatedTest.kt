@@ -60,7 +60,7 @@ class ExprFilterHasAssociatedTest {
 
         assertTrue(called.get())
 
-        assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C WHERE C.\"id\" IN (SELECT CD.\"company_id\" FROM \"company_details\" AS CD WHERE CD.\"address\" >= ?)", theSql)
+        assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C WHERE C.\"id\" IN (SELECT CI.\"company_id\" FROM \"contact_info\" AS CI WHERE CI.\"address\" >= ?)", theSql)
 
         assertEquals(1, theParams.size)
         assertEquals("qwe", theParams[0])
@@ -97,7 +97,7 @@ class ExprFilterHasAssociatedTest {
 
         assertTrue(called.get())
 
-        assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C WHERE C.\"id\" IN (SELECT CD.\"company_id\" FROM \"company_details\" AS CD)", theSql)
+        assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C WHERE C.\"id\" IN (SELECT CI.\"company_id\" FROM \"contact_info\" AS CI)", theSql)
 
         assertEquals(0, theParams.size)
     }
@@ -137,7 +137,7 @@ class ExprFilterHasAssociatedTest {
 
         assertTrue(called.get())
 
-        assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C INNER JOIN \"company_details\" AS CD ON C.\"id\" = CD.\"company_id\" WHERE (CD.\"address\" >= ?) ORDER BY CD.\"address\"", theSql)
+        assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C INNER JOIN \"contact_info\" AS CI ON C.\"id\" = CI.\"company_id\" WHERE (CI.\"address\" >= ?) ORDER BY CI.\"address\"", theSql)
 
         assertEquals(1, theParams.size)
         assertEquals("qwe", theParams[0])
@@ -157,7 +157,7 @@ class ExprFilterHasAssociatedTest {
 
                 }
 
-                if (sql == "SELECT CI.\"id\", CI.\"first_name\", CI.\"last_name\", CI.\"street_1\", CI.\"street_2\", CI.\"employee_id\" FROM \"contact_info\" AS CI WHERE (TRUE IS NOT DISTINCT FROM (CI.\"employee_id\" IN (1, 2)))") {
+                if (sql == "SELECT CI2.\"id\", CI2.\"first_name\", CI2.\"last_name\", CI2.\"street_1\", CI2.\"street_2\", CI2.\"employee_id\" FROM \"contact_info_2\" AS CI2 WHERE (TRUE IS NOT DISTINCT FROM (CI2.\"employee_id\" IN (1, 2)))") {
                     return CompletableFuture.completedFuture(MockResultSet.Builder().
                             addColumns("id", "first_name", "last_name", "street_1", "street_2", "employee_id").
                             addRow(100L, "John", "Smith", null, null, 1L).

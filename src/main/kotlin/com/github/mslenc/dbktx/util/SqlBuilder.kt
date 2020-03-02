@@ -304,11 +304,13 @@ class Sql(val dbType: DbType) {
             when (dbType) {
                 DbType.MYSQL -> {
                     if (negated) {
-                        raw("(NOT (")
-                        this.block(" <=> SOME ")
-                        raw("))")
+                        raw("((")
+                        this.block(" IN ")
+                        raw(") IS NOT TRUE)")
                     } else {
-                        this.block(" <=> SOME ")
+                        raw("((")
+                        this.block(" IN ")
+                        raw(") IS TRUE)")
                     }
                 }
                 DbType.POSTGRES -> {
@@ -337,13 +339,13 @@ class Sql(val dbType: DbType) {
             when (dbType) {
                 DbType.MYSQL -> {
                     if (negated) {
-                        raw("NOT (TRUE <=> (")
+                        raw("((")
                         this.block(" IN ")
-                        raw("))")
+                        raw(") IS NOT TRUE)")
                     } else {
-                        raw("(TRUE <=> (")
+                        raw("((")
                         this.block(" IN ")
-                        raw("))")
+                        raw(") IS TRUE)")
                     }
                 }
                 DbType.POSTGRES -> {
