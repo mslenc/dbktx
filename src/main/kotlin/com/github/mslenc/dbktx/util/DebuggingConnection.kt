@@ -1,7 +1,8 @@
 package com.github.mslenc.dbktx.util
 
 import com.github.mslenc.asyncdb.*
-import mu.KLogging
+import com.github.mslenc.utils.debug
+import com.github.mslenc.utils.getLogger
 import java.util.concurrent.CompletableFuture
 
 fun <T> wrapForTiming(promise: CompletableFuture<T>, started: Long): CompletableFuture<T> {
@@ -104,7 +105,9 @@ class DebuggingPreparedStatement(private val stmt: DbPreparedStatement, private 
         return wrapForTiming(stmt.executeUpdate(*values), started)
     }
 
-    companion object : KLogging()
+    companion object {
+        val logger = getLogger<DebuggingPreparedStatement>()
+    }
 }
 
 class DebuggingConnection(private val conn: DbConnection) : DbConnection {
@@ -224,5 +227,7 @@ class DebuggingConnection(private val conn: DbConnection) : DbConnection {
         return conn.close()
     }
 
-    companion object : KLogging()
+    companion object {
+        val logger = getLogger<DebuggingConnection>()
+    }
 }

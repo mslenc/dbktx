@@ -6,7 +6,7 @@ import com.github.mslenc.dbktx.conn.DbLoaderInternal
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 import com.github.mslenc.dbktx.schema.UniqueKeyDef
-import mu.KLogging
+import com.github.mslenc.utils.getLogger
 
 import java.util.*
 import kotlin.collections.HashMap
@@ -87,7 +87,9 @@ internal class SingleKeyIndex<E: DbEntity<E, *>, KEY: Any>(
         }
     }
 
-    companion object : KLogging()
+    companion object {
+        val logger = getLogger<SingleKeyIndex<*,*>>()
+    }
 }
 
 internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>) {
@@ -113,8 +115,6 @@ internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>) {
     fun flushAll(cleanUp: ArrayList<()->Unit>) {
         indexes.forEach { it.flushAll(cleanUp) }
     }
-
-    companion object : KLogging()
 
     internal suspend fun loadNow(dbLoaderImpl: DbLoaderInternal): Boolean {
         return dbLoaderImpl.loadDelayedTable(this)

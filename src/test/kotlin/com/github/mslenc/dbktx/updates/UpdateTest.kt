@@ -7,10 +7,10 @@ import com.github.mslenc.asyncdb.util.FutureUtils.failedFuture
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.conn.update
+import com.github.mslenc.dbktx.schemas.initSchemas
 import com.github.mslenc.dbktx.schemas.test1.Item
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
-import com.github.mslenc.dbktx.schemas.test1.TestSchema1
 import com.github.mslenc.dbktx.util.testing.toLDT
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture
 
 class UpdateTest {
     init {
-        TestSchema1.numberOfTables // init
+        initSchemas()
     }
 
     @Test
@@ -46,7 +46,7 @@ class UpdateTest {
 
             override fun executeQuery(sql: String, values: MutableList<Any?>): CompletableFuture<DbResultSet> {
                 try {
-                    assertEquals("SELECT I.\"company_id\", I.\"sku\", I.\"brand_key\", I.\"name\", I.\"price\", I.\"t_created\", I.\"t_updated\" FROM \"items\" AS I WHERE (I.\"company_id\", I.\"sku\") = (?, ?)", sql);
+                    assertEquals("SELECT I.\"company_id\", I.\"sku\", I.\"brand_key\", I.\"name\", I.\"price\", I.\"t_created\", I.\"t_updated\" FROM \"items\" AS I WHERE (I.\"company_id\", I.\"sku\") = (?, ?)", sql)
                     assertEquals(listOf(companyId.toString(), "LOG0001"), values)
                 } catch (e: Throwable) {
                     return failedFuture(e)

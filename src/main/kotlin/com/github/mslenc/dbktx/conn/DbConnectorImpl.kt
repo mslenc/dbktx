@@ -3,10 +3,10 @@ package com.github.mslenc.dbktx.conn
 import com.github.mslenc.asyncdb.DbDataSource
 import com.github.mslenc.asyncdb.DbConnection
 import com.github.mslenc.dbktx.util.makeDbContext
+import com.github.mslenc.utils.getLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
-import mu.KLogging
 
 /**
  * Creates a connector that obtains connections from the provided sql client and
@@ -41,5 +41,7 @@ class DbConnectorImpl(
         }
     }
 
-    companion object : KLogging()
+    companion object {
+        val logger = getLogger<DbConnectorImpl>()
+    }
 }

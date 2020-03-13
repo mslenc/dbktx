@@ -1,9 +1,5 @@
 package com.github.mslenc.dbktx.util
 
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.supervisorScope
 import java.lang.Long.reverseBytes
 import java.util.regex.Pattern
 
@@ -153,34 +149,6 @@ fun escapeSqlLikePattern(pattern: String, escapeChar: Char): String {
     return if (sb != null) sb.toString() else pattern
 }
 
-inline fun <T, K> List<T>.groupBy(selector: (T)->K): MutableMap<K, MutableList<T>> {
-    val result: MutableMap<K, MutableList<T>> = LinkedHashMap()
-    for (el in this) {
-        val key = selector(el)
-        result.computeIfAbsent(key, { _ -> ArrayList() }).add(el)
-    }
-    return result
-}
-
-inline fun <T, K> List<T>.groupByNullable(selector: (T)->K?): MutableMap<K?, MutableList<T>> {
-    val result: MutableMap<K?, MutableList<T>> = LinkedHashMap()
-    for (el in this) {
-        val key = selector(el)
-        result.computeIfAbsent(key, { _ -> ArrayList() }).add(el)
-    }
-    return result
-}
-
-inline fun <T, K> List<T>.indexBy(selector: (T)->K): MutableMap<K, T> {
-    val result: MutableMap<K, T> = LinkedHashMap()
-    for (el in this) {
-        val key = selector(el)
-        if (result.put(key, el) != null)
-            throw IllegalStateException("More than one element mapped to $key")
-    }
-    return result
-}
-
 inline fun <T> MutableList<T>.removeFirstMatching(selector: (T)->Boolean): Boolean {
     for (i in 0 until size) {
         if (selector(get(i))) {
@@ -200,16 +168,7 @@ inline fun <T> List<T>.indexOfFirstMatching(selector: (T)->Boolean): Int? {
     return null
 }
 
-fun String?.trimToNull(): String? {
-    if (this == null)
-        return null
 
-    val trimmed = this.trim()
-    if (trimmed.isEmpty())
-        return null
-
-    return trimmed
-}
 
 private val wordPattern: Pattern = Pattern.compile("\\b\\w+\\b", Pattern.CASE_INSENSITIVE or Pattern.UNICODE_CHARACTER_CLASS or Pattern.UNICODE_CASE)
 
@@ -224,25 +183,3 @@ fun extractWordsForSearch(query: String): List<String> {
     return result
 }
 
-/**
- * Like regular map(), except it maps the things "concurrently", to improve batching of db calls.
- */
-suspend inline fun <T, R> Iterable<T>.smap(crossinline transform: suspend (T) -> R): List<R> = supervisorScope {
-    map { async(start = CoroutineStart.UNDISPATCHED) { transform(it) } }.awaitAll()
-}
-
-/**
- * Like regular mapTo(), except it maps the things "concurrently", to improve batching of db calls.
- */
-suspend inline fun <T, R, C : MutableCollection<in R>> Iterable<T>.smapTo(destination: C, crossinline transform: suspend (T) -> R): C = supervisorScope {
-    map { async(start = CoroutineStart.UNDISPATCHED) { transform(it) } }.forEach { destination += it.await() }
-    destination
-}
-
-/**
- * Like regular forEach(), except it performs the operations "concurrently", to improve batching of db calls.
- */
-suspend inline fun <T> Iterable<T>.sforEach(crossinline action: suspend (T) -> Unit): Unit = supervisorScope {
-    map { async(start = CoroutineStart.UNDISPATCHED) { action(it) } }.awaitAll()
-    Unit
-}

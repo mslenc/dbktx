@@ -371,7 +371,7 @@ interface ExprBuilder<E: DbEntity<E, *>> : ExprBuilderBase<E> {
         }
     }
 
-    infix fun <TO : DbEntity<TO, *>> RelToSingle<E, TO>.oneOf(parentFilter: EntityQuery<TO>): FilterExpr {
+    infix fun <TO : DbEntity<TO, *>> RelToSingle<E, TO>.oneOf(parentFilter: EntityQuery<TO>): Expr<Boolean> {
         return when (this) {
             is RelToOne -> oneOf(parentFilter)
             is RelToZeroOrOne -> oneOf(parentFilter)
@@ -408,7 +408,7 @@ interface ExprBuilder<E: DbEntity<E, *>> : ExprBuilderBase<E> {
         return !isNotNull()
     }
 
-    fun <TO : DbEntity<TO, *>> RelToSingle<E, TO>.isNotNull(): FilterExpr {
+    fun <TO : DbEntity<TO, *>> RelToSingle<E, TO>.isNotNull(): Expr<Boolean> {
         return when (this) {
             is RelToOne -> isNotNull()
             is RelToZeroOrOne -> isNotNull()
@@ -416,7 +416,7 @@ interface ExprBuilder<E: DbEntity<E, *>> : ExprBuilderBase<E> {
         }
     }
 
-    fun <TO : DbEntity<TO, *>> RelToSingle<E, TO>.isNull(): FilterExpr {
+    fun <TO : DbEntity<TO, *>> RelToSingle<E, TO>.isNull(): Expr<Boolean> {
         return when (this) {
             is RelToOne -> isNull()
             is RelToZeroOrOne -> isNull()

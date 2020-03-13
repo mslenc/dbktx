@@ -5,14 +5,14 @@ import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.conn.query
 import com.github.mslenc.dbktx.crud.filter
+import com.github.mslenc.dbktx.schemas.initSchemas
 import com.github.mslenc.dbktx.schemas.test1.Company.Companion.CONTACT_INFO_REF
 import com.github.mslenc.dbktx.schemas.test1.ContactInfo
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
 import com.github.mslenc.dbktx.schemas.test3.Employee
-import com.github.mslenc.dbktx.schemas.test3.TestSchema3
-import com.github.mslenc.dbktx.util.smap
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
+import com.github.mslenc.utils.smap
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -24,8 +24,7 @@ import java.util.concurrent.CompletableFuture
 
 class ExprFilterHasAssociatedTest {
     init {
-        TestSchema1.numberOfTables // init
-        TestSchema3.numberOfTables
+        initSchemas()
     }
 
     @Test

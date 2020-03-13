@@ -6,6 +6,7 @@ import com.github.mslenc.asyncdb.impl.DbQueryResultImpl
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.crud.filter
+import com.github.mslenc.dbktx.schemas.initSchemas
 import com.github.mslenc.dbktx.schemas.test2.*
 import com.github.mslenc.dbktx.schemas.test3.*
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
@@ -23,8 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class AggregateTest {
     init {
-        TestSchema2.numberOfTables // init
-        TestSchema3.numberOfTables
+        initSchemas()
     }
 
     data class CompAggr(

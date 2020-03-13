@@ -2,11 +2,13 @@ package com.github.mslenc.dbktx.util
 
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.schema.DbTable
+import com.github.mslenc.utils.error
+import com.github.mslenc.utils.getLogger
+import com.github.mslenc.utils.trace
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import mu.KLogging
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.suspendCoroutine
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.*
 
 /**
  * Used for batching requests for data together, to reduce the number of queries performed.
@@ -46,6 +48,7 @@ enum class BatchKeyState {
 class BatchValueState<RES> {
     private var existingResult: RES? = null // only if state == LOADED
     private var handlers: ListEl<Continuation<RES>>? = null // only if state != LOADED
+    private var parentBatches: MutableSet<ComputeBatch>? = null // only if state != LOADED
     var state = BatchKeyState.INITIAL
         private set
 
@@ -57,6 +60,7 @@ class BatchValueState<RES> {
                 existingResult = result
                 val handlers = this.handlers
                 this.handlers = null
+                this.parentBatches = null
                 handlers
             }
 
@@ -78,6 +82,7 @@ class BatchValueState<RES> {
                 state = BatchKeyState.INITIAL
                 val handlers = this.handlers
                 this.handlers = null
+                this.parentBatches = null
                 return handlers
             }
 
@@ -97,14 +102,22 @@ class BatchValueState<RES> {
             throw IllegalStateException("get() called when not LOADED")
         }
 
-    fun addReceiver(cont: Continuation<RES>) {
+    fun addReceiver(cont: Continuation<RES>, parentBatches: ComputeBatches?) {
         handlers = ListEl(cont, handlers)
+        if (parentBatches != null) {
+            if (this.parentBatches == null) {
+                this.parentBatches = parentBatches.batches.toMutableSet()
+            } else {
+                this.parentBatches!!.addAll(parentBatches.batches)
+            }
+        }
     }
 
-    fun startedComputing(): Boolean {
+    fun startedComputing(outBatches: MutableSet<ComputeBatch>): Boolean {
         return when (state) {
             BatchKeyState.INITIAL -> {
                 state = BatchKeyState.COMPUTING
+                this.parentBatches?.let { outBatches.addAll(it) }
                 true
             }
             else -> {
@@ -114,6 +127,19 @@ class BatchValueState<RES> {
     }
 }
 
+class ComputeBatch(
+    val loader: BatchingLoader<*, *>,
+    val keys: Set<*>
+)
+
+class ComputeBatches(
+    val batches: Set<ComputeBatch>
+) : AbstractCoroutineContextElement(ComputeBatches) {
+    companion object Key : CoroutineContext.Key<ComputeBatches>
+}
+
+
+
 internal class BatchingLoaderIndex<KEY: Any, RESULT>(val loader: BatchingLoader<KEY, RESULT>) {
     private var scheduled = false
     private var index: HashMap<KEY, BatchValueState<RESULT>> = HashMap()
@@ -121,7 +147,7 @@ internal class BatchingLoaderIndex<KEY: Any, RESULT>(val loader: BatchingLoader<
 
     private fun ensureScheduled(db: DbConn, scope: CoroutineScope) {
         if (!scheduled) {
-            logger.trace("Scheduling {} for execution", loader)
+            logger.trace { "Scheduling $loader for execution" }
             scheduled = true
             scope.launch {
                 scheduled = false
@@ -133,21 +159,30 @@ internal class BatchingLoaderIndex<KEY: Any, RESULT>(val loader: BatchingLoader<
     suspend fun provideValue(key: KEY, db: DbConn, scope: CoroutineScope): RESULT {
         val valueState = index.computeIfAbsent(key) { BatchValueState() }
 
+        val parentBatches = coroutineContext[ComputeBatches]
+
         return when (valueState.state) {
             BatchKeyState.INITIAL -> {
-                logger.trace("Adding key {} of loader {} to list for loading and scheduling", key, loader)
+                logger.trace { "Adding key $key of loader $loader to list for loading and scheduling" }
                 keysToLoad.add(key)
                 ensureScheduled(db, scope)
-                suspendCoroutine(valueState::addReceiver)
+                suspendCoroutine { valueState.addReceiver(it, parentBatches) }
             }
 
             BatchKeyState.COMPUTING -> {
-                logger.error("Circular custom loader {} detected with key {}", loader, key)
-                throw IllegalStateException("Circular custom loader $loader detected with key $key")
+                parentBatches?.let {
+                    for (batch in it.batches) {
+                        if (batch.loader == loader && batch.keys.contains(key)) {
+                            logger.error { "Circular custom loader $loader detected with key $key" }
+                            throw IllegalStateException("Circular custom loader $loader detected with key $key")
+                        }
+                    }
+                }
+                suspendCoroutine { valueState.addReceiver(it, parentBatches) }
             }
 
             BatchKeyState.LOADED -> {
-                logger.trace("Key {} of loader {} was already loaded", key, loader)
+                logger.trace { "Key $key of loader $loader was already loaded" }
                 valueState.value
             }
         }
@@ -161,11 +196,13 @@ internal class BatchingLoaderIndex<KEY: Any, RESULT>(val loader: BatchingLoader<
 
         this.keysToLoad = LinkedHashSet()
 
+        val parentBatches = HashSet<ComputeBatch>()
+
         val it = keys.iterator()
         while (it.hasNext()) {
             val key = it.next()
             val valueState = index[key]
-            if (valueState == null || !valueState.startedComputing()) {
+            if (valueState == null || !valueState.startedComputing(parentBatches)) {
                 it.remove()
             }
         }
@@ -173,8 +210,17 @@ internal class BatchingLoaderIndex<KEY: Any, RESULT>(val loader: BatchingLoader<
         if (keys.isEmpty())
             return
 
+        parentBatches.add(ComputeBatch(loader, keys))
+
         val result = try {
-            loader.loadNow(keys, db)
+            logger.trace { "Starting $loader computation with ${parentBatches.size} parent batches for keys $keys " }
+            try {
+                withContext(ComputeBatches(parentBatches)) {
+                    loader.loadNow(keys, db)
+                }
+            } finally {
+                logger.trace { "Ended $loader computation with ${parentBatches.size} parent batches for keys $keys " }
+            }
         } catch (e: Throwable) {
             reportError(keys, e)
             return
@@ -190,6 +236,7 @@ internal class BatchingLoaderIndex<KEY: Any, RESULT>(val loader: BatchingLoader<
         }
 
         if (keys.isNotEmpty()) run {
+            logger.trace { "Loader $loader had unhandled keys $keys" }
             val nullResult = try {
                 loader.nullResult()
             } catch (e: Throwable) {
@@ -205,8 +252,13 @@ internal class BatchingLoaderIndex<KEY: Any, RESULT>(val loader: BatchingLoader<
             }
         }
 
-        for (notification in toNotify) {
-            notifyCont(notification.waiters, notification.result)
+        logger.trace { "Starting notifications for $loader - ${ toNotify.size } waiter lists"}
+        try {
+            for (notification in toNotify) {
+                notifyCont(notification.waiters, notification.result)
+            }
+        } finally {
+            logger.trace { "Notifications for $loader finished" }
         }
     }
 
@@ -249,5 +301,7 @@ internal class BatchingLoaderIndex<KEY: Any, RESULT>(val loader: BatchingLoader<
         }
     }
 
-    companion object : KLogging()
+    companion object {
+        val logger = getLogger<BatchingLoaderIndex<*,*>>()
+    }
 }

@@ -11,6 +11,7 @@ class RelToZeroOrOneImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : Db
     private lateinit var queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)->Expr<Boolean>
     private lateinit var oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>
     private lateinit var oppositeColumn: Column<TO, FROM_KEY>
+    private lateinit var relDebugName: String
 
     internal fun init(oppositeRel: RelToOneImpl<TO, FROM, FROM_KEY>, info: ManyToOneInfo<TO, FROM, FROM_KEY>, reverseKeyMapper: (TO)->FROM_KEY?, queryExprBuilder: (Set<FROM_KEY>, TableInQuery<TO>)->Expr<Boolean>) {
         if (info.columnMappings.size != 1)
@@ -24,6 +25,12 @@ class RelToZeroOrOneImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : Db
         this.oppositeColumn = (info.columnMappings[0].rawColumnFrom as Column<TO, FROM_KEY>)
         if (info.oneTable.primaryKey.getColumn(1).sqlType.kotlinType != oppositeColumn.sqlType.kotlinType)
             throw UnsupportedOperationException("With relToZeroOrOne, the opposite column must be of the same type as source primary key")
+
+        this.relDebugName = "ToZeroOrOne(${ info.oneTable.dbName }->${ targetTable.dbName })"
+    }
+
+    override fun toString(): String {
+        return relDebugName
     }
 
     override val targetTable: DbTable<TO, *>

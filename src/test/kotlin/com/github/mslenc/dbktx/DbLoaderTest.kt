@@ -7,14 +7,15 @@ import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.crud.filter
+import com.github.mslenc.dbktx.schemas.initSchemas
 import com.github.mslenc.dbktx.schemas.test1.*
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1.ITEM
 import com.github.mslenc.dbktx.util.BatchingLoader
 import com.github.mslenc.dbktx.util.FakeRowData
-import com.github.mslenc.dbktx.util.smap
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
 import com.github.mslenc.dbktx.util.testing.toLDT
+import com.github.mslenc.utils.smap
 import kotlinx.coroutines.*
 import org.junit.Test
 
@@ -25,7 +26,7 @@ import java.util.concurrent.CompletableFuture
 
 class DbLoaderTest {
     init {
-        TestSchema1.numberOfTables
+        initSchemas()
     }
 
     private fun checkParams(array: List<Any?>, vararg expected: Any) {

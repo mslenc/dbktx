@@ -5,12 +5,13 @@ import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.conn.query
 import com.github.mslenc.dbktx.runMysqlTest
+import com.github.mslenc.dbktx.schemas.initSchemas
 import com.github.mslenc.dbktx.schemas.test1.*
 import com.github.mslenc.dbktx.schemas.test1.Brand.Companion.ITEMS_SET
 import com.github.mslenc.dbktx.schemas.test3.Employee
-import com.github.mslenc.dbktx.util.smap
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
+import com.github.mslenc.utils.smap
 import org.junit.Test
 
 import java.util.Arrays
@@ -24,7 +25,7 @@ import kotlinx.coroutines.runBlocking
 
 class ExprFilterContainsChildTest {
     init {
-        TestSchema1.numberOfTables // init
+        initSchemas()
     }
 
     @Test

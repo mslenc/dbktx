@@ -1,78 +1,10 @@
 package com.github.mslenc.dbktx.util
 
-import mu.KotlinLogging
+import com.github.mslenc.utils.getLogger
+import com.github.mslenc.utils.trace
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-
-private val logger = KotlinLogging.logger {}
-
-class DelayedLoadState<RES> {
-    private var existingResult: RES? = null // only if state == LOADED
-    var state = EntityState.INITIAL
-        private set
-    private var handlers: ListEl<Continuation<RES>>? = null // only if state == LOADING
-
-    fun handleResult(result: RES) {
-        when (state) {
-            EntityState.INITIAL -> {
-                state = EntityState.LOADED
-                existingResult = result
-            }
-
-            EntityState.LOADING -> {
-                state = EntityState.LOADED
-                existingResult = result
-                val handlers = this.handlers
-                this.handlers = null
-                notifyCont(handlers, result)
-            }
-
-            EntityState.LOADED -> { // already done, so no-op
-            }
-        }
-    }
-
-    fun handleError(error: Throwable) {
-        when (state) {
-            EntityState.INITIAL -> {
-                // we stay INITIAL, so that we might try again (the error could be unrelated to this guy)
-            }
-
-            EntityState.LOADING -> {
-                state = EntityState.INITIAL
-                val handlers = this.handlers
-                this.handlers = null
-                notifyError(handlers, error)
-            }
-
-            EntityState.LOADED -> {
-                // we ignore the error as we were successfully loaded already
-            }
-        }
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    val value: RES
-        get() {
-            if (state == EntityState.LOADED)
-                return existingResult as RES
-
-            throw IllegalStateException("get() called when not LOADED")
-        }
-
-    fun addReceiver(cont: Continuation<RES>) {
-        handlers = ListEl(cont, handlers)
-    }
-
-    fun startedLoading(cont: Continuation<RES>) {
-        if (state != EntityState.INITIAL)
-            throw IllegalStateException("startedLoading() called, but state is not INITIAL")
-
-        state = EntityState.LOADING
-        handlers = ListEl(cont, handlers)
-    }
-}
 
 internal class DelayedLoadStateNullable<RES> {
     private var existingResult: RES? = null // only if state == LOADED
@@ -83,11 +15,13 @@ internal class DelayedLoadStateNullable<RES> {
     fun handleResult(result: RES?) {
         when (state) {
             EntityState.INITIAL -> {
+                logger.trace { "Result received in INITIAL state: $result" }
                 state = EntityState.LOADED
                 existingResult = result
             }
 
             EntityState.LOADING -> {
+                logger.trace { "Result received in LOADING state: $result" }
                 state = EntityState.LOADED
                 existingResult = result
                 val handlers = this.handlers
@@ -96,6 +30,7 @@ internal class DelayedLoadStateNullable<RES> {
             }
 
             EntityState.LOADED -> { // already done, so no-op
+                logger.trace { "Result received in LOADED state: $result" }
             }
         }
     }
@@ -104,9 +39,11 @@ internal class DelayedLoadStateNullable<RES> {
         when (state) {
             EntityState.INITIAL -> {
                 // we stay INITIAL, so that we might try again (the error could be unrelated to this guy)
+                logger.trace { "Error received in LOADED state" }
             }
 
             EntityState.LOADING -> {
+                logger.trace { "Error received in LOADING state" }
                 state = EntityState.INITIAL
                 val handlers = this.handlers
                 this.handlers = null
@@ -115,6 +52,7 @@ internal class DelayedLoadStateNullable<RES> {
 
             EntityState.LOADED -> {
                 // we ignore the error as we were successfully loaded already
+                logger.trace { "Error received in LOADED state" }
             }
         }
     }
@@ -147,6 +85,7 @@ internal class DelayedLoadStateNullable<RES> {
     }
 }
 
+val logger = getLogger<DelayedLoadStateNullable<*>>()
 
 fun <T> notifyError(handlerList: ListEl<Continuation<T>>?, error: Throwable) {
     var handlers = handlerList

@@ -2,8 +2,7 @@ package com.github.mslenc.dbktx.util
 
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
-import kotlinx.coroutines.CoroutineScope
-import mu.KLogging
+import com.github.mslenc.utils.getLogger
 
 internal class MasterIndex {
 
@@ -68,8 +67,7 @@ internal class MasterIndex {
     val allCachedTables: Collection<EntityIndex<*>>
         get() = tableIndex.values
 
-    val allCachedLoaders: Collection<BatchingLoaderIndex<*, *>>
-        get() = loaderIndex.values
-
-    companion object : KLogging()
+    companion object {
+        val logger = getLogger<MasterIndex>()
+    }
 }

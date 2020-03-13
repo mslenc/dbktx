@@ -4,17 +4,14 @@ import com.github.mslenc.dbktx.aggr.*
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.buildSelectQuery
 import com.github.mslenc.dbktx.expr.*
-import com.github.mslenc.dbktx.util.EntityState.*
 import com.github.mslenc.dbktx.filters.FilterAnd
 import com.github.mslenc.dbktx.filters.FilterOr
 import com.github.mslenc.dbktx.filters.MatchAnything
 import com.github.mslenc.dbktx.filters.MatchNothing
 import com.github.mslenc.dbktx.schema.*
-import com.github.mslenc.dbktx.util.CachedAsync
-import com.github.mslenc.dbktx.util.DelayedLoadState
 import com.github.mslenc.dbktx.util.OrderSpec
+import com.github.mslenc.utils.CachedAsync
 import java.util.ArrayList
-import kotlin.coroutines.suspendCoroutine
 
 interface Query {
     val aggregatesAllowed: Boolean

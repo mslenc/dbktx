@@ -5,6 +5,7 @@ import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.conn.query
 import com.github.mslenc.dbktx.crud.filter
+import com.github.mslenc.dbktx.schemas.initSchemas
 import com.github.mslenc.dbktx.schemas.test1.Brand.Companion.COMPANY_REF
 import com.github.mslenc.dbktx.schemas.test1.Company
 import com.github.mslenc.dbktx.schemas.test1.ContactInfo
@@ -22,7 +23,7 @@ import java.util.concurrent.CompletableFuture
 
 class ExprFilterHasParentTest {
     init {
-        TestSchema1.numberOfTables // init
+        initSchemas()
     }
 
     @Test

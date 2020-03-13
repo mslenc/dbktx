@@ -6,8 +6,8 @@ import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.conn.newUpdate
 import com.github.mslenc.dbktx.crud.dsl.concatWs
+import com.github.mslenc.dbktx.schemas.initSchemas
 import com.github.mslenc.dbktx.schemas.test1.Brand
-import com.github.mslenc.dbktx.schemas.test1.TestSchema1
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -20,7 +20,7 @@ import java.util.concurrent.CompletableFuture
 
 class StringExprTest {
     init {
-        TestSchema1.numberOfTables // init
+        initSchemas()
     }
 
     @Test

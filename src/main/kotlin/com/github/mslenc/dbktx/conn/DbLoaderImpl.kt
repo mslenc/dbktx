@@ -11,9 +11,9 @@ import com.github.mslenc.dbktx.filters.MatchAnything
 import com.github.mslenc.dbktx.filters.MatchNothing
 import com.github.mslenc.dbktx.schema.*
 import com.github.mslenc.dbktx.util.*
+import com.github.mslenc.utils.getLogger
 import kotlinx.coroutines.*
 import kotlinx.coroutines.future.await
-import mu.KLogging
 
 import java.util.*
 
@@ -333,7 +333,9 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
         return queryNow(entities, sb, selectForUpdate)
     }
 
-    companion object : KLogging()
+    companion object {
+        val logger = getLogger<DbLoaderInternal>()
+    }
 }
 
 class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, override val requestTime: RequestTime) : DbConn {
@@ -444,7 +446,8 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
 
     override suspend fun <E : DbEntity<E, ID>, ID : Any>
     loadById(table: DbTable<E, ID>, id: ID): E {
-        return findById(table, id) ?: throw NoSuchEntity("No ${table.dbName} with id $id")
+        findById(table, id)?.let { return it }
+        throw NoSuchEntity("No ${table.dbName} with id $id")
     }
 
     override suspend fun <FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>
@@ -648,5 +651,7 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
         return db.masterIndex[table].rowLoaded(this, decoded, false)
     }
 
-    companion object : KLogging()
+    companion object {
+        val logger = getLogger<DbLoaderImpl>()
+    }
 }

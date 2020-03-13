@@ -7,9 +7,9 @@ import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.conn.insert
 import com.github.mslenc.dbktx.conn.insertMapped
+import com.github.mslenc.dbktx.schemas.initSchemas
 import com.github.mslenc.dbktx.schemas.test1.*
 import com.github.mslenc.dbktx.schemas.test3.Employee
-import com.github.mslenc.dbktx.schemas.test3.TestSchema3
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -22,8 +22,7 @@ import java.util.concurrent.CompletableFuture
 
 class InsertTest {
     init {
-        TestSchema1.numberOfTables // init
-        TestSchema3.numberOfTables
+        initSchemas()
     }
 
     @Test
