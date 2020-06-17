@@ -5,6 +5,7 @@ import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.conn.query
 import com.github.mslenc.dbktx.crud.filter
+import com.github.mslenc.dbktx.crud.orderMatchesFirst
 import com.github.mslenc.dbktx.schemas.initSchemas
 import com.github.mslenc.dbktx.schemas.test1.Brand.Companion.COMPANY_REF
 import com.github.mslenc.dbktx.schemas.test1.Company
@@ -142,5 +143,36 @@ class ExprFilterHasParentTest {
         assertEquals(1, theParams.size)
         assertEquals("qwe", theParams[0])
 
+    }
+
+    @Test
+    fun testOrderByMatchesFirst() = runBlocking {
+        val called = AtomicBoolean(false)
+        var theSql: String? = null
+        var theParams: List<Any?> = emptyList()
+
+        val connection = object : MockDbConnection() {
+            override fun executeQuery(sql: String, values: MutableList<Any?>): CompletableFuture<DbResultSet> {
+                called.set(true)
+                theSql = sql
+                theParams = values
+
+                return CompletableFuture.completedFuture(MockResultSet.Builder().build())
+            }
+        }
+
+        val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
+
+        val query = db.newEntityQuery(ContactInfo)
+        query.orderMatchesFirst { ContactInfo.ADDRESS.contains("Tokyo") }
+        query.orderBy(ContactInfo.COMPANY_REF, Company.NAME)
+        query.execute()
+
+        assertTrue(called.get())
+
+        assertEquals("SELECT CI.\"id\", CI.\"company_id\", CI.\"address\" FROM \"contact_info\" AS CI LEFT JOIN \"companies\" AS C ON C.\"id\" = CI.\"company_id\" ORDER BY CASE WHEN CI.\"address\" LIKE ? ESCAPE '|' THEN 0 ELSE 1 END, C.\"name\"", theSql)
+
+        assertEquals(1, theParams.size)
+        assertEquals("%Tokyo%", theParams[0])
     }
 }

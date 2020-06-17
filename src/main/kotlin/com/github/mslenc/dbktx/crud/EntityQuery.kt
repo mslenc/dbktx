@@ -9,6 +9,7 @@ import com.github.mslenc.dbktx.filters.FilterOr
 import com.github.mslenc.dbktx.filters.MatchAnything
 import com.github.mslenc.dbktx.filters.MatchNothing
 import com.github.mslenc.dbktx.schema.*
+import com.github.mslenc.dbktx.sqltypes.SqlTypeInt
 import com.github.mslenc.dbktx.util.OrderSpec
 import com.github.mslenc.utils.CachedAsync
 import java.util.ArrayList
@@ -223,11 +224,11 @@ interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E>, OrderableQuery<E>
     fun copy(includeOffsetAndLimit: Boolean = false, selectForUpdate: Boolean? = null): EntityQuery<E>
     fun copyAndRemapFilters(dstTable: TableInQuery<E>): Expr<Boolean>
 
-    suspend fun aggregateStream(queryBuilder: AggrStreamBuilder<E>.()->Unit): Long {
+    suspend fun aggregateStream(queryBuilder: AggrStreamTopLevelBuilder<E>.()->Unit): Long {
         return makeAggregateStreamQuery(queryBuilder).execute()
     }
 
-    fun makeAggregateStreamQuery(queryBuilder: AggrStreamBuilder<E>.()->Unit): AggrStreamQuery<E>
+    fun makeAggregateStreamQuery(queryBuilder: AggrStreamTopLevelBuilder<E>.()->Unit): AggrStreamQuery<E>
 }
 
 internal abstract class OrderableFilterableQueryImpl<E : DbEntity<E, *>>(
@@ -409,7 +410,7 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(table: DbTable<E, *>, db: DbC
         return filters.remap(remapper)
     }
 
-    override fun makeAggregateStreamQuery(queryBuilder: AggrStreamBuilder<E>.() -> Unit): AggrStreamQuery<E> {
+    override fun makeAggregateStreamQuery(queryBuilder: AggrStreamTopLevelBuilder<E>.() -> Unit): AggrStreamQuery<E> {
         val query = table.table.makeAggregateStreamQuery(db) {} as AggrStreamImpl
 
         val remapper = TableRemapper(query)
@@ -424,4 +425,15 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(table: DbTable<E, *>, db: DbC
     override fun toString(): String {
         return buildSelectQuery(this, false).getSql()
     }
+}
+
+inline fun <Q, E>
+Q.orderMatchesFirst(block: ExprBuilder<E>.() -> Expr<Boolean>)
+where E: DbEntity<E, *>,
+      Q: FilterableQuery<E>,
+      Q: OrderableQuery<E>
+{
+    val filter = this.createFilter(block)
+    val expr = ExprWhen.create(listOf(Pair(filter, SqlTypeInt.makeLiteral(0))), SqlTypeInt.makeLiteral(1))
+    this.orderBy(expr, ascending = true)
 }
