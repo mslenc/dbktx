@@ -11,6 +11,7 @@ import com.github.mslenc.dbktx.schemas.test1.Brand.Companion.COMPANY_REF
 import com.github.mslenc.dbktx.schemas.test1.Company
 import com.github.mslenc.dbktx.schemas.test1.ContactInfo
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
+import com.github.mslenc.dbktx.schemas.test3.ServiceLine
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
 import kotlinx.coroutines.async
@@ -174,5 +175,36 @@ class ExprFilterHasParentTest {
 
         assertEquals(1, theParams.size)
         assertEquals("%Tokyo%", theParams[0])
+    }
+
+    @Test
+    fun testRootTableJoinGetsUniqueAlias() = runBlocking {
+        val called = AtomicBoolean(false)
+        var theSql: String? = null
+        var theParams: List<Any?> = emptyList()
+
+        val connection = object : MockDbConnection() {
+            override fun executeQuery(sql: String, values: MutableList<Any?>): CompletableFuture<DbResultSet> {
+                called.set(true)
+                theSql = sql
+                theParams = values
+
+                return CompletableFuture.completedFuture(MockResultSet.Builder().build())
+            }
+        }
+
+        val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
+
+        val query = db.newEntityQuery(ServiceLine)
+        query.orderBy(ServiceLine.PARENT_REF, ServiceLine.NAME)
+        query.orderBy(ServiceLine.NAME)
+        query.orderBy(ServiceLine.ID)
+        query.execute()
+
+        assertTrue(called.get())
+
+        assertEquals("""SELECT SL."id", SL."name", SL."sort_index", SL."parent_id" FROM "service_line" AS SL LEFT JOIN "service_line" AS SL2 ON SL2."id" = SL."parent_id" ORDER BY SL2."name", SL."name", SL."id"""", theSql)
+
+        assertEquals(0, theParams.size)
     }
 }

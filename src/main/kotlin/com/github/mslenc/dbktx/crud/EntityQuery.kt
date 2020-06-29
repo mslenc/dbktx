@@ -18,7 +18,7 @@ interface Query {
     val aggregatesAllowed: Boolean
 }
 
-abstract class QueryImpl : Query {
+abstract class QueryImpl() : Query {
     private val alias2table = LinkedHashMap<String, TableInQuery<*>>()
 
     fun isTableAliasTaken(tableAlias: String): Boolean {
@@ -30,7 +30,7 @@ abstract class QueryImpl : Query {
     }
 }
 
-internal class SimpleSelectQueryImpl : QueryImpl() {
+internal class SimpleSelectQueryImpl() : QueryImpl() {
     override val aggregatesAllowed: Boolean
         get() = false
 }
@@ -163,7 +163,9 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
         table: DbTable<E, *>,
         val db: DbConn) : QueryImpl(), FilterableQuery<E> {
 
-    override val table = makeBaseTable(table)
+    override val table = makeBaseTable(table).also {
+        registerTableInQuery(it)
+    }
 
     protected abstract fun makeBaseTable(table: DbTable<E, *>): TableInQuery<E>
     protected abstract fun checkModifiable()

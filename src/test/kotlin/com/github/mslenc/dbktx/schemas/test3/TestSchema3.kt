@@ -13,6 +13,7 @@ object TestSchema3 : DbSchema() {
     val TIME_ITEM = TimeItem
     val DAILY_TIME_ITEM = DailyTimeItem
     val TASK = Task
+    val SERVICE_LINE = ServiceLine
 
     init {
         finishInit()

@@ -226,6 +226,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
 
         val query = SimpleSelectQueryImpl()
         val boundTable = BaseTableInQuery(query, table)
+        query.registerTableInQuery(boundTable)
         val filterExpr = boundTable.newExprBuilder().filter()
 
         val sb = Sql(publicDb.dbType).apply {
