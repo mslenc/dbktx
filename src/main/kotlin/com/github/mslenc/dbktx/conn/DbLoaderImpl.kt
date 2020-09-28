@@ -129,6 +129,7 @@ internal fun <E : DbEntity<E, *>, T: Any> emitValue(column: Column<E, T>, values
     }
 }
 
+const val MAX_BATCH_SIZE = 512
 
 internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val conn: DbConnection) {
     internal val masterIndex = MasterIndex()
@@ -179,8 +180,6 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
 
     private suspend fun <T: Any, E: DbEntity<E, *>>
     loadDelayedTableInIndex(indexAndKeys: IndexAndKeys<E, T>) {
-        // TODO: split large lists into chunks
-
         val index = indexAndKeys.index
         val keys: MutableSet<T> = indexAndKeys.keys
         val table: DbTable<E, *> = index.table
@@ -190,7 +189,15 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
 
         val result: List<E>
         try {
-            result = queryNow(table) { keyDef oneOf keys }
+            result = if (keys.size <= MAX_BATCH_SIZE) {
+                queryNow(table) { keyDef oneOf keys }
+            } else {
+                ArrayList<E>().also { out ->
+                    for (keysSlice in keys.chunked(MAX_BATCH_SIZE)) {
+                        out.addAll(queryNow(table) { keyDef oneOf keysSlice })
+                    }
+                }
+            }
         } catch (e : Throwable) {
             logger.error("Failed to query by IDs", e)
             index.reportError(keys, e)
