@@ -461,7 +461,7 @@ interface ExprBuilder<E: DbEntity<E, *>> : ExprBuilderBase<E> {
 
         return when {
             refList.isEmpty() ->
-                throw IllegalArgumentException("No choices provided to oneOf")
+                MatchNothing
 
             refList.size == 1 ->
                 eq(refList.first())
@@ -491,7 +491,10 @@ interface ExprBuilder<E: DbEntity<E, *>> : ExprBuilderBase<E> {
         val setFilter = dstFilter.block()
         val relImpl = this as RelToManyImpl<E, *, TO>
 
-        return FilterContainsChild(table, relImpl.info, setFilter, dstTable)
+        return when (setFilter) {
+            is MatchNothing -> MatchNothing
+            else -> FilterContainsChild(table, relImpl.info, setFilter, dstTable)
+        }
     }
 
     infix fun <TO: DbEntity<TO, *>> RelToMany<E, TO>.contains(childQuery: EntityQuery<TO>): FilterExpr {
@@ -499,7 +502,10 @@ interface ExprBuilder<E: DbEntity<E, *>> : ExprBuilderBase<E> {
         val dstTable = table.forcedSubQuery(this)
         val dstFilter = childQuery.copyAndRemapFilters(dstTable)
 
-        return FilterContainsChild(table, relImpl.info, dstFilter, dstTable)
+        return when (dstFilter) {
+            is MatchNothing -> MatchNothing
+            else -> FilterContainsChild(table, relImpl.info, dstFilter, dstTable)
+        }
     }
 
     infix fun Column<E, Int>.hasAnyOfBits(bits: Int): FilterExpr {
