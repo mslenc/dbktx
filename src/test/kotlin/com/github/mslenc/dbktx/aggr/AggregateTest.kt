@@ -78,7 +78,7 @@ class AggregateTest {
 
         val query =
             Weight.makeAggregateStreamQuery(db) {
-                Weight.NAME into { weightName = it }
+                Weight.NAME intoNN { weightName = it }
 
                 innerJoin(Weight.ENTRIES_SET) {
                     filter {
@@ -98,7 +98,7 @@ class AggregateTest {
 
                     innerJoin(CompEntry.REF_COUNTRY) {
                         innerJoin(Country.REF_LOCALNAME("en")) {
-                            LocalName.NAME into { countryName = it }
+                            LocalName.NAME intoNN { countryName = it }
 
                             filter {
                                 LocalName.NAME.contains("a")
@@ -108,9 +108,9 @@ class AggregateTest {
 
                     innerJoin(CompEntry.REF_COMPETITION) {
                         innerJoin(Competition.REF_LOCALNAME("sl")) {
-                            LocalName.NAME into { compName = it }
-                            count { +LocalName.ENTITY_ID } into { entityCount = it }
-                            countDistinct { +LocalName.ENTITY_ID } into { entityDistinctCount = it }
+                            LocalName.NAME intoNN { compName = it }
+                            count { +LocalName.ENTITY_ID } intoNN { entityCount = it }
+                            countDistinct { +LocalName.ENTITY_ID } intoNN { entityDistinctCount = it }
 
                             filter {
                                 LocalName.NAME.contains("prix")
@@ -127,9 +127,9 @@ class AggregateTest {
         query.orderBy(Weight.NAME)
 
         query.expand {
-            Weight.ID_WEIGHT into { idWeight = it }
+            Weight.ID_WEIGHT intoNN { idWeight = it }
             innerJoin(Weight.ENTRIES_SET) {
-                CompEntry.ID_COUNTRY into { idCountry = it }
+                CompEntry.ID_COUNTRY intoNN { idCountry = it }
             }
         }
 
@@ -229,7 +229,7 @@ class AggregateTest {
         var lastDate: LocalDate? = null
 
         val query = Invoice.makeAggregateStreamQuery(db) {
-                countDistinct { +Invoice.ID } into { numInvoices = it }
+                countDistinct { +Invoice.ID } intoNN { numInvoices = it }
 
                 sum { Invoice.TIME_ITEMS_SET..InvoiceTimeItem.DAILY_ITEMS_SET..InvoiceDailyTimeItem.HOURS } into { hours = it }
 
@@ -297,8 +297,8 @@ class AggregateTest {
 
         val query =
             Invoice.makeAggregateStreamQuery(db) {
-                countDistinct { +Invoice.ID } into { numInvoices = it }
-                countDistinct { Invoice.EXPENSE_ITEMS_SET..InvoiceExpenseItem.ID } into { numExpenses = it }
+                countDistinct { +Invoice.ID } intoNN { numInvoices = it }
+                countDistinct { Invoice.EXPENSE_ITEMS_SET..InvoiceExpenseItem.ID } intoNN { numExpenses = it }
 
                 innerJoin(Invoice.EXPENSE_ITEMS_SET) {
                     filter { InvoiceExpenseItem.BILLABLE eq true }

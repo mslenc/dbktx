@@ -144,7 +144,7 @@ internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>
         return table.newExprBuilder().block()
     }
 
-    override fun <T : Any> NonNullAggrExpr<T>.into(receiver: (T) -> Unit) {
+    override fun <T : Any> NonNullAggrExpr<T>.intoNN(receiver: (T) -> Unit) {
         query.checkModifiable()
 
         val columnIndex = query.selects.size
@@ -198,7 +198,7 @@ internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>
         }
     }
 
-    override fun <T : Any> NonNullColumn<CURR, T>.into(receiver: (T) -> Unit) {
+    override fun <T : Any> NonNullColumn<CURR, T>.intoNN(receiver: (T) -> Unit) {
         val colIndex = addColumn(this)
         val sqlType = this.sqlType
 

@@ -16,8 +16,8 @@ interface AggrStreamBuilder<E: DbEntity<E, *>> : AggrExprBuilder<E>, FilterableQ
     fun <T: Any> expr(block: AggrExprBuilder<E>.() -> Expr<T>): Expr<T>
 
     infix fun <T: Any> Expr<T>.into(receiver: (T?)->Unit)
-    infix fun <T: Any> NonNullAggrExpr<T>.into(receiver: (T)->Unit)
-    infix fun <T: Any> NonNullColumn<E, T>.into(receiver: (T)->Unit)
+    infix fun <T: Any> NonNullAggrExpr<T>.intoNN(receiver: (T)->Unit)
+    infix fun <T: Any> NonNullColumn<E, T>.intoNN(receiver: (T)->Unit)
     infix fun <T: Any> NullableColumn<E, T>.into(receiver: (T?)->Unit)
 }
 

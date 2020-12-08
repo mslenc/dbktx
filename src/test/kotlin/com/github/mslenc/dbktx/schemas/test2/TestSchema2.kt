@@ -6,10 +6,10 @@ fun <E: DbEntity<E, *>>
 refToLocalName(sourceIdColumn: NonNullColumn<E, Int>, propName: String, langCode: String): RelToOne<E, LocalName> {
     val result = RelToOneImpl<E, LocalName, LocalName.Id>()
 
-    val columnMappings = arrayOf(
+    val columnMappings = arrayOf<ColumnMapping<E, LocalName, *>>(
         ColumnMappingActualColumn(sourceIdColumn, LocalName.ENTITY_ID),
         ColumnMappingLiteral(langCode, LocalName.LANG_CODE, isParameter = true),
-        ColumnMappingLiteral<E, LocalName, String>(propName, LocalName.PROP_NAME, isParameter = false)
+        ColumnMappingLiteral(propName, LocalName.PROP_NAME, isParameter = false)
     )
 
     val info = ManyToOneInfo(sourceIdColumn.table, LocalName, LocalName.ID, columnMappings)
