@@ -7,8 +7,11 @@ import com.github.mslenc.asyncdb.util.FutureUtils.failedFuture
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.conn.update
+import com.github.mslenc.dbktx.conn.updateOneByOne
+import com.github.mslenc.dbktx.crud.dsl.concatWs
 import com.github.mslenc.dbktx.schemas.initSchemas
 import com.github.mslenc.dbktx.schemas.test1.Item
+import com.github.mslenc.dbktx.schemas.test3.ServiceLine
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
 import com.github.mslenc.dbktx.util.testing.toLDT
@@ -80,5 +83,72 @@ class UpdateTest {
         assertEquals(companyId.toString(), theParams[1])
         assertEquals("LOG0001", theParams[2])
         assertEquals(true, updated)
+    }
+
+    @Test
+    fun testBatchedUpdate1() = runBlocking {
+        val called = AtomicBoolean(false)
+        var theSql: String? = null
+        var theParams: List<Any?> = emptyList()
+
+        val connection = object : MockDbConnection() {
+            override fun executeUpdate(sql: String, values: List<Any>): CompletableFuture<DbUpdateResult> {
+                called.set(true)
+                theSql = sql
+                theParams = values
+                val result = DbQueryResultImpl(1L, null, null, null)
+                return CompletableFuture.completedFuture(result)
+            }
+
+            override fun executeQuery(sql: String, values: MutableList<Any?>): CompletableFuture<DbResultSet> {
+                val id = sql.substring(sql.length - 2)
+
+                try {
+                    assertEquals("SELECT SL.\"id\", SL.\"name\", SL.\"sort_index\", SL.\"parent_id\" FROM \"service_line\" AS SL WHERE SL.\"id\" = $id", sql)
+                    assertTrue(values.isEmpty())
+                } catch (e: Throwable) {
+                    return failedFuture(e)
+                }
+
+                val result = MockResultSet.Builder("id", "name", "sort_index", "parent_id")
+
+                result.addRow(id.toLong(), "SL $id", id.toInt() - 10, null)
+
+                return CompletableFuture.completedFuture(result.build())
+            }
+        }
+
+        val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
+
+        val item1 = db.loadById(ServiceLine, 11L)
+        val item2 = db.loadById(ServiceLine, 12L)
+        val item3 = db.loadById(ServiceLine, 13L)
+
+        ServiceLine.updateOneByOne(listOf(item1, item2, item3, item3), db) { update, _, index ->
+            when (index) {
+                0 -> {
+                    update[SORT_INDEX] = 111
+                    update[PARENT_ID] = null
+                }
+                1 -> {
+                    update[SORT_INDEX] = 2
+                    update[NAME] becomes { concatWs(", ", +NAME, NAME.makeLiteral("Updated")) }
+                }
+                2 -> {
+                    update[SORT_INDEX] = 33
+                }
+                3 -> {
+                    update[PARENT_ID] = 11L
+                }
+            }
+        }
+
+        assertTrue(called.get())
+
+        assertEquals("UPDATE \"service_line\" SET \"sort_index\" = CASE \"id\" WHEN 11 THEN 111 WHEN 13 THEN 33 ELSE \"sort_index\" END, \"name\" = CASE \"id\" WHEN 12 THEN CONCAT_WS(?, \"name\", ?) ELSE \"name\" END, \"parent_id\" = CASE \"id\" WHEN 13 THEN 11 ELSE \"parent_id\" END WHERE \"id\" IN (11, 13, 12)", theSql)
+
+        assertEquals(2, theParams.size)
+        assertEquals(", ", theParams[0])
+        assertEquals("Updated", theParams[1])
     }
 }

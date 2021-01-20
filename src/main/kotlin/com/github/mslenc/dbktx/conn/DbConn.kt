@@ -209,6 +209,11 @@ interface DbConn {
         return update
     }
 
+    fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+    newBatchedUpdateQuery(table: TABLE): BatchedUpdateQuery<E, ID, TABLE> {
+        return BatchedUpdateQueryImpl(this, table)
+    }
+
 
     suspend fun <OUT: DbEntity<OUT, *>, OUTTABLE: DbTable<OUT, *>, ROOT: DbEntity<ROOT, *>, ROOTTABLE: DbTable<ROOT, *>>
     OUTTABLE.insertSelect(queryRoot: ROOTTABLE, block: AggrInsertSelectTopLevelBuilder<OUT, ROOT>.() -> Unit) {
@@ -359,6 +364,16 @@ TABLE.updateByIds(ids: Collection<ID>, db: DbConn = getContextDb(), builder: TAB
     update.filter { primaryKey oneOf ids }
     builder(update)
     return update.execute()
+}
+
+suspend inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+TABLE.updateOneByOne(entities: Collection<E>, db: DbConn = getContextDb(), crossinline updateBuilder: TABLE.(BatchedUpdateRow<E, ID>, source: E, rowIndex: Int) -> Unit) {
+    val query = db.newBatchedUpdateQuery(this)
+    var rowIndex = 0
+    for (entity in entities) {
+        query.buildUpdate(entity) { updateBuilder(it, entity, rowIndex++) }
+    }
+    query.execute()
 }
 
 

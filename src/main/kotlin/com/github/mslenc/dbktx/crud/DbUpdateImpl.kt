@@ -7,11 +7,16 @@ import com.github.mslenc.dbktx.expr.ExprBinary
 import com.github.mslenc.dbktx.filters.MatchAnything
 import com.github.mslenc.dbktx.schema.*
 
+internal interface HasUpdatableColumns<E: DbEntity<E, ID>, ID: Any> {
+    val table: BaseTableInUpdateQuery<E>
+    operator fun <T : Any> set(column: Column<E, T>, value: Expr<T>)
+}
+
 internal class DbUpdateImpl<E : DbEntity<E, ID>, ID: Any>(
         db: DbConn,
         table: DbTable<E, ID>,
         private val specificEntity: E?)
-    : DbMutationImpl<E, ID>(db, BaseTableInUpdateQuery(UpdateQueryImpl(), table)), DbUpdate<E> {
+    : DbMutationImpl<E, ID>(db, BaseTableInUpdateQuery(UpdateQueryImpl(), table)), DbUpdate<E>, HasUpdatableColumns<E, ID> {
 
     private var filters: Expr<Boolean> = MatchAnything
     private val vals: MutableMap<Column<E, *>, Any?> = LinkedHashMap()
@@ -55,11 +60,11 @@ internal class DbUpdateImpl<E : DbEntity<E, ID>, ID: Any>(
     }
 
     override fun anyChangesSoFar(): Boolean {
-        return vals.isNotEmpty()
+        return exprs.isNotEmpty()
     }
 }
 
-internal class DbColumnMutationImpl<E: DbEntity<E, *>, T: Any>(private val update: DbUpdateImpl<E, *>, private val column: Column<E, T>) : DbColumnMutation<E, T> {
+internal class DbColumnMutationImpl<E: DbEntity<E, *>, T: Any>(private val update: HasUpdatableColumns<E, *>, private val column: Column<E, T>) : DbColumnMutation<E, T> {
     fun setDeltaValue(op: BinaryOp, delta: Expr<T>) {
         update[column] = ExprBinary(column.bindForSelect(update.table), op, delta)
     }
@@ -109,7 +114,7 @@ internal class DbColumnMutationImpl<E: DbEntity<E, *>, T: Any>(private val updat
     }
 }
 
-internal class ColumnUpdateOpsImpl<E : DbEntity<E, *>, T : Any>(internal val column: Column<E, T>, internal val update: DbUpdateImpl<E, *>) : ColumnUpdateOps<E, T> {
+internal class ColumnUpdateOpsImpl<E : DbEntity<E, *>, T : Any>(internal val column: Column<E, T>, internal val update: HasUpdatableColumns<E, *>) : ColumnUpdateOps<E, T> {
     override fun literal(value: T): Expr<T> {
         return column.makeLiteral(value)
     }
