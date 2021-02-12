@@ -23,8 +23,10 @@ class FilterContainsChild<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         // TODO: we could actually do it - CONSTANTs would become simple restrictions on this table, and PARAMETERS could be ignored,
         // but it's unclear if it'd be actually useful anywhere, so postponing for now
 
+        val handleNulls = info.columnMappings.any { it.rawColumnFrom.nullable }
+
         sql.expr(topLevel) {
-            sql.subQueryWrapper(negated, needleCanBeNull = false) { IN ->
+            sql.subQueryWrapper(negated, needleCanBeNull = handleNulls) { IN ->
                 paren(n > 1) {
                     tuple(mappings) {
                         sql(it.bindColumnTo(parentTable), false)
