@@ -1,20 +1,10 @@
 package com.github.mslenc.dbktx.schema
 
-import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.conn.DbConn
-import com.github.mslenc.dbktx.crud.DbUpdate
-
 abstract class DbEntity<E : DbEntity<E, ID>, ID: Any>(
-    val db: DbConn,
     val id: ID,
-    val row: DbRow
 ) {
 
     abstract val metainfo: DbTable<E, ID>
-
-    fun newUpdate(): DbUpdate<E> {
-        return metainfo.newUpdateQuery(db)
-    }
 
     override fun toString(): String {
         val sb = StringBuilder()
@@ -27,7 +17,7 @@ abstract class DbEntity<E : DbEntity<E, ID>, ID: Any>(
                 sb.append(", ")
             }
 
-            val value = column.invoke(row).toString()
+            val value = column.invoke(this as E).toString()
 
             val shortValue = if (value.length <= 40) {
                 value

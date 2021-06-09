@@ -1,14 +1,13 @@
 package com.github.mslenc.dbktx.schemas.test3
 
 import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.BIGINT
 import com.github.mslenc.dbktx.fieldprops.VARCHAR
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 
 
-class Employee(db: DbConn, id: Long, row: DbRow) : DbEntity<Employee, Long>(db, id, row) {
+class Employee(id: Long, val row: DbRow) : DbEntity<Employee, Long>(id) {
     override val metainfo get() = Employee
 
     val firstName: String get() = FIRST_NAME(row)

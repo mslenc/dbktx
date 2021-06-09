@@ -6,17 +6,17 @@ import com.github.mslenc.dbktx.composite.CompositeId
 import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderInternal
 import com.github.mslenc.dbktx.crud.*
-import com.github.mslenc.dbktx.util.EntityIndex
+import com.github.mslenc.dbktx.util.DbEntityCache
 import com.github.mslenc.dbktx.util.FakeRowData
 import com.github.mslenc.dbktx.util.Sql
 import com.github.mslenc.dbktx.util.getContextDb
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
+import kotlin.collections.LinkedHashMap
 import kotlin.reflect.KClass
 
 private fun createPrefixForTableName(tableName: String): String {
-    return tableName.split('_')
-                    .map { it.substring(0, 1) }
-                    .map { it.toUpperCase() }
-                    .joinToString("")
+    return tableName.split('_').joinToString("") { it.substring(0, 1).uppercase() }
 }
 
 open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
@@ -31,7 +31,7 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
     internal val columns = ArrayList<Column<E, *>>()
     internal val columnsByDbName = HashMap<String, Column<E, *>>()
 
-    internal lateinit var factory: (DbConn, ID, DbRow) -> E
+    internal lateinit var factory: (ID, DbRow) -> E
     lateinit var primaryKey: UniqueKeyDef<E, ID>
         internal set
 
@@ -69,8 +69,8 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
         return primaryKey(row)
     }
 
-    fun create(db: DbConn, id: ID, row: DbRow): E {
-        return factory(db, id, row)
+    fun create(id: ID, row: DbRow): E {
+        return factory(id, row)
     }
 
     val numColumns: Int
@@ -127,15 +127,15 @@ open class DbTable<E : DbEntity<E, ID>, ID : Any> protected constructor(
     }
 
 
-    internal fun callInsertAndResolveEntityInIndex(entityIndex: EntityIndex<E>, db: DbConn, row: DbRow, selectForUpdate: Boolean): E {
-        return entityIndex.insertAndResolveEntityInIndex(db, this, row, selectForUpdate)
+    internal fun callInsertAndResolveEntityInIndex(entityIndex: DbEntityCache<E>, row: DbRow, selectForUpdate: Boolean): E {
+        return entityIndex.insertAndResolveEntityInIndex(this, row, selectForUpdate)
     }
 
     internal suspend fun callEnqueueDeleteQuery(db: DbLoaderInternal, sql: Sql): Long {
         return db.enqueueDeleteQuery(this, sql)
     }
 
-    fun makeAggregateStreamQuery(db: DbConn, builder: AggrStreamTopLevelBuilder<E>.()->Unit): AggrStreamQuery<E> {
+    fun makeAggregateStreamQuery(db: DbConn = getContextDb(), builder: AggrStreamTopLevelBuilder<E>.()->Unit): AggrStreamQuery<E> {
         val query = AggrStreamImpl(this, db)
         query.expand(builder)
         return query

@@ -2,14 +2,13 @@ package com.github.mslenc.dbktx.schemas.test2
 
 import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.composite.CompositeId3
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.INT
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 
 
-class CompResult(db: DbConn, id: Int, row: DbRow)
-    : DbEntity<CompResult, Int>(db, id, row) {
+class CompResult(id: Int, val row: DbRow)
+    : DbEntity<CompResult, Int>(id) {
 
     override val metainfo get() = CompResult
 

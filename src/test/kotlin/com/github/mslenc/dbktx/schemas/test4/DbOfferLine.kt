@@ -1,7 +1,6 @@
 package com.github.mslenc.dbktx.schemas.test4
 
 import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.BIGINT
 import com.github.mslenc.dbktx.fieldprops.DECIMAL
 import com.github.mslenc.dbktx.fieldprops.INT
@@ -10,8 +9,7 @@ import com.github.mslenc.dbktx.schema.DbTable
 import java.math.BigDecimal
 
 
-class DbOfferLine(db: DbConn, id: Long, row: DbRow)
-    : DbEntity<DbOfferLine, Long>(db, id, row) {
+class DbOfferLine(id: Long, val row: DbRow) : DbEntity<DbOfferLine, Long>(id) {
 
     override val metainfo get() = DbOfferLine
 

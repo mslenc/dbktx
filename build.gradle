@@ -1,8 +1,8 @@
 group 'com.github.mslenc'
-version '0.23.1'
+version '0.24.0'
 
 buildscript {
-    ext.kotlin_version = '1.4.20'
+    ext.kotlin_version = '1.5.10'
     ext.jackson_version = '2.9.7'
 
     repositories {
@@ -29,7 +29,6 @@ java {
 repositories {
     mavenLocal()
     mavenCentral()
-    jcenter()
     maven { url 'https://jitpack.io' }
 }
 

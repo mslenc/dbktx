@@ -1,13 +1,15 @@
 package com.github.mslenc.dbktx.expr
 
+import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.runMysqlTest
 import com.github.mslenc.dbktx.schemas.initSchemas
 import com.github.mslenc.dbktx.schemas.test4.*
 import com.github.mslenc.dbktx.util.NoSuchEntity
+import com.github.mslenc.dbktx.util.getContextDb
 import com.github.mslenc.utils.smap
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
-import kotlinx.coroutines.withContext
 import org.junit.Test
 
 class DeepQueryTest {
@@ -22,17 +24,17 @@ class DeepQueryTest {
 
     @Test(expected = NoSuchEntity::class)
     fun testMissingEntity2() = runMysqlTest { db ->
-        db.scope.async { db.loadById(DbUser, 825) }.await()
+        db.async { db.loadById(DbUser, 825) }.await()
     }
 
     @Test(expected = NoSuchEntity::class)
     fun testMissingEntity3() = runMysqlTest { db ->
-        withContext(db.scope.coroutineContext) { db.loadById(DbUser, 825) }
+        db.loadById(DbUser, 825)
     }
 
     @Test(expected = NoSuchEntity::class)
     fun testMissingEntity4() = runMysqlTest { db ->
-        db.scope.async(start = CoroutineStart.UNDISPATCHED) { db.loadById(DbUser, 825) }.await()
+        db.async(start = CoroutineStart.UNDISPATCHED) { db.loadById(DbUser, 825) }.await()
     }
 
     @Test
@@ -41,14 +43,14 @@ class DeepQueryTest {
         db.loadById(DbOffer, 300)
         db.loadById(DbOffer, 301)
 
-        listOf(
-            db.scope.async { doPersonInfo(db.loadById(DbPerson, 1)) },
-            db.scope.async { doOfferInfo(db.loadById(DbOffer, 300)) },
-            db.scope.async { doOfferInfo(db.loadById(DbOffer, 300)) }
+        listOf<Deferred<*>>(
+            db.async { doPersonInfo(db.loadById(DbPerson, 1)) },
+            db.async { doOfferInfo(db.loadById(DbOffer, 300)) },
+            db.async { doOfferInfo(db.loadById(DbOffer, 300)) }
         ).map { it.await() }
     }
 
-    suspend fun doPersonInfo(person: DbPerson) = with(person.db.scope) {
+    suspend fun doPersonInfo(person: DbPerson, db: DbConn = getContextDb()) = with(db) {
         listOf(
             async { person.id },
             async { person.firstName },
@@ -58,7 +60,7 @@ class DeepQueryTest {
         ).map { it.await() }
     }
 
-    suspend fun doSimplePersonInfo(person: DbPerson) = with(person.db.scope) {
+    suspend fun doSimplePersonInfo(person: DbPerson, db: DbConn = getContextDb()) = with(db) {
         listOf(
             async { person.id },
             async { person.firstName },
@@ -66,7 +68,7 @@ class DeepQueryTest {
         ).map { it.await() }
     }
 
-    suspend fun doOfferInfo(offer: DbOffer) = with(offer.db.scope) {
+    suspend fun doOfferInfo(offer: DbOffer, db: DbConn = getContextDb()) = with(db) {
         listOf(
             async { offer.id },
             async { doSimplePersonInfo(offer.person()) },
@@ -74,7 +76,7 @@ class DeepQueryTest {
         ).map { it.await() }
     }
 
-    suspend fun doLineItem(offerLine: DbOfferLine) = with(offerLine.db.scope) {
+    suspend fun doLineItem(offerLine: DbOfferLine, db: DbConn = getContextDb()) = with(db) {
         listOf(
             async { offerLine.id },
             async { doProductInfo(offerLine.product()) },
@@ -82,14 +84,14 @@ class DeepQueryTest {
         ).map { it.await() }
     }
 
-    suspend fun doProductInfo(product: DbProduct) = with(product.db.scope) {
+    suspend fun doProductInfo(product: DbProduct, db: DbConn = getContextDb()) = with(db) {
         listOf(
             async { product.id },
             async { product.name }
         ).map { it.await() }
     }
 
-    suspend fun doTicketInfo(ticket: DbTicket) = with(ticket.db.scope) {
+    suspend fun doTicketInfo(ticket: DbTicket, db: DbConn = getContextDb()) = with(db) {
         listOf(
             async { ticket.id },
             async { ticket.person()?.id },

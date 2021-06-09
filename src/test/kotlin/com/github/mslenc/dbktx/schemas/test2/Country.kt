@@ -1,15 +1,14 @@
 package com.github.mslenc.dbktx.schemas.test2
 
 import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.INT
 import com.github.mslenc.dbktx.fieldprops.VARCHAR
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 import com.github.mslenc.dbktx.schema.RelToOne
 
-class Country(db: DbConn, id: Int, row: DbRow)
-    : DbEntity<Country, Int>(db, id, row) {
+class Country(id: Int, val row: DbRow)
+    : DbEntity<Country, Int>(id) {
 
     override val metainfo get() = Country
 

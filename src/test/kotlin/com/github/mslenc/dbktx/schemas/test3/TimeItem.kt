@@ -1,13 +1,12 @@
 package com.github.mslenc.dbktx.schemas.test3
 
 import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.BIGINT
 import com.github.mslenc.dbktx.fieldprops.BOOLEAN
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 
-class TimeItem(db: DbConn, id: Long, row: DbRow) : DbEntity<TimeItem, Long>(db, id, row) {
+class TimeItem(id: Long, val row: DbRow) : DbEntity<TimeItem, Long>(id) {
     override val metainfo get() = TimeItem
 
     val taskId: Long get() = TASK_ID(row)

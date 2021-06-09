@@ -1,14 +1,13 @@
 package com.github.mslenc.dbktx.schemas.test3
 
 import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.*
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 import java.math.BigDecimal
 import java.time.LocalDate
 
-class InvoiceDailyTimeItem(db: DbConn, id: Long, row: DbRow) : DbEntity<InvoiceDailyTimeItem, Long>(db, id, row) {
+class InvoiceDailyTimeItem(id: Long, val row: DbRow) : DbEntity<InvoiceDailyTimeItem, Long>(id) {
     override val metainfo get() = InvoiceDailyTimeItem
 
     val dateWorked: LocalDate get() = DATE_WORKED(row)

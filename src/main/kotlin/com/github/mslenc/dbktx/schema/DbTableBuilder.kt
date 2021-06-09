@@ -21,7 +21,7 @@ internal constructor(
 
     private var primaryKeyInitialized: Boolean = false
 
-    fun build(factory: (DbConn, ID, DbRow) -> E): DbTable<E, ID> {
+    fun build(factory: (ID, DbRow) -> E): DbTable<E, ID> {
         table.factory = factory
 
         val columnNames = StringBuilder()

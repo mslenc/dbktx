@@ -1,5 +1,6 @@
 package com.github.mslenc.dbktx.schema
 
+import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 
 class RelToOneImpl<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, KEY : Any> : RelToOne<FROM, TO> {
@@ -18,8 +19,8 @@ class RelToOneImpl<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>, KEY : Any> : 
     override val targetTable: DbTable<TO, *>
         get() = info.oneTable
 
-    override suspend fun invoke(from: FROM): TO? {
-        return from.db.find(from, this)
+    override suspend fun invoke(from: FROM, db: DbConn): TO? {
+        return db.find(from, this)
     }
 
     internal suspend fun callFindByRelation(db: DbLoaderImpl, from: FROM): TO? {

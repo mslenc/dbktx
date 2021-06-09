@@ -1,14 +1,13 @@
 package com.github.mslenc.dbktx.schemas.test2
 
 import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.*
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 
 
-class Person(db: DbConn, id: Int, row: DbRow)
-    : DbEntity<Person, Int>(db, id, row) {
+class Person(id: Int, val row: DbRow)
+    : DbEntity<Person, Int>(id) {
 
     override val metainfo get() = Person
 

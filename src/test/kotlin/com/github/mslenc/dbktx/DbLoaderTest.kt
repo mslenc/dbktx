@@ -12,6 +12,7 @@ import com.github.mslenc.dbktx.schemas.test1.*
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1.ITEM
 import com.github.mslenc.dbktx.util.BatchingLoader
 import com.github.mslenc.dbktx.util.FakeRowData
+import com.github.mslenc.dbktx.util.makeDbContext
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
 import com.github.mslenc.dbktx.util.testing.toLDT
@@ -187,9 +188,9 @@ class DbLoaderTest {
         val db = DbLoaderImpl(conn, this, RequestTime.forTesting())
 
 
-        val com0 = Company(db, comId0, FakeRowData.of(Company, comId0, "company", "2017-06-01T19:51:22".toLDT(), "2017-06-13T04:23:50".toLDT()))
-        val com1 = Company(db, comId1, FakeRowData.of(Company, comId1, "corporation", "2017-06-02T12:23:34".toLDT(), "2017-06-12T19:30:01".toLDT()))
-        val com2 = Company(db, comId2, FakeRowData.of(Company, comId2, "organization", "2017-06-03T00:00:01".toLDT(), "2017-06-11T22:12:21".toLDT()))
+        val com0 = Company(comId0, FakeRowData.of(Company, comId0, "company", "2017-06-01T19:51:22".toLDT(), "2017-06-13T04:23:50".toLDT()))
+        val com1 = Company(comId1, FakeRowData.of(Company, comId1, "corporation", "2017-06-02T12:23:34".toLDT(), "2017-06-12T19:30:01".toLDT()))
+        val com2 = Company(comId2, FakeRowData.of(Company, comId2, "organization", "2017-06-03T00:00:01".toLDT(), "2017-06-11T22:12:21".toLDT()))
 
         val futures = arrayOf (
             async { db.load(Company.BRANDS_SET, com2) },
@@ -255,9 +256,9 @@ class DbLoaderTest {
 
         assertEquals("B.\"company_id\", B.\"key\", B.\"name\", B.\"tag_line\", B.\"t_created\", B.\"t_updated\"", TestSchema1.BRAND.defaultColumnNames)
 
-        val brand0 = Brand(db, id0, FakeRowData.of(Brand, id0.companyId, id0.key, "Abc (tm)", "We a-b-c for you!", "2017-04-27T12:21:13".toLDT(), "2017-05-27T01:02:03".toLDT()))
-        val brand1 = Brand(db, id1, FakeRowData.of(Brand, id1.companyId, id1.key, "Sheeps Inc.", "Wool and stool!", "2017-02-25T13:31:14".toLDT(), "2017-03-27T02:03:04".toLDT()))
-        val brand2 = Brand(db, id2, FakeRowData.of(Brand, id2.companyId, id2.key, "Gooey Phooey", "Tee hee mee bee", "2017-03-26T14:41:15".toLDT(), "2017-04-27T03:04:05".toLDT()))
+        val brand0 = Brand(id0, FakeRowData.of(Brand, id0.companyId, id0.key, "Abc (tm)", "We a-b-c for you!", "2017-04-27T12:21:13".toLDT(), "2017-05-27T01:02:03".toLDT()))
+        val brand1 = Brand(id1, FakeRowData.of(Brand, id1.companyId, id1.key, "Sheeps Inc.", "Wool and stool!", "2017-02-25T13:31:14".toLDT(), "2017-03-27T02:03:04".toLDT()))
+        val brand2 = Brand(id2, FakeRowData.of(Brand, id2.companyId, id2.key, "Gooey Phooey", "Tee hee mee bee", "2017-03-26T14:41:15".toLDT(), "2017-04-27T03:04:05".toLDT()))
 
         // these should contain the order of the following async call
         val idxof0 = 2
@@ -587,40 +588,42 @@ class DbLoaderTest {
 
         val db: DbConn = DbLoaderImpl(conn, this, RequestTime.forTesting())
 
-        val batch = object : BatchingLoader<Long, String> {
-            override suspend fun loadNow(keys: Set<Long>, db: DbConn): Map<Long, String> {
-                val purchases = keys.map {
-                    db.loadById(Purchase, it)
-                }
-                val items = purchases.map {
-                    it.items()
+        withContext(makeDbContext(db)) {
+            val batch = object : BatchingLoader<Long, String> {
+                override suspend fun loadNow(keys: Set<Long>, db: DbConn): Map<Long, String> {
+                    val purchases = keys.map {
+                        db.loadById(Purchase, it)
+                    }
+                    val items = purchases.map {
+                        it.items()
+                    }
+
+                    return purchases.indices.associate { purchases[it].id to items[it].size.toString() }
                 }
 
-                return purchases.indices.associate { purchases[it].id to items[it].size.toString() }
+                override fun nullResult(): String {
+                    return "null result"
+                }
             }
 
-            override fun nullResult(): String {
-                return "null result"
+            val future1 = async {
+                val purchase123 = db.loadById(Purchase, 123L)
+                purchase123.items().maxByOrNull { it.sku }?.sku
             }
+
+            val future2 = async {
+                db.load(batch, 123L)
+            }
+
+            assertEquals(0, numCalls)
+
+            val result1 = future1.await()
+            val result2 = future2.await()
+
+            assertEquals("SKUZZZ", result1)
+            assertEquals("2", result2)
+            assertEquals(2, numCalls)
         }
-
-        val future1 = async {
-            val purchase123 = db.loadById(Purchase, 123L)
-            purchase123.items().maxBy { it.sku }?.sku
-        }
-
-        val future2 = async {
-            db.load(batch, 123L)
-        }
-
-        assertEquals(0, numCalls)
-
-        val result1 = future1.await()
-        val result2 = future2.await()
-
-        assertEquals("SKUZZZ", result1)
-        assertEquals("2", result2)
-        assertEquals(2, numCalls)
     }
 
     @Test
@@ -682,46 +685,48 @@ class DbLoaderTest {
 
         val db: DbConn = DbLoaderImpl(conn, this, RequestTime.forTesting())
 
-        val batch = object : BatchingLoader<Long, String> {
-            override suspend fun loadNow(keys: Set<Long>, db: DbConn): Map<Long, String> {
-                val purchases = keys.smap {
-                    db.loadById(Purchase, it)
-                }
-                val items = purchases.smap {
-                    it.items()
+        withContext(makeDbContext(db)) {
+            val batch = object : BatchingLoader<Long, String> {
+                override suspend fun loadNow(keys: Set<Long>, db: DbConn): Map<Long, String> {
+                    val purchases = keys.smap {
+                        db.loadById(Purchase, it)
+                    }
+                    val items = purchases.smap {
+                        it.items()
+                    }
+
+                    return purchases.indices.associate { purchases[it].id to items[it].size.toString() }
                 }
 
-                return purchases.indices.associate { purchases[it].id to items[it].size.toString() }
+                override fun nullResult(): String {
+                    return "null result"
+                }
             }
 
-            override fun nullResult(): String {
-                return "null result"
+            val future1 = async {
+                val purchase123 = db.loadById(Purchase, 123L)
+                purchase123.items().maxByOrNull { it.sku }?.sku
             }
+
+            val future2 = async {
+                db.load(batch, 123L)
+            }
+
+            val future3 = async {
+                db.load(batch, 234L)
+            }
+
+            assertEquals(0, numCalls)
+
+            val result1 = future1.await()
+            val result2 = future2.await()
+            val result3 = future3.await()
+
+            assertEquals("SKUZZZ", result1)
+            assertEquals("2", result2)
+            assertEquals("4", result3)
+            assertEquals(4, numCalls)
         }
-
-        val future1 = async {
-            val purchase123 = db.loadById(Purchase, 123L)
-            purchase123.items().maxBy { it.sku }?.sku
-        }
-
-        val future2 = async {
-            db.load(batch, 123L)
-        }
-
-        val future3 = async {
-            db.load(batch, 234L)
-        }
-
-        assertEquals(0, numCalls)
-
-        val result1 = future1.await()
-        val result2 = future2.await()
-        val result3 = future3.await()
-
-        assertEquals("SKUZZZ", result1)
-        assertEquals("2", result2)
-        assertEquals("4", result3)
-        assertEquals(4, numCalls)
     }
 }
 

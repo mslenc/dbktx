@@ -9,7 +9,7 @@ import com.github.mslenc.dbktx.schema.DbTable
 import java.time.LocalDate
 
 
-class Invoice(db: DbConn, id: Long, row: DbRow) : DbEntity<Invoice, Long>(db, id, row) {
+class Invoice(id: Long, val row: DbRow) : DbEntity<Invoice, Long>(id) {
     override val metainfo get() = Invoice
 
     val invoiceDate: LocalDate get() = INVOICE_DATE(row)

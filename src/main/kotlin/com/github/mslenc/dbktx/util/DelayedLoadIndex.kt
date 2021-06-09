@@ -1,7 +1,6 @@
 package com.github.mslenc.dbktx.util
 
 import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderInternal
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
@@ -92,16 +91,16 @@ internal class SingleKeyIndex<E: DbEntity<E, *>, KEY: Any>(
     }
 }
 
-internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>) {
+internal class DbEntityCache<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>) {
 
-    val indexes = Array<SingleKeyIndex<E, *>>(metainfo.uniqueKeys.size) { SingleKeyIndex(metainfo, metainfo.uniqueKeys[it]) }
+    internal val indexes = Array<SingleKeyIndex<E, *>>(metainfo.uniqueKeys.size) { SingleKeyIndex(metainfo, metainfo.uniqueKeys[it]) }
 
     @Suppress("UNCHECKED_CAST")
-    fun <T: Any> getSingleKeyIndex(keyDef: UniqueKeyDef<E, T>): SingleKeyIndex<E, T> {
+    internal fun <T: Any> getSingleKeyIndex(keyDef: UniqueKeyDef<E, T>): SingleKeyIndex<E, T> {
         return indexes[keyDef.indexInTable] as SingleKeyIndex<E, T>
     }
 
-    fun getAndClearKeysToLoad(): IndexAndKeys<E, *>? {
+    internal fun getAndClearKeysToLoad(): IndexAndKeys<E, *>? {
         for (index in indexes) {
             val res = index.getAndClearKeysToLoad()
             if (res != null) {
@@ -120,10 +119,10 @@ internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>) {
         return dbLoaderImpl.loadDelayedTable(this)
     }
 
-    fun rowLoaded(db: DbConn, row: DbRow, selectForUpdate: Boolean): E {
+    internal fun rowLoaded(row: DbRow, selectForUpdate: Boolean): E {
         // first, we create/reuse the entity; then we go through all indexes and insert the entity in them..
 
-        val entity: E = metainfo.callInsertAndResolveEntityInIndex(this, db, row, selectForUpdate)
+        val entity: E = metainfo.callInsertAndResolveEntityInIndex(this, row, selectForUpdate)
 
         for (i in 1 until indexes.size) {
             val index = indexes[i]
@@ -134,7 +133,7 @@ internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>) {
     }
 
     internal fun <Z: DbEntity<Z, T>, T: Any>
-    insertAndResolveEntityInIndex(db: DbConn, metainfo: DbTable<Z, T>, row: DbRow, selectForUpdate: Boolean): Z {
+    insertAndResolveEntityInIndex(metainfo: DbTable<Z, T>, row: DbRow, selectForUpdate: Boolean): Z {
         @Suppress("UNCHECKED_CAST")
         val primaryIndex = indexes[0] as SingleKeyIndex<Z, T>
         val primaryId: T = primaryIndex.keyDef.invoke(row)
@@ -146,11 +145,11 @@ internal class EntityIndex<E : DbEntity<E, *>>(val metainfo: DbTable<E, *>) {
             if (entityMaybe != null && !selectForUpdate) {
                 entity = entityMaybe
             } else {
-                entity = metainfo.create(db, primaryId, row)
+                entity = metainfo.create(primaryId, row)
                 primaryInfo.replaceResult(entity)
             }
         } else {
-            entity = metainfo.create(db, primaryId, row)
+            entity = metainfo.create(primaryId, row)
             primaryInfo.handleResult(entity)
             primaryIndex.removeIdToLoad(primaryId)
         }

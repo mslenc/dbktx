@@ -1,7 +1,6 @@
 package com.github.mslenc.dbktx.schemas.test1
 
 import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.DATETIME
 import com.github.mslenc.dbktx.fieldprops.VARCHAR
 import com.github.mslenc.dbktx.schema.DbEntity
@@ -10,8 +9,8 @@ import com.github.mslenc.dbktx.schema.DbTable
 import java.time.LocalDateTime
 import java.util.*
 
-class Company(db: DbConn, id: UUID, row: DbRow)
-    : DbEntity<Company, UUID>(db, id, row) {
+class Company(id: UUID, val row: DbRow)
+    : DbEntity<Company, UUID>(id) {
 
     override val metainfo get() = Company
 

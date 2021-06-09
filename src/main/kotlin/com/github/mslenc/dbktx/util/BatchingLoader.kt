@@ -5,8 +5,6 @@ import com.github.mslenc.dbktx.schema.DbTable
 import com.github.mslenc.utils.error
 import com.github.mslenc.utils.getLogger
 import com.github.mslenc.utils.trace
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.*
 
@@ -140,23 +138,23 @@ class ComputeBatches(
 
 
 
-internal class BatchingLoaderIndex<KEY: Any, RESULT>(val loader: BatchingLoader<KEY, RESULT>) {
+internal class DbBatchCache<KEY: Any, RESULT>(val loader: BatchingLoader<KEY, RESULT>) {
     private var scheduled = false
     private var index: HashMap<KEY, BatchValueState<RESULT>> = HashMap()
     private var keysToLoad = LinkedHashSet<KEY>()
 
-    private fun ensureScheduled(db: DbConn, scope: CoroutineScope) {
+    private fun ensureScheduled(db: DbConn) {
         if (!scheduled) {
             logger.trace { "Scheduling $loader for execution" }
             scheduled = true
-            scope.launch {
+            db.launchInScope {
                 scheduled = false
                 performDelayedOps(db)
             }
         }
     }
 
-    suspend fun provideValue(key: KEY, db: DbConn, scope: CoroutineScope): RESULT {
+    suspend fun provideValue(key: KEY, db: DbConn): RESULT {
         val valueState = index.computeIfAbsent(key) { BatchValueState() }
 
         val parentBatches = coroutineContext[ComputeBatches]
@@ -165,7 +163,7 @@ internal class BatchingLoaderIndex<KEY: Any, RESULT>(val loader: BatchingLoader<
             BatchKeyState.INITIAL -> {
                 logger.trace { "Adding key $key of loader $loader to list for loading and scheduling" }
                 keysToLoad.add(key)
-                ensureScheduled(db, scope)
+                ensureScheduled(db)
                 suspendCoroutine { valueState.addReceiver(it, parentBatches) }
             }
 
@@ -302,6 +300,6 @@ internal class BatchingLoaderIndex<KEY: Any, RESULT>(val loader: BatchingLoader<
     }
 
     companion object {
-        val logger = getLogger<BatchingLoaderIndex<*,*>>()
+        val logger = getLogger<DbBatchCache<*,*>>()
     }
 }

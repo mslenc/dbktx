@@ -12,6 +12,8 @@ import com.github.mslenc.dbktx.util.BatchingLoader
 import com.github.mslenc.dbktx.util.Sql
 import com.github.mslenc.dbktx.util.getContextDb
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 
 /**
  * A connection to the database, providing methods for querying, updating and
@@ -19,7 +21,6 @@ import kotlinx.coroutines.CoroutineScope
  */
 interface DbConn {
     val requestTime: RequestTime
-    val scope: CoroutineScope
     val dbType: DbType
 
     suspend fun startTransaction()
@@ -254,6 +255,10 @@ interface DbConn {
      */
     fun <E : DbEntity<E, ID>, ID: Any>
     flushTableCache(table: DbTable<E, ID>)
+
+    fun launchInScope(start: CoroutineStart = CoroutineStart.DEFAULT, block: suspend CoroutineScope.() -> Unit)
+
+    fun <T> async(start: CoroutineStart = CoroutineStart.DEFAULT, block: suspend CoroutineScope.() -> T): Deferred<T>
 }
 
 
@@ -296,12 +301,12 @@ TABLE.insertMapped(sourceData: Collection<SRC>, db: DbConn = getContextDb(), cro
     query.execute()
 }
 
-inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
 TABLE.newUpdate(db: DbConn = getContextDb()): DbUpdate<E> {
     return db.newUpdateQuery(this)
 }
 
-inline fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
+fun <E: DbEntity<E, ID>, ID: Any, TABLE: DbTable<E, ID>>
 TABLE.newUpdate(entity: E, db: DbConn = getContextDb()): DbUpdate<E> {
     return db.newUpdateQuery(this, entity)
 }
@@ -464,21 +469,20 @@ TABLE.deleteById(id: ID, db: DbConn = getContextDb()): Boolean {
 }
 
 suspend fun <E : DbEntity<E, ID>, ID: Any>
-delete(entity: E): Boolean {
+delete(entity: E, db: DbConn = getContextDb()): Boolean {
     val table = entity.metainfo
-    val query = entity.db.newDeleteQuery(table)
+    val query = db.newDeleteQuery(table)
     query.filter { table.primaryKey eq entity.id }
     return query.deleteAllMatchingRows() > 0
 }
 
 suspend inline fun <E : DbEntity<E, ID>, ID: Any>
-delete(entities: Collection<E>): Long {
+delete(entities: Collection<E>, db: DbConn = getContextDb()): Long {
     if (entities.isEmpty())
         return 0
 
     val first = entities.first()
     val table = first.metainfo
-    val db = first.db
 
     val query = db.newDeleteQuery(table)
     query.filter { table.primaryKey oneOf entities.map { it.id } }

@@ -9,8 +9,8 @@ import com.github.mslenc.dbktx.schema.*
 import java.time.LocalDateTime
 import java.util.*
 
-class Brand(db: DbConn, id: Brand.Id, row: DbRow)
-    : DbEntity<Brand, Brand.Id>(db, id, row) {
+class Brand(id: Brand.Id, val row: DbRow)
+    : DbEntity<Brand, Brand.Id>(id) {
 
     override val metainfo get() = Brand
 

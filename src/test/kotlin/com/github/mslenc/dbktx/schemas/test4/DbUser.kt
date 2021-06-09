@@ -1,15 +1,13 @@
 package com.github.mslenc.dbktx.schemas.test4
 
 import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.BIGINT
 import com.github.mslenc.dbktx.fieldprops.VARCHAR
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 import com.github.mslenc.utils.CachedAsync
 
-class DbUser(db: DbConn, id: Long, row: DbRow)
-    : DbEntity<DbUser, Long>(db, id, row) {
+class DbUser(id: Long, val row: DbRow) : DbEntity<DbUser, Long>(id) {
 
     override val metainfo get() = DbUser
 

@@ -1,15 +1,13 @@
 package com.github.mslenc.dbktx.schemas.test4
 
 import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.*
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 import java.time.LocalDate
 
 
-class DbOffer(db: DbConn, id: Long, row: DbRow)
-    : DbEntity<DbOffer, Long>(db, id, row) {
+class DbOffer(id: Long, val row: DbRow) : DbEntity<DbOffer, Long>(id) {
 
     override val metainfo get() = DbOffer
 

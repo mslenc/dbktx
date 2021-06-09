@@ -10,6 +10,7 @@ import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.SimpleRequestTime
 import com.github.mslenc.dbktx.util.DebuggingConnection
+import com.github.mslenc.dbktx.util.makeDbContext
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -42,7 +43,7 @@ fun runMysqlTest(block: suspend (DbConn) -> Unit) {
                 println("Caught $exception")
             }
 
-            launch(handler) {
+            launch(handler + makeDbContext(loader)) {
                 block(loader)
             }.join()
         }

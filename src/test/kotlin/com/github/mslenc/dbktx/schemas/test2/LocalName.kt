@@ -2,15 +2,14 @@ package com.github.mslenc.dbktx.schemas.test2
 
 import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.composite.CompositeId3
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.INT
 import com.github.mslenc.dbktx.fieldprops.VARCHAR
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTableC
 
 
-class LocalName(db: DbConn, id: LocalName.Id, row: DbRow)
-    : DbEntity<LocalName, LocalName.Id>(db, id, row) {
+class LocalName(id: LocalName.Id, val row: DbRow)
+    : DbEntity<LocalName, LocalName.Id>(id) {
 
     override val metainfo get() = LocalName
 

@@ -4,10 +4,10 @@ import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 import com.github.mslenc.utils.getLogger
 
-internal class MasterIndex {
+class DbCache {
 
-    private val tableIndex = LinkedHashMap<DbTable<*, *>, EntityIndex<*>>()
-    private val loaderIndex = LinkedHashMap<BatchingLoader<*, *>, BatchingLoaderIndex<*, *>>()
+    private val tableIndex = LinkedHashMap<DbTable<*, *>, DbEntityCache<*>>()
+    private val loaderIndex = LinkedHashMap<BatchingLoader<*, *>, DbBatchCache<*, *>>()
 
     fun flushAll() {
         // (When we flush, we fail any outstanding request. However, handlers for those failures
@@ -52,22 +52,21 @@ internal class MasterIndex {
     }
 
     @Suppress("UNCHECKED_CAST")
-    operator fun <E : DbEntity<E, *>>
-    get(table: DbTable<E, *>): EntityIndex<E> {
-        return tableIndex.computeIfAbsent(table) { EntityIndex(table) } as EntityIndex<E>
+    internal operator fun <E : DbEntity<E, *>>
+    get(table: DbTable<E, *>): DbEntityCache<E> {
+        return tableIndex.computeIfAbsent(table) { DbEntityCache(table) } as DbEntityCache<E>
     }
 
     @Suppress("UNCHECKED_CAST")
-    operator fun <KEY: Any, RESULT>
-    get(loader: BatchingLoader<KEY, RESULT>): BatchingLoaderIndex<KEY, RESULT> {
-
-        return loaderIndex.computeIfAbsent(loader) { BatchingLoaderIndex(loader) } as BatchingLoaderIndex<KEY, RESULT>
+    internal operator fun <KEY: Any, RESULT>
+    get(loader: BatchingLoader<KEY, RESULT>): DbBatchCache<KEY, RESULT> {
+        return loaderIndex.computeIfAbsent(loader) { DbBatchCache(loader) } as DbBatchCache<KEY, RESULT>
     }
 
-    val allCachedTables: Collection<EntityIndex<*>>
+    internal val allCachedTables: Collection<DbEntityCache<*>>
         get() = tableIndex.values
 
     companion object {
-        val logger = getLogger<MasterIndex>()
+        val logger = getLogger<DbCache>()
     }
 }

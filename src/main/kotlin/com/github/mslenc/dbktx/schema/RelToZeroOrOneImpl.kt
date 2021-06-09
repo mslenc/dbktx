@@ -36,8 +36,8 @@ class RelToZeroOrOneImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : Db
     override val targetTable: DbTable<TO, *>
         get() = info.manyTable
 
-    override suspend fun invoke(from: FROM): TO? {
-        return from.db.load(this, from)
+    override suspend fun invoke(from: FROM, db: DbConn): TO? {
+        return db.load(this, from)
     }
 
     override fun nullResult(): TO? {

@@ -30,7 +30,7 @@ buildSelectQuery(query: EntityQueryImpl<E>, selectForUpdate: Boolean): Sql {
         FROM(query.table)
         WHERE(query.filters)
 
-        if (!query.orderBy.isEmpty()) {
+        if (query.orderBy.isNotEmpty()) {
             +" ORDER BY "
             tuple(query.orderBy) {
                 +it.expr
@@ -131,8 +131,7 @@ internal fun <E : DbEntity<E, *>, T: Any> emitValue(column: Column<E, T>, values
 
 const val MAX_BATCH_SIZE = 512
 
-internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val conn: DbConnection) {
-    internal val masterIndex = MasterIndex()
+internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val conn: DbConnection, internal val cache: DbCache) {
     private var scheduled: Boolean = false // whether the delayed loading is already scheduled
 
     private suspend fun scheduleDelayedExec() {
@@ -140,7 +139,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
             return
 
         scheduled = true
-        publicDb.scope.launch {
+        publicDb.launchInScope {
             performDelayedOps()
         }
     }
@@ -153,7 +152,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
         try {
             startOver@
             while (true) {
-                for (index in masterIndex.allCachedTables) {
+                for (index in cache.allCachedTables) {
                     if (index.loadNow(this)) {
                         any = true
                         continue@startOver
@@ -172,7 +171,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
     }
 
     internal suspend fun <E : DbEntity<E, *>>
-    loadDelayedTable(mainIndex: EntityIndex<E>): Boolean {
+    loadDelayedTable(mainIndex: DbEntityCache<E>): Boolean {
         val indexAndKeys = mainIndex.getAndClearKeysToLoad() ?: return false
         loadDelayedTableInIndex(indexAndKeys)
         return true
@@ -212,13 +211,13 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
     }
 
     private suspend fun <E : DbEntity<E, *>>
-    queryNow(entities: EntityIndex<E>, sb: Sql, selectForUpdate: Boolean): List<E> {
+    queryNow(entities: DbEntityCache<E>, sb: Sql, selectForUpdate: Boolean): List<E> {
         val queryResult = conn.executeQuery(sb.getSql(), sb.params).await()
 
         val res = ArrayList<E>()
 
         for (row in queryResult) {
-            val entity: E = entities.rowLoaded(publicDb, row, selectForUpdate)
+            val entity: E = entities.rowLoaded(row, selectForUpdate)
             res.add(entity)
         }
 
@@ -229,7 +228,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
 
     private suspend fun <E : DbEntity<E, *>>
     queryNow(table: DbTable<E, *>, filter: ExprBuilder<E>.() -> Expr<Boolean>): List<E> {
-        val entities = masterIndex[table]
+        val entities = cache[table]
 
         val query = SimpleSelectQueryImpl()
         val boundTable = BaseTableInQuery(query, table)
@@ -252,7 +251,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
 
         val updateResult = conn.executeUpdate(sql, params).await()
 
-        masterIndex.flushRelated(table)
+        cache.flushRelated(table)
 
         val keys = updateResult.generatedIds
         val id: ID
@@ -277,7 +276,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
 
         val updateResult = conn.executeUpdate(sql, params).await()
 
-        masterIndex.flushRelated(table)
+        cache.flushRelated(table)
 
         return updateResult.rowsAffected
     }
@@ -291,7 +290,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
 
         val updateResult = conn.executeUpdate(sql, params).await()
 
-        masterIndex.flushRelated(table)
+        cache.flushRelated(table)
 
         return updateResult.rowsAffected
     }
@@ -304,7 +303,7 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
     internal suspend fun <E : DbEntity<E, *>, KEY : Any>
     find(keyDef: UniqueKeyDef<E, KEY>, key: KEY): E? {
         val table = keyDef.table
-        val entities = masterIndex[table]
+        val entities = cache[table]
         val index = entities.getSingleKeyIndex(keyDef)
         val entityInfo = index[key]
 
@@ -330,14 +329,14 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
 
     internal suspend fun <KEY: Any, RESULT>
     load(loader: BatchingLoader<KEY, RESULT>, key: KEY, db: DbConn): RESULT {
-        val loaderInfo = masterIndex[loader]
+        val loaderInfo = cache[loader]
 
-        return loaderInfo.provideValue(key, db, db.scope)
+        return loaderInfo.provideValue(key, db)
     }
 
     internal suspend fun <E : DbEntity<E, *>>
     queryNow(table: DbTable<E, *>, sb: Sql, selectForUpdate: Boolean): List<E> {
-        val entities = masterIndex[table]
+        val entities = cache[table]
         return queryNow(entities, sb, selectForUpdate)
     }
 
@@ -346,8 +345,8 @@ internal class DbLoaderInternal(private val publicDb: DbLoaderImpl, internal val
     }
 }
 
-class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, override val requestTime: RequestTime) : DbConn {
-    private val db = DbLoaderInternal(this, conn)
+class DbLoaderImpl(conn: DbConnection, private val scope: CoroutineScope, override val requestTime: RequestTime, dbCache: DbCache = DbCache()) : DbConn {
+    private val db = DbLoaderInternal(this, conn, dbCache)
 
     override val dbType: DbType
         get() = db.conn.config.type()
@@ -361,11 +360,11 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
     }
 
     override fun <E : DbEntity<E, ID>, ID : Any> flushTableCache(table: DbTable<E, ID>) {
-        db.masterIndex.flushRelated(table)
+        db.cache.flushRelated(table)
     }
 
     override fun flushAllCaches() {
-        db.masterIndex.flushAll()
+        db.cache.flushAll()
     }
 
     override suspend fun streamQuery(sqlBuilder: Sql, receiver: (DbRow) -> Unit): Long {
@@ -656,7 +655,15 @@ class DbLoaderImpl(conn: DbConnection, override val scope: CoroutineScope, overr
                 throw IllegalArgumentException("Missing value for column ${column.fieldName}")
         }
 
-        return db.masterIndex[table].rowLoaded(this, decoded, false)
+        return db.cache[table].rowLoaded(decoded, false)
+    }
+
+    override fun launchInScope(start: CoroutineStart, block: suspend CoroutineScope.() -> Unit) {
+        scope.launch(makeDbContext(this), CoroutineStart.DEFAULT, block)
+    }
+
+    override fun <T> async(start: CoroutineStart, block: suspend CoroutineScope.() -> T): Deferred<T> {
+        return scope.async(makeDbContext(this), CoroutineStart.DEFAULT, block)
     }
 
     companion object {

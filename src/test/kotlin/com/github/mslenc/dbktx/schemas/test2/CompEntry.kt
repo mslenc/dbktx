@@ -8,8 +8,8 @@ import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 
 
-class CompEntry(db: DbConn, id: Int, row: DbRow)
-    : DbEntity<CompEntry, Int>(db, id, row) {
+class CompEntry(id: Int, val row: DbRow)
+    : DbEntity<CompEntry, Int>(id) {
 
     override val metainfo get() = CompEntry
 

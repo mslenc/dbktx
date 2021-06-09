@@ -1,14 +1,13 @@
 package com.github.mslenc.dbktx.schemas.test1
 
 import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.VARCHAR
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 import java.util.*
 
-class ContactInfo(db: DbConn, id: UUID, row: DbRow)
-    : DbEntity<ContactInfo, UUID>(db, id, row) {
+class ContactInfo(id: UUID, val row: DbRow)
+    : DbEntity<ContactInfo, UUID>(id) {
 
     override val metainfo get() = ContactInfo
 

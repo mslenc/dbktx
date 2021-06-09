@@ -43,12 +43,12 @@ class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntit
         return queryExprBuilder(fromIds, tableInQuery)
     }
 
-    override suspend fun invoke(from: FROM): List<TO> {
-        return from.db.load(this, from)
+    override suspend fun invoke(from: FROM, db: DbConn): List<TO> {
+        return db.load(this, from)
     }
 
-    override suspend fun invoke(from: FROM, block: ExprBuilder<TO>.()->Expr<Boolean>): List<TO> {
-        val query: EntityQuery<TO> = info.manyTable.newEntityQuery(from.db)
+    override suspend fun invoke(from: FROM, block: ExprBuilder<TO>.()->Expr<Boolean>, db: DbConn): List<TO> {
+        val query: EntityQuery<TO> = info.manyTable.newEntityQuery(db)
 
         query.filter { createCondition(setOf(info.oneKey(from)), query.table) }
         query.filter(block)
@@ -56,16 +56,16 @@ class RelToManyImpl<FROM : DbEntity<FROM, FROM_KEY>, FROM_KEY: Any, TO : DbEntit
         return query.execute()
     }
 
-    override suspend fun countAll(from: FROM): Long {
-        val query: EntityQuery<TO> = info.manyTable.newEntityQuery(from.db)
+    override suspend fun countAll(from: FROM, db: DbConn): Long {
+        val query: EntityQuery<TO> = info.manyTable.newEntityQuery(db)
 
         query.filter { createCondition(setOf(info.oneKey(from)), query.table) }
 
         return query.countAll()
     }
 
-    override suspend fun count(from: FROM, block: ExprBuilder<TO>.()->Expr<Boolean>): Long {
-        val query: EntityQuery<TO> = info.manyTable.newEntityQuery(from.db)
+    override suspend fun count(from: FROM, block: ExprBuilder<TO>.()->Expr<Boolean>, db: DbConn): Long {
+        val query: EntityQuery<TO> = info.manyTable.newEntityQuery(db)
 
         query.filter { createCondition(setOf(info.oneKey(from)), query.table) }
         query.filter(block)

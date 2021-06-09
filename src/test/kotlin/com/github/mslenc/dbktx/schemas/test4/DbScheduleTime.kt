@@ -1,13 +1,11 @@
 package com.github.mslenc.dbktx.schemas.test4
 
 import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.BIGINT
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTable
 
-class DbScheduleTime(db: DbConn, id: Long, row: DbRow)
-    : DbEntity<DbScheduleTime, Long>(db, id, row) {
+class DbScheduleTime(id: Long, val row: DbRow) : DbEntity<DbScheduleTime, Long>(id) {
 
     override val metainfo get() = DbScheduleTime
 

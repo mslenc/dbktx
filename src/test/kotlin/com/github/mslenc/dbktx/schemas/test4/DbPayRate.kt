@@ -1,7 +1,6 @@
 package com.github.mslenc.dbktx.schemas.test4
 
 import com.github.mslenc.asyncdb.DbRow
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.BIGINT
 import com.github.mslenc.dbktx.fieldprops.DATE
 import com.github.mslenc.dbktx.fieldprops.DECIMAL
@@ -10,8 +9,7 @@ import com.github.mslenc.dbktx.schema.DbTable
 import java.math.BigDecimal
 import java.time.LocalDate
 
-class DbPayRate(db: DbConn, id: Long, row: DbRow)
-    : DbEntity<DbPayRate, Long>(db, id, row) {
+class DbPayRate(id: Long, val row: DbRow) : DbEntity<DbPayRate, Long>(id) {
 
     override val metainfo get() = DbPayRate
 

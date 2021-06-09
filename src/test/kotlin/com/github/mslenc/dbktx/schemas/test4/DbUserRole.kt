@@ -2,13 +2,11 @@ package com.github.mslenc.dbktx.schemas.test4
 
 import com.github.mslenc.asyncdb.DbRow
 import com.github.mslenc.dbktx.composite.CompositeId2
-import com.github.mslenc.dbktx.conn.DbConn
 import com.github.mslenc.dbktx.fieldprops.BIGINT
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.DbTableC
 
-class DbUserRole(db: DbConn, id: Id, row: DbRow)
-    : DbEntity<DbUserRole, DbUserRole.Id>(db, id, row) {
+class DbUserRole(id: Id, val row: DbRow) : DbEntity<DbUserRole, DbUserRole.Id>(id) {
 
     override val metainfo get() = DbUserRole
 

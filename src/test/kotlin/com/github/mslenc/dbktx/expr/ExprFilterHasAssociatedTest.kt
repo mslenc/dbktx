@@ -10,11 +10,13 @@ import com.github.mslenc.dbktx.schemas.test1.Company.Companion.CONTACT_INFO_REF
 import com.github.mslenc.dbktx.schemas.test1.ContactInfo
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
 import com.github.mslenc.dbktx.schemas.test3.Employee
+import com.github.mslenc.dbktx.util.makeDbContext
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import com.github.mslenc.dbktx.util.testing.MockResultSet
 import com.github.mslenc.utils.smap
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.junit.Test
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -170,13 +172,15 @@ class ExprFilterHasAssociatedTest {
 
         val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
 
-        val people = db.loadByIds(Employee, listOf(1L, 2L))
-        val john = people.getValue(1L)
-        val mary = people.getValue(2L)
+        withContext(makeDbContext(db)) {
+            val people = db.loadByIds(Employee, listOf(1L, 2L))
+            val john = people.getValue(1L)
+            val mary = people.getValue(2L)
 
-        listOf(john, mary).smap { it.contactInfo() }
+            listOf(john, mary).smap { it.contactInfo() }
 
-        assertEquals("John Smith", "${john.contactFirstName()} ${john.contactLastName()}")
-        assertEquals("null null", "${mary.contactFirstName()} ${mary.contactLastName()}")
+            assertEquals("John Smith", "${john.contactFirstName()} ${john.contactLastName()}")
+            assertEquals("null null", "${mary.contactFirstName()} ${mary.contactLastName()}")
+        }
     }
 }
