@@ -125,6 +125,9 @@ internal object SqlTypes {
             TIMESTAMP ->
                 return SqlTypeInstant(sqlType, isNotNull = isNotNull)
 
+            TIMESTAMP_TZ ->
+                return SqlTypeInstantFromOffsetTime(sqlType, isNotNull = isNotNull)
+
             else ->
                 throw UnsupportedOperationException("No mapping from $sqlType to Instant")
         }
