@@ -660,6 +660,8 @@ internal constructor(
         table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
             val targetTable = table.schema.getTableFor(targetClass)
 
+            targetTable.incomingRefs += result
+
             if (!sourceColumn.sqlType.kotlinType.isSubclassOf(targetTable.idClass))
                 throw IllegalStateException("Type mismatch on relToOne mapping for table " + table.dbName)
 

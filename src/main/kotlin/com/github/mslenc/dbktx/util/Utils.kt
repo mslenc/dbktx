@@ -8,11 +8,11 @@ private object HexUtil {
         fill(-1)
 
         for (a in 0..9)
-            this['0'.toInt() + a] = a
+            this['0'.code + a] = a
 
         for (a in 0..5) {
-            this['a'.toInt() + a] = 10 + a
-            this['A'.toInt() + a] = 10 + a
+            this['a'.code + a] = 10 + a
+            this['A'.code + a] = 10 + a
         }
     }
 }
@@ -51,8 +51,8 @@ fun toHexBytes(bytes: ByteArray): ByteArray {
     var pos = 0
 
     for (b in bytes) {
-        res[pos++] = HEX_CHARS[b.toInt().shr(4).and(15)].toByte()
-        res[pos++] = HEX_CHARS[b.toInt()       .and(15)].toByte()
+        res[pos++] = HEX_CHARS[b.toInt().shr(4).and(15)].code.toByte()
+        res[pos++] = HEX_CHARS[b.toInt()       .and(15)].code.toByte()
     }
 
     return res
@@ -68,8 +68,8 @@ fun bytesFromHex(str: String): ByteArray {
 
     var outPos = 0
     for (inPos in 0 until inLen step 2) {
-        val char0 = str[inPos    ].toInt()
-        val char1 = str[inPos + 1].toInt()
+        val char0 = str[inPos    ].code
+        val char1 = str[inPos + 1].code
 
         if (minOf(char0, char1) < 0 || maxOf(char0, char1) > 255)
             throw IllegalArgumentException("Not a hex string")
