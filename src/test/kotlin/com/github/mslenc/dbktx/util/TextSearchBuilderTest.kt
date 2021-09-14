@@ -54,7 +54,7 @@ class TextSearchBuilderTest {
 
         Assert.assertTrue(called.get())
 
-        Assert.assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C WHERE C.\"id\" IN (SELECT DISTINCT B.\"company_id\" FROM \"brands\" AS B WHERE (B.\"name\" ILIKE ? ESCAPE '|') AND (B.\"name\" ILIKE ? ESCAPE '|'))", theSql)
+        Assert.assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C WHERE C.\"id\" IN (SELECT B.\"company_id\" FROM \"brands\" AS B WHERE (B.\"name\" ILIKE ? ESCAPE '|') AND (B.\"name\" ILIKE ? ESCAPE '|'))", theSql)
 
         Assert.assertEquals(2, theParams.size)
         Assert.assertEquals("%Hello%", theParams[0])
