@@ -1,5 +1,5 @@
 group 'com.github.mslenc'
-version '0.26.0'
+version '0.27.0'
 
 buildscript {
     ext.kotlin_version = '1.5.30'
@@ -49,10 +49,9 @@ dependencies {
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jdk8:$jackson_version"
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jackson_version"
 
-
-    testImplementation "junit:junit:4.12"
-    testImplementation "ch.qos.logback:logback-classic:1.0.13"
-    testImplementation "mysql:mysql-connector-java:8.0.19"
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'ch.qos.logback:logback-classic:1.2.5'
+    testImplementation 'mysql:mysql-connector-java:8.0.25'
     testImplementation 'com.github.mslenc:gqlktx:0.13.0'
 }
 

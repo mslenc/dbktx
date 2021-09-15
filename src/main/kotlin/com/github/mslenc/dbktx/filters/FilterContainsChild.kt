@@ -33,7 +33,7 @@ class FilterContainsChild<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
                     }
                 }
                 +IN
-                +"(SELECT "
+                +"(SELECT DISTINCT "
                 tuple(mappings) {
                     +it.bindColumnFrom(childTable)
                 }

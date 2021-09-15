@@ -158,7 +158,7 @@ class AggregateTest {
             "WHERE (CE.\"id_country\" = 123) " +
             "AND (" +
                 "(C.\"id_competition\" IN " +
-                    "(SELECT CE2.\"id_comp\" FROM \"comp_entries\" AS CE2 " +
+                    "(SELECT DISTINCT CE2.\"id_comp\" FROM \"comp_entries\" AS CE2 " +
                     "WHERE CE2.\"weight_id\" IN (12, 13, 14))" +
                 ")" +
             ") AND (LN.\"name\" LIKE ? ESCAPE '|') " +

@@ -110,6 +110,10 @@ internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>
         return query.filteringState()
     }
 
+    override fun checkpoint(): FilterCheckpoint {
+        return query.checkpoint()
+    }
+
     override fun <T : Any> sum(block: ExprBuilder<CURR>.() -> Expr<T>): NullableAggrExpr<T> {
         val inner = table.newExprBuilder().block()
         return AggrExprImpl(AggrExprOp.SUM, inner, inner.sqlType)

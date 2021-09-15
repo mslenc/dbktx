@@ -9,7 +9,6 @@ import com.github.mslenc.dbktx.crud.filter
 import com.github.mslenc.dbktx.schemas.initSchemas
 import com.github.mslenc.dbktx.schemas.test1.Brand
 import com.github.mslenc.dbktx.schemas.test1.Company
-import com.github.mslenc.dbktx.schemas.test1.TestSchema1
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert
@@ -54,7 +53,7 @@ class TextSearchBuilderTest {
 
         Assert.assertTrue(called.get())
 
-        Assert.assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C WHERE C.\"id\" IN (SELECT B.\"company_id\" FROM \"brands\" AS B WHERE (B.\"name\" ILIKE ? ESCAPE '|') AND (B.\"name\" ILIKE ? ESCAPE '|'))", theSql)
+        Assert.assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C WHERE C.\"id\" IN (SELECT DISTINCT B.\"company_id\" FROM \"brands\" AS B WHERE (B.\"name\" ILIKE ? ESCAPE '|') AND (B.\"name\" ILIKE ? ESCAPE '|'))", theSql)
 
         Assert.assertEquals(2, theParams.size)
         Assert.assertEquals("%Hello%", theParams[0])

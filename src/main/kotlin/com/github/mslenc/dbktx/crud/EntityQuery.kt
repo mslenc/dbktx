@@ -51,10 +51,15 @@ enum class FilteringState {
     MATCH_SOME
 }
 
+interface FilterCheckpoint {
+    fun anyFiltersSince(): Boolean
+}
+
 interface FilterableQuery<E : DbEntity<E, *>>: Query {
     val table : TableInQuery<E>
     fun require(filter: Expr<Boolean>)
     fun filteringState(): FilteringState
+    fun checkpoint(): FilterCheckpoint
 }
 
 fun <E: DbEntity<E, *>>
@@ -159,6 +164,12 @@ FilterableQuery<E>.excludeWhenAllOf(exprs: Collection<Expr<Boolean>>) {
     require(!FilterAnd.create(exprs))
 }
 
+internal class FilterCheckpointImpl(private val query: FilterableQueryImpl<*>, private val filters: Expr<Boolean>) : FilterCheckpoint {
+    override fun anyFiltersSince(): Boolean {
+        return filters !== query.filters
+    }
+}
+
 internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
         table: DbTable<E, *>,
         val db: DbConn) : QueryImpl(), FilterableQuery<E> {
@@ -183,6 +194,10 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
             MatchNothing -> FilteringState.MATCH_NONE
             else -> FilteringState.MATCH_SOME
         }
+    }
+
+    override fun checkpoint(): FilterCheckpoint {
+        return FilterCheckpointImpl(this, filters)
     }
 }
 

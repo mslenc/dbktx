@@ -87,6 +87,10 @@ internal class AggrInsertSelectBuilderImpl<OUT: DbEntity<OUT, *>, ROOT: DbEntity
         return query.filteringState()
     }
 
+    override fun checkpoint(): FilterCheckpoint {
+        return query.checkpoint()
+    }
+
     override fun <T : Any> expr(block: AggrExprBuilder<CURR>.() -> Expr<T>): Expr<T> {
         return table.newExprBuilder().block()
     }

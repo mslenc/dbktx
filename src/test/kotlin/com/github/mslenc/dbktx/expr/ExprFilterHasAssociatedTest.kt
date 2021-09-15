@@ -5,7 +5,10 @@ import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.conn.query
 import com.github.mslenc.dbktx.crud.filter
+import com.github.mslenc.dbktx.filters.MatchAnything
+import com.github.mslenc.dbktx.filters.MatchNothing
 import com.github.mslenc.dbktx.schemas.initSchemas
+import com.github.mslenc.dbktx.schemas.test1.Company
 import com.github.mslenc.dbktx.schemas.test1.Company.Companion.CONTACT_INFO_REF
 import com.github.mslenc.dbktx.schemas.test1.ContactInfo
 import com.github.mslenc.dbktx.schemas.test1.TestSchema1
@@ -22,6 +25,7 @@ import org.junit.Test
 import java.util.concurrent.atomic.AtomicBoolean
 
 import org.junit.Assert.*
+import java.util.*
 import java.util.concurrent.CompletableFuture
 
 class ExprFilterHasAssociatedTest {
@@ -182,5 +186,30 @@ class ExprFilterHasAssociatedTest {
             assertEquals("John Smith", "${john.contactFirstName()} ${john.contactLastName()}")
             assertEquals("null null", "${mary.contactFirstName()} ${mary.contactLastName()}")
         }
+    }
+
+    @Test
+    fun testFilterCheckpoints() = runBlocking {
+        val db = DbLoaderImpl(MockDbConnection(), this, RequestTime.forTesting())
+        val query = db.newEntityQuery(TestSchema1.COMPANY)
+
+        val check1 = query.checkpoint()
+        assertFalse(check1.anyFiltersSince())
+        query.filter { Company.NAME eq "test" }
+        assertTrue(check1.anyFiltersSince())
+        val check2 = query.checkpoint()
+        assertFalse(check2.anyFiltersSince())
+        query.filter { MatchAnything }
+        assertTrue(check1.anyFiltersSince())
+        assertFalse(check2.anyFiltersSince())
+        query.filter { MatchNothing }
+        assertTrue(check1.anyFiltersSince())
+        assertTrue(check2.anyFiltersSince())
+        val check3 = query.checkpoint()
+        assertFalse(check3.anyFiltersSince())
+        query.filter { Company.ID eq UUID.randomUUID() }
+        assertTrue(check1.anyFiltersSince())
+        assertTrue(check2.anyFiltersSince())
+        assertFalse(check3.anyFiltersSince())
     }
 }
