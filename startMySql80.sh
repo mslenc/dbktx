@@ -1,0 +1,1 @@
+docker run --rm --name dbktx-mysql-80 -e MYSQL_ROOT_HOST=% -e MYSQL_ROOT_PASSWORD=testpassword -e MYSQL_USER=testUser -e MYSQL_PASSWORD=testPass -e MYSQL_DATABASE=testdb -p 13306:3306 mysql/mysql-server:8.0  --max_allowed_packet=350000000 --innodb_log_file_size=500000000

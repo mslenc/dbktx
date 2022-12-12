@@ -14,7 +14,7 @@ object JSON {
     private val jsonMapper = ObjectMapper()
 
     init {
-        jsonMapper.registerModule(KotlinModule())
+        jsonMapper.registerModule(KotlinModule.Builder().build())
         jsonMapper.registerModule(ParameterNamesModule())
         jsonMapper.registerModule(Jdk8Module())
         jsonMapper.registerModule(JavaTimeModule())

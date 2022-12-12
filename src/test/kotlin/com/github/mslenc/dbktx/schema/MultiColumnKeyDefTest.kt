@@ -23,7 +23,7 @@ class MultiColumnKeyDefTest {
 
         val extractedId: Brand.Id? = Brand.ID.extract(values)
         if (extractedId == null)
-            fail("Expected ID") as Nothing
+            throw AssertionError("Expected ID")
 
         assertEquals(companyId, extractedId.companyId)
         assertEquals("someKey", extractedId.key)

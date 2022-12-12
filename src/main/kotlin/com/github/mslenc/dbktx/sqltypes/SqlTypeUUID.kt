@@ -166,6 +166,8 @@ abstract class SqlTypeUUID protected constructor(isNotNull: Boolean) : SqlType<U
                             return BinaryFullString(isNotNull)
                     }
 
+                else ->
+                    Unit // throw below
             }
 
             throw IllegalArgumentException("Don't know how to convert $concreteType($typeSize) to UUID")
