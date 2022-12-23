@@ -56,7 +56,7 @@ abstract class DbEntity<E : DbEntity<E, ID>, ID: Any>(
     private suspend fun <MANY: DbEntity<MANY, *>> makeIncomingRefInfo(ref: RelToOneImpl<MANY, E, ID>, db: DbConn): IncomingRefInfo<E, MANY> {
         @Suppress("UNCHECKED_CAST")
         val query = makeInverseQuery(ref, this as E, db)
-        return IncomingRefInfoImpl(query.countAll(), query)
+        return IncomingRefInfoImpl(query.countAll(), ref, query)
     }
 
     private suspend fun <MANY: DbEntity<MANY, *>> countInverse(ref: RelToOneImpl<MANY, E, ID>, db: DbConn): Long {
@@ -74,12 +74,13 @@ private fun <ONE: DbEntity<ONE, *>, MANY: DbEntity<MANY, *>> makeInverseQuery(re
 
 interface IncomingRefInfo<ONE: DbEntity<ONE, *>, MANY: DbEntity<MANY, *>> {
     val count: Long
-
+    val ref: RelToOne<MANY, ONE>
     suspend fun getRefs(): List<MANY>
 }
 
 class IncomingRefInfoImpl<ONE: DbEntity<ONE, *>, MANY: DbEntity<MANY, *>>(
     override val count: Long,
+    override val ref: RelToOne<MANY, ONE>,
     internal val query: EntityQuery<MANY>
 ) : IncomingRefInfo<ONE, MANY> {
     override suspend fun getRefs(): List<MANY> {
