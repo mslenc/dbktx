@@ -83,6 +83,10 @@ internal class AggrInsertSelectBuilderImpl<OUT: DbEntity<OUT, *>, ROOT: DbEntity
         query.require(filter)
     }
 
+    override fun include(filter: Expr<Boolean>) {
+        query.include(filter)
+    }
+
     override fun filteringState(): FilteringState {
         return query.filteringState()
     }

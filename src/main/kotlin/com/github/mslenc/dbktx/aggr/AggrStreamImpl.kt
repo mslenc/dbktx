@@ -106,6 +106,10 @@ internal class AggrStreamBuilderImpl<E: DbEntity<E, *>, CURR: DbEntity<CURR, *>>
         query.require(filter)
     }
 
+    override fun include(filter: Expr<Boolean>) {
+        query.include(filter)
+    }
+
     override fun filteringState(): FilteringState {
         return query.filteringState()
     }

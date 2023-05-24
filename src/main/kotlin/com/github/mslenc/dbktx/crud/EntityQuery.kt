@@ -58,6 +58,7 @@ interface FilterCheckpoint {
 interface FilterableQuery<E : DbEntity<E, *>>: Query {
     val table : TableInQuery<E>
     fun require(filter: Expr<Boolean>)
+    fun include(filter: Expr<Boolean>)
     fun filteringState(): FilteringState
     fun checkpoint(): FilterCheckpoint
 }
@@ -116,6 +117,31 @@ FilterableQuery<E>.exclude(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, R
 inline fun <E: DbEntity<E, *>, REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>, REF4: DbEntity<REF4, *>>
 FilterableQuery<E>.exclude(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, ref4: RelToSingle<REF3, REF4>, block: ExprBuilder<REF4>.() -> Expr<Boolean>) {
     exclude(createFilter(ref1, ref2, ref3, ref4, block))
+}
+
+inline fun <E: DbEntity<E, *>>
+FilterableQuery<E>.include(block: ExprBuilder<E>.() -> Expr<Boolean>) {
+    include(createFilter(block))
+}
+
+inline fun <E: DbEntity<E, *>, REF: DbEntity<REF, *>>
+FilterableQuery<E>.include(ref: RelToSingle<E, REF>, block: ExprBuilder<REF>.() -> Expr<Boolean>) {
+    include(createFilter(ref, block))
+}
+
+inline fun <E: DbEntity<E, *>, REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>>
+FilterableQuery<E>.include(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, block: ExprBuilder<REF2>.() -> Expr<Boolean>) {
+    include(createFilter(ref1, ref2, block))
+}
+
+inline fun <E: DbEntity<E, *>, REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>>
+FilterableQuery<E>.include(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, block: ExprBuilder<REF3>.() -> Expr<Boolean>) {
+    include(createFilter(ref1, ref2, ref3, block))
+}
+
+inline fun <E: DbEntity<E, *>, REF1: DbEntity<REF1, *>, REF2: DbEntity<REF2, *>, REF3: DbEntity<REF3, *>, REF4: DbEntity<REF4, *>>
+FilterableQuery<E>.include(ref1: RelToSingle<E, REF1>, ref2: RelToSingle<REF1, REF2>, ref3: RelToSingle<REF2, REF3>, ref4: RelToSingle<REF3, REF4>, block: ExprBuilder<REF4>.() -> Expr<Boolean>) {
+    include(createFilter(ref1, ref2, ref3, ref4, block))
 }
 
 
@@ -186,6 +212,12 @@ internal abstract class FilterableQueryImpl<E: DbEntity<E, *>>(
         checkModifiable()
 
         this.filters = this.filters and filter
+    }
+
+    override fun include(filter: Expr<Boolean>) {
+        checkModifiable()
+
+        this.filters = this.filters or filter
     }
 
     override fun filteringState(): FilteringState {
