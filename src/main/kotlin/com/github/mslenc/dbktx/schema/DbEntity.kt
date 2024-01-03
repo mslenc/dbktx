@@ -39,13 +39,13 @@ abstract class DbEntity<E : DbEntity<E, ID>, ID: Any>(
     }
 
     suspend fun hasIncomingRefs(db: DbConn = getContextDb()): Boolean {
-        return metainfo.incomingRefs.any {
+        return metainfo._incomingRefs.any {
             countInverse(it, db) > 0
         }
     }
 
     suspend fun findIncomingRefs(nonZeroOnly: Boolean = true, db: DbConn = getContextDb()): List<IncomingRefInfo<E, *>> {
-        val infos = metainfo.incomingRefs.smap { makeIncomingRefInfo(it, db) }
+        val infos = metainfo._incomingRefs.smap { makeIncomingRefInfo(it, db) }
 
         return when (nonZeroOnly) {
             true -> infos.filter { it.count > 0 }
@@ -53,13 +53,13 @@ abstract class DbEntity<E : DbEntity<E, ID>, ID: Any>(
         }
     }
 
-    private suspend fun <MANY: DbEntity<MANY, *>> makeIncomingRefInfo(ref: RelToOneImpl<MANY, E, ID>, db: DbConn): IncomingRefInfo<E, MANY> {
+    private suspend fun <MANY: DbEntity<MANY, *>> makeIncomingRefInfo(ref: RelToOneImpl<MANY, E, *>, db: DbConn): IncomingRefInfo<E, MANY> {
         @Suppress("UNCHECKED_CAST")
         val query = makeInverseQuery(ref, this as E, db)
         return IncomingRefInfoImpl(query.countAll(), ref, query)
     }
 
-    private suspend fun <MANY: DbEntity<MANY, *>> countInverse(ref: RelToOneImpl<MANY, E, ID>, db: DbConn): Long {
+    private suspend fun <MANY: DbEntity<MANY, *>> countInverse(ref: RelToOneImpl<MANY, E, *>, db: DbConn): Long {
         @Suppress("UNCHECKED_CAST")
         return makeInverseQuery(ref, this as E, db).countAll()
     }

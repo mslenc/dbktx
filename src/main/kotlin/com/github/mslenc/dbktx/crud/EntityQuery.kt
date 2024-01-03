@@ -2,6 +2,7 @@ package com.github.mslenc.dbktx.crud
 
 import com.github.mslenc.dbktx.aggr.*
 import com.github.mslenc.dbktx.conn.DbConn
+import com.github.mslenc.dbktx.conn.buildCountQuery
 import com.github.mslenc.dbktx.conn.buildSelectQuery
 import com.github.mslenc.dbktx.expr.*
 import com.github.mslenc.dbktx.filters.FilterAnd
@@ -278,6 +279,9 @@ interface EntityQuery<E : DbEntity<E, *>>: FilterableQuery<E>, OrderableQuery<E>
     }
 
     fun makeAggregateStreamQuery(queryBuilder: AggrStreamTopLevelBuilder<E>.()->Unit): AggrStreamQuery<E>
+
+    fun getQueryString(): String
+    fun getCountString(): String
 }
 
 internal abstract class OrderableFilterableQueryImpl<E : DbEntity<E, *>>(
@@ -473,6 +477,14 @@ internal class EntityQueryImpl<E : DbEntity<E, *>>(table: DbTable<E, *>, db: DbC
 
     override fun toString(): String {
         return buildSelectQuery(this, false).getSql()
+    }
+
+    override fun getQueryString(): String {
+        return buildSelectQuery(this, selectForUpdate).getSql()
+    }
+
+    override fun getCountString(): String {
+        return buildCountQuery(this).getSql()
     }
 }
 

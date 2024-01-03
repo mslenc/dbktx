@@ -623,7 +623,7 @@ internal constructor(
         if (table.columnsByDbName.put(column.fieldName, column) != null)
             throw IllegalArgumentException("A column named " + column.fieldName + " already exists")
 
-        table.columns.add(column)
+        table._columns.add(column)
     }
 
     protected fun <T : Any>
@@ -660,7 +660,8 @@ internal constructor(
         table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
             val targetTable = table.schema.getTableFor(targetClass)
 
-            targetTable.incomingRefs += result
+            table._outgoingRefs += result
+            targetTable._incomingRefs += result
 
             if (!sourceColumn.sqlType.kotlinType.isSubclassOf(targetTable.idClass))
                 throw IllegalStateException("Type mismatch on relToOne mapping for table " + table.dbName)
@@ -712,6 +713,10 @@ internal constructor(
         val result = RelToOneImpl<E, TARGET, TID>()
         table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
             val targetTable = table.schema.getTableFor(targetClass)
+
+            table._outgoingRefs += result
+            targetTable._incomingRefs += result
+
             @Suppress("UNCHECKED_CAST")
             val targetIdColumns = targetTable.primaryKey as MultiColumnKeyDef<TARGET, TID>
             val targetId = targetIdColumns(dummyRow(targetTable.columns))
@@ -744,6 +749,9 @@ internal constructor(
         val result = RelToOneImpl<E, TARGET, TID>()
         table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
             val targetTable = table.schema.getTableFor(targetClass)
+
+            table._outgoingRefs += result
+            targetTable._incomingRefs += result
 
             @Suppress("UNCHECKED_CAST")
             val targetIdColumns = targetTable.primaryKey as MultiColumnKeyDef<TARGET, TID>
@@ -780,6 +788,9 @@ internal constructor(
         table.schema.addLazyInit(PRIORITY_REL_TO_ONE) {
             val targetKey = targetKeyGetter()
             val targetTable = targetKey.table
+
+            table._outgoingRefs += result
+            targetTable._incomingRefs += result
 
             val targetIdColumns = targetKey
             val targetId = targetIdColumns(dummyRow(targetTable.columns))
@@ -840,7 +851,7 @@ internal constructor(
         const val PRIORITY_REL_TO_ONE = 1
         const val PRIORITY_REL_TO_MANY = 2
 
-        internal fun <E : DbEntity<E, *>> dummyRow(columns: ArrayList<Column<E, *>>): DbRow {
+        internal fun <E : DbEntity<E, *>> dummyRow(columns: List<Column<E, *>>): DbRow {
             val res = FakeRowData()
 
             for (column in columns)
