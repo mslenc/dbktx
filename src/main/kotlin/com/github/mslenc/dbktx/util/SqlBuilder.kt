@@ -107,8 +107,8 @@ class Sql(val dbType: DbType) {
         return this
     }
 
-    operator fun invoke(sqlEmitter: SqlEmitter, topLevel: Boolean = false): Sql {
-        sqlEmitter.toSql(this, topLevel)
+    operator fun invoke(sqlEmitter: SqlEmitter, nullWillBeFalse: Boolean, topLevel: Boolean): Sql {
+        sqlEmitter.toSql(this, nullWillBeFalse, topLevel)
         return this
     }
 
@@ -205,7 +205,7 @@ class Sql(val dbType: DbType) {
                 ColumnInMappingKind.PARAMETER -> {
                     columnForSelect(SqlBuilderHelpers.forceBindColumnTo(colMap, joinedTable))
                     raw(" = ")
-                    colMap.columnFromLiteral.toSql(this)
+                    colMap.columnFromLiteral.toSql(this, true, false)
                 }
             }
         }
@@ -238,7 +238,7 @@ class Sql(val dbType: DbType) {
                 ColumnInMappingKind.PARAMETER -> {
                     columnForSelect(SqlBuilderHelpers.forceBindColumnTo(colMap, sourceTable))
                     raw(" = ")
-                    colMap.columnFromLiteral.toSql(this)
+                    colMap.columnFromLiteral.toSql(this, true, false)
                 }
             }
         }
@@ -271,7 +271,7 @@ class Sql(val dbType: DbType) {
                 ColumnInMappingKind.PARAMETER -> {
                     columnForSelect(SqlBuilderHelpers.forceBindColumnTo(colMap, sourceTable))
                     raw(" = ")
-                    colMap.columnFromLiteral.toSql(this)
+                    colMap.columnFromLiteral.toSql(this, true, false)
                 }
             }
         }
@@ -282,7 +282,7 @@ class Sql(val dbType: DbType) {
     fun WHERE(filter: Expr<Boolean>): Sql {
         if (filter != MatchAnything) {
             raw(" WHERE ")
-            filter.toSql(this, true)
+            filter.toSql(this, true, true)
         }
         return this
     }
@@ -295,12 +295,12 @@ class Sql(val dbType: DbType) {
         for ((index, group) in groupBy.withIndex()) {
             if (index > 0)
                 raw(", ")
-            group.toSql(this, true)
+            group.toSql(this, true, true)
         }
     }
 
-    fun subQueryWrapper(negated: Boolean, needleCanBeNull: Boolean, block: Sql.(String)->Unit) {
-        if (needleCanBeNull) {
+    fun subQueryWrapper(negated: Boolean, needleCanBeNull: Boolean, nullWillBeFalse: Boolean, block: Sql.(String)->Unit) {
+        if (needleCanBeNull && (negated || !nullWillBeFalse)) {
             when (dbType) {
                 DbType.MYSQL -> {
                     if (negated) {
@@ -334,8 +334,8 @@ class Sql(val dbType: DbType) {
         }
     }
 
-    fun inLiteralSetWrapper(negated: Boolean, needleCanBeNull: Boolean, block: Sql.(String)->Unit) {
-        if (needleCanBeNull) {
+    fun inLiteralSetWrapper(negated: Boolean, needleCanBeNull: Boolean, nullWillBeFalse: Boolean, block: Sql.(String)->Unit) {
+        if (needleCanBeNull && (negated || !nullWillBeFalse)) {
             when (dbType) {
                 DbType.MYSQL -> {
                     if (negated) {
@@ -416,9 +416,5 @@ class Sql(val dbType: DbType) {
 
     operator fun String.unaryPlus() {
         raw(this)
-    }
-
-    operator fun SqlEmitter.unaryPlus() {
-        invoke(this, false)
     }
 }

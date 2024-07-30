@@ -72,13 +72,13 @@ private fun <E : DbEntity<E, ID>, ID: Any> createBatchedUpdateQuery(table: DbTab
             columnForUpdate(column)
             +" = CASE "
 
-            boundPrimaryKey.toSql(this, true)
+            boundPrimaryKey.toSql(this, false, true)
 
             for ((id, value) in columnValues) {
                 +" WHEN "
-                table.primaryKey.makeLiteral(id).toSql(this, true)
+                table.primaryKey.makeLiteral(id).toSql(this, false, true)
                 + " THEN "
-                value.toSql(this, true)
+                value.toSql(this, false, true)
             }
 
             +" ELSE "
@@ -91,10 +91,10 @@ private fun <E : DbEntity<E, ID>, ID: Any> createBatchedUpdateQuery(table: DbTab
 
         +" WHERE "
 
-        inLiteralSetWrapper(negated = false, needleCanBeNull = false) { IN ->
-            +boundPrimaryKey
+        inLiteralSetWrapper(negated = false, needleCanBeNull = false, nullWillBeFalse = true) { IN ->
+            this(boundPrimaryKey, false, false)
             +IN
-            paren { tuple(allIdsExprs) { +it } }
+            paren { tuple(allIdsExprs) { this(it, false, false) } }
         }
     }
 }

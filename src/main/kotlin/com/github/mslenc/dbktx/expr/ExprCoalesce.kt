@@ -6,10 +6,10 @@ import com.github.mslenc.dbktx.util.Sql
 import java.lang.IllegalArgumentException
 
 class ExprCoalesce<T: Any> private constructor (private val options: List<Expr<T>>) : Expr<T> {
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.raw("COALESCE(")
         sql.tuple(options) {
-            it.toSql(sql, true)
+            it.toSql(sql, false, true)
         }
         sql.raw(")")
     }

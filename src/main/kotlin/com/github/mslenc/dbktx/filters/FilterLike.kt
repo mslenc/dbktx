@@ -27,31 +27,31 @@ class FilterLike (
         return FilterLike(value, pattern, escapeChar, !negated, caseInsensitive)
     }
 
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.expr(topLevel) {
             if (caseInsensitive) {
                 if (sql.dbType == DbType.POSTGRES) {
-                    + value
+                    sql(value, false, false)
                     + (if (negated) " NOT ILIKE " else " ILIKE ")
-                    + pattern
+                    sql(pattern, false, false)
                     + " ESCAPE '"
                     + escapeChar.toString()
                     + "'"
                 } else {
                     + "LOWER("
-                    + value
+                    sql(value, false, false)
                     + ")"
                     + (if (negated) " NOT LIKE " else " LIKE ")
                     + "LOWER("
-                    + pattern
+                    sql(pattern, false, false)
                     + ") ESCAPE '"
                     + escapeChar.toString()
                     + "'"
                 }
             } else {
-                + value
+                sql(value, false, false)
                 + (if (negated) " NOT LIKE " else " LIKE ")
-                + pattern
+                sql(pattern, false, false)
                 + " ESCAPE '"
                 + escapeChar.toString()
                 + "'"

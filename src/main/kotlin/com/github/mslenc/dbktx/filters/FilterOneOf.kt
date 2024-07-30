@@ -11,12 +11,12 @@ class FilterOneOf<T: Any>(private val needle: Expr<T>, private val haystack: Lis
             throw IllegalArgumentException("Empty list for oneOf")
     }
 
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.expr(topLevel) {
-            sql.inLiteralSetWrapper(negated, needleCanBeNull = needle.couldBeNull) { IN ->
-                +needle
+            sql.inLiteralSetWrapper(negated, needleCanBeNull = needle.couldBeNull, nullWillBeFalse = nullWillBeFalse) { IN ->
+                sql(needle, false, false)
                 +IN
-                paren { tuple(haystack) { +it } }
+                paren { tuple(haystack) { sql(it, false, false) } }
             }
         }
     }

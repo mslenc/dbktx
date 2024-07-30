@@ -10,11 +10,11 @@ import com.github.mslenc.dbktx.sqltypes.SqlTypeBoolean
 import com.github.mslenc.dbktx.util.Sql
 
 interface SqlEmitter {
-    fun toSql(sql: Sql, topLevel: Boolean = false)
+    fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean)
 
     fun toSqlStringForDebugging(): String {
         val sql = Sql(DbType.POSTGRES)
-        toSql(sql, true)
+        toSql(sql, true, true)
         return sql.getSql()
     }
 }

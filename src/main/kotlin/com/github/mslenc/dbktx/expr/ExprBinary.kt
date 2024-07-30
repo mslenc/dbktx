@@ -22,13 +22,13 @@ internal class ExprBinary<T: Any>(private val left: Expr<T>, private val op: Bin
     override val involvesAggregation: Boolean
         get() = left.involvesAggregation || right.involvesAggregation
 
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.expr(topLevel) {
-            +left
+            sql(left, nullWillBeFalse, false)
             +" "
             +op.sql
             +" "
-            +right
+            sql(right, nullWillBeFalse, false)
         }
     }
 

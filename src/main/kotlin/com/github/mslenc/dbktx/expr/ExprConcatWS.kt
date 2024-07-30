@@ -6,13 +6,13 @@ import com.github.mslenc.dbktx.sqltypes.SqlTypeVarchar
 import com.github.mslenc.dbktx.util.Sql
 
 class ExprConcatWS private constructor (private val sep: Expr<String>, private val parts: List<Expr<*>>) : Expr<String> {
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.raw("CONCAT_WS(")
-            sep.toSql(sql)
+            sql(sep, true, false)
             sql.raw(", ")
 
             sql.tuple(parts) {
-                it.toSql(sql, true)
+                it.toSql(sql, false, true)
             }
         sql.raw(")")
     }

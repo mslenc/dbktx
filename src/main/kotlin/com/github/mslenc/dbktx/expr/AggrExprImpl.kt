@@ -17,12 +17,12 @@ internal enum class CountExprOp {
 }
 
 internal class CountExpr<T : Any>(val op: CountExprOp, val expr: Expr<*>, override val sqlType: SqlType<T>) : NonNullAggrExpr<T>, SqlEmitter {
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.raw(when(op) {
             CountExprOp.COUNT -> "COUNT("
             CountExprOp.COUNT_DISTINCT -> "COUNT(DISTINCT "
         })
-        expr.toSql(sql, true)
+        expr.toSql(sql, false, true)
         sql.raw(")")
     }
 
@@ -32,14 +32,14 @@ internal class CountExpr<T : Any>(val op: CountExprOp, val expr: Expr<*>, overri
 }
 
 internal class AggrExprImpl<T : Any>(val op: AggrExprOp, val expr: Expr<*>, override val sqlType: SqlType<T>) : NullableAggrExpr<T>, SqlEmitter {
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.raw(when(op) {
             AggrExprOp.SUM -> "SUM("
             AggrExprOp.MIN -> "MIN("
             AggrExprOp.MAX -> "MAX("
             AggrExprOp.AVG -> "AVG("
         })
-        expr.toSql(sql, true)
+        expr.toSql(sql, false, true)
         sql.raw(")")
     }
 

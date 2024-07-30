@@ -67,7 +67,7 @@ internal class AggrStreamImpl<E: DbEntity<E, *>>(table: DbTable<E, *>, db: DbCon
             for ((idx: Int, selectable: SqlEmitter) in selects.withIndex()) {
                 if (idx > 0)
                     raw(", ")
-                selectable.toSql(this, true)
+                selectable.toSql(this, false, true)
             }
 
             FROM(table)
@@ -77,7 +77,7 @@ internal class AggrStreamImpl<E: DbEntity<E, *>>(table: DbTable<E, *>, db: DbCon
             if (!orderBy.isEmpty()) {
                 +" ORDER BY "
                 tuple(orderBy) {
-                    +it.expr
+                    this(it.expr, false, false)
                     if (!it.isAscending)
                         +" DESC"
                 }

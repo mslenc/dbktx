@@ -7,10 +7,10 @@ import com.github.mslenc.dbktx.util.Sql
 
 class FilterNegate(private val inner: Expr<Boolean>) : FilterExpr {
 
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.expr(topLevel) {
             +"NOT "
-            +inner
+            sql(inner, false, false)
         }
     }
 

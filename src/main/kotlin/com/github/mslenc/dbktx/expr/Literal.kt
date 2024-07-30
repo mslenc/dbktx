@@ -5,7 +5,7 @@ import com.github.mslenc.dbktx.sqltypes.SqlType
 import com.github.mslenc.dbktx.util.Sql
 
 class Literal<T: Any>(private val value: T, override val sqlType: SqlType<T>) : Expr<T> {
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sqlType.toSql(value, sql)
     }
 

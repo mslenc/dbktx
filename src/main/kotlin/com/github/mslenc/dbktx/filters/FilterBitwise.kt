@@ -6,22 +6,22 @@ import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.util.Sql
 
 internal class FilterBitwise<T: Any>(private val left: Expr<T>, private val op: Op, private val right: Expr<T>) : FilterExpr {
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         when (op) {
             Op.HAS_ANY_BITS -> {
                 sql.expr(topLevel) {
-                    +left
+                    sql(left, false, false)
                     raw(" & ")
-                    +right
+                    sql(right, false, false)
                 }
             }
 
             Op.HAS_NO_BITS -> {
                 sql.expr(topLevel) {
                     sql.paren {
-                        +left
+                        sql(left, false, false)
                         raw(" & ")
-                        +right
+                        sql(right, false, false)
                     }
                     raw(" = 0")
                 }

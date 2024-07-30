@@ -16,7 +16,7 @@ class FilterHasParent<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         private val dstTable: TableInQuery<TO>,
         private val negated: Boolean = false) : FilterExpr {
 
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         val mappings = info.columnMappings
         val n = mappings.size
 
@@ -24,10 +24,10 @@ class FilterHasParent<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
 
         if (dstTable.incomingJoin?.joinType == JoinType.SUB_QUERY) {
             sql.expr(topLevel) {
-                sql.subQueryWrapper(negated, needleCanBeNull) { IN ->
+                sql.subQueryWrapper(negated, needleCanBeNull, nullWillBeFalse) { IN ->
                     paren(n > 1) {
                         tuple(info.columnMappings) {
-                            +it.bindFrom(srcTable)
+                            sql(it.bindFrom(srcTable), false, false)
                         }
                     }
                     +IN
@@ -42,7 +42,7 @@ class FilterHasParent<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
             }
         } else {
             sql.expr(topLevel) {
-                +filter
+                sql(filter, nullWillBeFalse, false)
             }
         }
     }

@@ -6,7 +6,7 @@ import com.github.mslenc.dbktx.expr.FilterExpr
 import com.github.mslenc.dbktx.util.Sql
 
 object MatchAnything : FilterExpr {
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.raw("(1=1)")
     }
 

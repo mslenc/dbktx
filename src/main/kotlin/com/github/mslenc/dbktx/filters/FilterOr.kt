@@ -7,10 +7,10 @@ import com.github.mslenc.dbktx.expr.not
 import com.github.mslenc.dbktx.util.Sql
 
 internal class FilterOr internal constructor(private val parts: List<Expr<Boolean>>) : FilterExpr {
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.expr(topLevel) {
             sql.tuple(parts, separator = " OR ") {
-                +it
+                sql(it, nullWillBeFalse, false)
             }
         }
     }

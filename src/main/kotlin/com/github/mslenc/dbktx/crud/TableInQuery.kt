@@ -239,7 +239,7 @@ internal class BaseTableInUpdateQuery<E: DbEntity<E, *>>(query: QueryImpl, table
 
 
 class BoundColumnForSelect<E: DbEntity<E, *>, T : Any>(val column: Column<E, T>, val tableInQuery: TableInQuery<E>) : Expr<T> {
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         if (tableInQuery.tableAlias.isNotEmpty()) {
             sql.raw(tableInQuery.tableAlias)
             sql.raw(".")
@@ -275,7 +275,7 @@ class BoundMultiColumnForSelect<E : DbEntity<E, *>, ID : CompositeId<E, ID>>(val
     override val involvesAggregation: Boolean
         get() = false
 
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.paren {
             sql.tuple(1..numParts) { colIdx ->
                 if (tableInQuery.tableAlias.isNotEmpty()) {

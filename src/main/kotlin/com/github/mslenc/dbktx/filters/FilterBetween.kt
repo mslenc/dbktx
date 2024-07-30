@@ -11,13 +11,13 @@ class FilterBetween<T: Any>(
         private val maximum: Expr<T>,
         private val between: Boolean
 ): FilterExpr {
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.expr(topLevel) {
-            +value
+            sql(value, false, false)
             +(if (between) " BETWEEN " else " NOT BETWEEN ")
-            +minimum
+            sql(minimum, false, false)
             +" AND "
-            +maximum
+            sql(maximum, false, false)
         }
     }
 

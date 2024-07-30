@@ -43,7 +43,7 @@ internal class AggrInsertSelectQueryImpl<OUT: DbEntity<OUT, *>, ROOT: DbEntity<R
             for ((idx: Int, selectable: SqlEmitter) in selects.withIndex()) {
                 if (idx > 0)
                     raw(", ")
-                selectable.toSql(this, true)
+                selectable.toSql(this, false, true)
             }
 
             FROM(table)
@@ -53,7 +53,7 @@ internal class AggrInsertSelectQueryImpl<OUT: DbEntity<OUT, *>, ROOT: DbEntity<R
             if (!orderBy.isEmpty()) {
                 +" ORDER BY "
                 tuple(orderBy) {
-                    +it.expr
+                    this(it.expr, false, false)
                     if (!it.isAscending)
                         +" DESC"
                 }

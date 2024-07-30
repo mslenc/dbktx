@@ -10,10 +10,10 @@ import com.github.mslenc.dbktx.util.SqlBuilderHelpers
 import java.lang.UnsupportedOperationException
 
 internal class ExprFields<E : DbEntity<E, *>, TYPE : Any>(val columnMappings: Array<ColumnMapping<*, *, *>>, val tableInQuery: TableInQuery<E>) : Expr<TYPE> {
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.paren(true) {
             sql.tuple(columnMappings) {
-                +SqlBuilderHelpers.forceBindFrom(it, tableInQuery)
+                sql(SqlBuilderHelpers.forceBindFrom(it, tableInQuery), false, true)
             }
         }
     }

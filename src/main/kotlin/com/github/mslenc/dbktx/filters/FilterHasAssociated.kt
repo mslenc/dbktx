@@ -16,7 +16,7 @@ class FilterHasAssociated<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         private val childTable: TableInQuery<TO>,
         private val negated: Boolean = false) : FilterExpr {
 
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         val mappings = info.columnMappings
         val n = mappings.size
 
@@ -25,16 +25,16 @@ class FilterHasAssociated<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
         // but it's unclear if it'd be actually useful anywhere, so postponing for now
         if (childTable.incomingJoin?.joinType == JoinType.SUB_QUERY) {
             sql.expr(topLevel) {
-                sql.subQueryWrapper(negated, needleCanBeNull = false) { IN ->
+                sql.subQueryWrapper(negated, needleCanBeNull = false, nullWillBeFalse = nullWillBeFalse) { IN ->
                     paren(n > 1) {
                         tuple(mappings) {
-                            sql(it.bindColumnTo(parentTable), false)
+                            sql(it.bindColumnTo(parentTable), false, false)
                         }
                     }
                     +IN
                     +"(SELECT "
                         tuple(mappings) {
-                            +it.bindColumnFrom(childTable)
+                            sql(it.bindColumnFrom(childTable), false, false)
                         }
                         FROM(info.manyTable, childTable.tableAlias)
                         WHERE(filter)
@@ -43,7 +43,7 @@ class FilterHasAssociated<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
             }
         } else {
             sql.expr(topLevel) {
-                +filter
+                sql(filter, nullWillBeFalse, false)
             }
         }
     }

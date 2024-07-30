@@ -5,7 +5,7 @@ import com.github.mslenc.dbktx.sqltypes.SqlType
 import com.github.mslenc.dbktx.util.Sql
 
 class ExprNull<T : Any>(override val sqlType: SqlType<T>) : Expr<T> {
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sqlType.toSqlNull(sql)
     }
 

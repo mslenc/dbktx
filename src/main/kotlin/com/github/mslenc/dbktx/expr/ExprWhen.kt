@@ -6,17 +6,17 @@ import com.github.mslenc.dbktx.util.Sql
 import java.lang.IllegalArgumentException
 
 class ExprWhen<T: Any> private constructor (private val options: List<Pair<Expr<Boolean>, Expr<T>>>, private val elseOption: Expr<T>?) : Expr<T> {
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.raw("CASE")
         for (option in options) {
             sql.raw(" WHEN ")
-            option.first.toSql(sql, true)
+            option.first.toSql(sql, false, true)
             sql.raw(" THEN ")
-            option.second.toSql(sql, true)
+            option.second.toSql(sql, false, true)
         }
         if (elseOption != null) {
             sql.raw(" ELSE ")
-            elseOption.toSql(sql, true)
+            elseOption.toSql(sql, false, true)
         }
         sql.raw(" END")
     }

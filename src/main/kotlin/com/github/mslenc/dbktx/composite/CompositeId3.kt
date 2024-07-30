@@ -38,7 +38,7 @@ abstract class CompositeId3<E : DbEntity<E, *>, T1: Any, T2: Any, T3: Any, ID : 
         }
     }
 
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.paren {
             column1.sqlType.toSql(component1, this)
             +", "

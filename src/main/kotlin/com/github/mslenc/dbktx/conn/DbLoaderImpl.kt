@@ -33,7 +33,7 @@ buildSelectQuery(query: EntityQueryImpl<E>, selectForUpdate: Boolean): Sql {
         if (query.orderBy.isNotEmpty()) {
             +" ORDER BY "
             tuple(query.orderBy) {
-                +it.expr
+                this(it.expr, false, false)
                 if (!it.isAscending)
                     +" DESC"
             }
@@ -125,7 +125,7 @@ internal fun <E : DbEntity<E, *>, T: Any> emitValue(column: Column<E, T>, values
     if (value == null) {
         sb.raw("NULL")
     } else {
-        value.toSql(sb, true)
+        value.toSql(sb, false, true)
     }
 }
 

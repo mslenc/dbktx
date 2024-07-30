@@ -162,7 +162,7 @@ class ExprFilterHasAssociatedTest {
 
                 }
 
-                if (sql == "SELECT CI2.\"id\", CI2.\"first_name\", CI2.\"last_name\", CI2.\"street_1\", CI2.\"street_2\", CI2.\"employee_id\" FROM \"contact_info_2\" AS CI2 WHERE (TRUE IS NOT DISTINCT FROM (CI2.\"employee_id\" IN (1, 2)))") {
+                if (sql == "SELECT CI2.\"id\", CI2.\"first_name\", CI2.\"last_name\", CI2.\"street_1\", CI2.\"street_2\", CI2.\"employee_id\" FROM \"contact_info_2\" AS CI2 WHERE CI2.\"employee_id\" IN (1, 2)") {
                     return CompletableFuture.completedFuture(MockResultSet.Builder().
                             addColumns("id", "first_name", "last_name", "street_1", "street_2", "employee_id").
                             addRow(100L, "John", "Smith", null, null, 1L).

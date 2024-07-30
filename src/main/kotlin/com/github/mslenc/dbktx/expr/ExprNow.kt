@@ -5,7 +5,7 @@ import com.github.mslenc.dbktx.sqltypes.SqlType
 import com.github.mslenc.dbktx.util.Sql
 
 class ExprNow<T: Any> : Expr<T> {
-    override fun toSql(sql: Sql, topLevel: Boolean) {
+    override fun toSql(sql: Sql, nullWillBeFalse: Boolean, topLevel: Boolean) {
         sql.raw("NOW()")
     }
 
