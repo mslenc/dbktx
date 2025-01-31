@@ -4,14 +4,13 @@ import com.github.mslenc.asyncdb.DbResultSet
 import com.github.mslenc.dbktx.conn.DbLoaderImpl
 import com.github.mslenc.dbktx.conn.RequestTime
 import com.github.mslenc.dbktx.conn.query
+import com.github.mslenc.dbktx.crud.exclude
 import com.github.mslenc.dbktx.crud.filter
 import com.github.mslenc.dbktx.filters.MatchAnything
 import com.github.mslenc.dbktx.filters.MatchNothing
 import com.github.mslenc.dbktx.schemas.initSchemas
-import com.github.mslenc.dbktx.schemas.test1.Company
+import com.github.mslenc.dbktx.schemas.test1.*
 import com.github.mslenc.dbktx.schemas.test1.Company.Companion.CONTACT_INFO_REF
-import com.github.mslenc.dbktx.schemas.test1.ContactInfo
-import com.github.mslenc.dbktx.schemas.test1.TestSchema1
 import com.github.mslenc.dbktx.schemas.test3.Employee
 import com.github.mslenc.dbktx.util.makeDbContext
 import com.github.mslenc.dbktx.util.testing.MockDbConnection
@@ -211,5 +210,91 @@ class ExprFilterHasAssociatedTest {
         assertTrue(check1.anyFiltersSince())
         assertTrue(check2.anyFiltersSince())
         assertFalse(check3.anyFiltersSince())
+    }
+
+    @Test
+    fun testNegationOnInnerJoinedQuery() = runBlocking {
+        val called = AtomicBoolean(false)
+        var theSql: String? = null
+        var theParams: List<Any?> = emptyList()
+
+        val connection = object : MockDbConnection() {
+            override fun executeQuery(sql: String, values: MutableList<Any?>): CompletableFuture<DbResultSet> {
+                called.set(true)
+                theSql = sql
+                theParams = values
+
+                return CompletableFuture.completedFuture(MockResultSet.Builder().build())
+            }
+        }
+
+        val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
+
+        val deferred = db.run { async {
+            val query = newEntityQuery(TestSchema1.PURCHASE_ITEM)
+            query.exclude {
+                PurchaseItem.PURCHASE_REF.has {
+                    Purchase.COMPANY_REF.has {
+                        Company.NAME eq "Test"
+                    }
+                }
+            }
+
+            query.orderBy(PurchaseItem.PURCHASE_REF, Purchase.COMPANY_REF, Company.NAME)
+            query.execute()
+        } }
+
+        assertFalse(called.get())
+
+        deferred.await()
+
+        assertTrue(called.get())
+
+        assertEquals("SELECT PI.\"id\", PI.\"company_id\", PI.\"sku\", PI.\"purchase_id\", PI.\"price\", PI.\"t_created\", PI.\"t_updated\" FROM \"purchase_items\" AS PI INNER JOIN \"purchases\" AS P ON P.\"id\" = PI.\"purchase_id\" INNER JOIN \"companies\" AS C ON C.\"id\" = P.\"company_id\" WHERE ((C.\"name\" <> ?)) ORDER BY C.\"name\"", theSql)
+
+        assertEquals(1, theParams.size)
+        assertEquals("Test", theParams[0])
+    }
+
+    @Test
+    fun testNegationOnInnerJoinedQueryZeroToOne() = runBlocking {
+        val called = AtomicBoolean(false)
+        var theSql: String? = null
+        var theParams: List<Any?> = emptyList()
+
+        val connection = object : MockDbConnection() {
+            override fun executeQuery(sql: String, values: MutableList<Any?>): CompletableFuture<DbResultSet> {
+                called.set(true)
+                theSql = sql
+                theParams = values
+
+                return CompletableFuture.completedFuture(MockResultSet.Builder().build())
+            }
+        }
+
+        val db = DbLoaderImpl(connection, this, RequestTime.forTesting())
+
+        val deferred = db.run { async {
+            val query = newEntityQuery(Company)
+            query.exclude {
+                CONTACT_INFO_REF.has {
+                    ContactInfo.ADDRESS like "test"
+                }
+            }
+
+            query.orderBy(CONTACT_INFO_REF, ContactInfo.ID)
+            query.execute()
+        } }
+
+        assertFalse(called.get())
+
+        deferred.await()
+
+        assertTrue(called.get())
+
+        assertEquals("SELECT C.\"id\", C.\"name\", C.\"t_created\", C.\"t_updated\" FROM \"companies\" AS C INNER JOIN \"contact_info\" AS CI ON C.\"id\" = CI.\"company_id\" WHERE (CI.\"address\" NOT LIKE ? ESCAPE '|') ORDER BY CI.\"id\"", theSql)
+
+        assertEquals(1, theParams.size)
+        assertEquals("test", theParams[0])
     }
 }

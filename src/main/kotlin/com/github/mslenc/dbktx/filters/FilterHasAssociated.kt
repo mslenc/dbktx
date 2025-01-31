@@ -5,6 +5,7 @@ import com.github.mslenc.dbktx.crud.TableInQuery
 import com.github.mslenc.dbktx.crud.TableRemapper
 import com.github.mslenc.dbktx.expr.Expr
 import com.github.mslenc.dbktx.expr.FilterExpr
+import com.github.mslenc.dbktx.expr.not
 import com.github.mslenc.dbktx.schema.DbEntity
 import com.github.mslenc.dbktx.schema.ManyToOneInfo
 import com.github.mslenc.dbktx.util.Sql
@@ -43,7 +44,11 @@ class FilterHasAssociated<FROM : DbEntity<FROM, *>, TO : DbEntity<TO, *>>(
             }
         } else {
             sql.expr(topLevel) {
-                sql(filter, nullWillBeFalse, false)
+                if (negated) {
+                    sql(filter.not(), nullWillBeFalse, false)
+                } else {
+                    sql(filter, nullWillBeFalse, false)
+                }
             }
         }
     }
