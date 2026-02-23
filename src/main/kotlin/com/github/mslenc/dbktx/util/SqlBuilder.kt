@@ -62,7 +62,8 @@ class Sql(val dbType: DbType) {
     }
 
     operator fun invoke(value: ByteArray): Sql {
-        toHexString(value, "X'", "'", sql)
+        this.sql.append("?")
+        this.params.add(value)
         return this
     }
 
