@@ -92,7 +92,7 @@ class InsertManyRowImpl<E: DbEntity<E, ID>, ID: Any>(private val owner: InsertMa
         }
     }
 
-    private fun <TARGET : DbEntity<TARGET, TID>, TID, VALTYPE: Any>
+    private fun <TARGET : DbEntity<TARGET, TID>, TID: Any, VALTYPE: Any>
     doColMap(colMap: ColumnMapping<E, TARGET, VALTYPE>, target: TARGET) {
         if (colMap.columnFromKind != ColumnInMappingKind.COLUMN)
             return // TODO: check that constants and parameters match target?

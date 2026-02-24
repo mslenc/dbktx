@@ -77,8 +77,9 @@ interface ExprBuilder<E: DbEntity<E, *>> : ExprBuilderBase<E> {
                 this.eq(values.first())
             else -> {
                 if (values.contains(null)) {
-                    return oneOf(values.filterNotNullTo(HashSet())) or isNull()
+                    oneOf(values.filterNotNullTo(HashSet())) or isNull()
                 } else {
+                    @Suppress("UNCHECKED_CAST")
                     values as Set<T>
                     bind(this).oneOf(values.map { makeLiteral(it) })
                 }
