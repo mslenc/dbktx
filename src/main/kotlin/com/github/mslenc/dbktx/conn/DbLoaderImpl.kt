@@ -351,11 +351,14 @@ class DbLoaderImpl(conn: DbConnection, private val scope: CoroutineScope, overri
     override val dbType: DbType
         get() = db.conn.config.type()
 
-    override suspend fun
-    query(sqlBuilder: Sql): DbResultSet {
+    override suspend fun query(sqlBuilder: Sql): DbResultSet {
         val sql = sqlBuilder.getSql()
         val params = sqlBuilder.params
 
+        return db.conn.executeQuery(sql, params).await()
+    }
+
+    override suspend fun query(sql: String, params: List<Any>): DbResultSet {
         return db.conn.executeQuery(sql, params).await()
     }
 
@@ -368,8 +371,10 @@ class DbLoaderImpl(conn: DbConnection, private val scope: CoroutineScope, overri
     }
 
     override suspend fun streamQuery(sqlBuilder: Sql, receiver: (DbRow) -> Unit): Long {
-        val sql = sqlBuilder.getSql()
-        val params = sqlBuilder.params
+        return streamQuery(sqlBuilder.getSql(), sqlBuilder.params, receiver)
+    }
+
+    override suspend fun streamQuery(sql: String, params: List<Any>, receiver: (DbRow) -> Unit): Long {
         var numRows = 0L
 
         return suspendCoroutine { cont ->
@@ -638,11 +643,16 @@ class DbLoaderImpl(conn: DbConnection, private val scope: CoroutineScope, overri
         result
     }
 
-    override suspend fun
-    execute(sql: String) {
+    override suspend fun execute(sql: String): DbUpdateResult {
         logger.debug("Executing {}", sql)
 
-        db.conn.execute(sql).await()
+        return db.conn.execute(sql).await()
+    }
+
+    override suspend fun execute(sql: String, params: List<Any>): DbUpdateResult {
+        logger.debug("Executing {}", sql)
+
+        return db.conn.execute(sql, params).await()
     }
 
     override fun <E : DbEntity<E, ID>, ID : Any>

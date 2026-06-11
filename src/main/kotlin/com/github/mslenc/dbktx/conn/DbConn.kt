@@ -53,7 +53,14 @@ interface DbConn {
      *
      * @see query for SELECT statements
      */
-    suspend fun execute(sql: String)
+    suspend fun execute(sql: String): DbUpdateResult
+
+    /**
+     * Executes arbitrary SQL (not SELECT)
+     *
+     * @see query for SELECT statements
+     */
+    suspend fun execute(sql: String, params: List<Any>): DbUpdateResult
 
     /**
      * Executes arbitrary SELECT SQL
@@ -63,12 +70,27 @@ interface DbConn {
     suspend fun query(sqlBuilder: Sql): DbResultSet
 
     /**
+     * Executes arbitrary SELECT SQL
+     *
+     * @see execute for non-SELECT statements
+     */
+    suspend fun query(sql: String, params: List<Any>): DbResultSet
+
+    /**
      * Executes arbitrary SELECT SQL in streaming mode. The function will return when streaming is finished.
      *
      * @see execute for non-SELECT statements
      * @return the number of rows processed
      */
     suspend fun streamQuery(sqlBuilder: Sql, receiver: (DbRow)->Unit): Long
+
+    /**
+     * Executes arbitrary SELECT SQL in streaming mode. The function will return when streaming is finished.
+     *
+     * @see execute for non-SELECT statements
+     * @return the number of rows processed
+     */
+    suspend fun streamQuery(sql: String, params: List<Any>, receiver: (DbRow)->Unit): Long
 
     /**
      * INTERNAL FUNCTION, use [EntityQuery.run] instead.
